@@ -21,12 +21,14 @@ import {
   modifierConditionsContrat,
   modifierFicheLocataire,
   retirerLocataire,
+  cautionTotale,
   proposerSoldeCaution,
   terminerContrat,
   type Contrat,
   type LocataireAvecContrat,
 } from '../../repositories/locataireRepository';
 import { degradations, getEtatDesLieux } from '../../repositories/etatDesLieuxRepository';
+import { situationElectricite } from '../../repositories/electriciteRepository';
 import { colors } from '../../theme/colors';
 import { preparerRecu } from '../../documents';
 import { useApercu } from '../../components/documents/Apercu';
@@ -229,7 +231,9 @@ function Contenu({
           <LigneInfo libelle="Toilettes" valeur={formatFCFA(contrat.toilettes)} />
           <LigneInfo libelle="Total mensuel" valeur={formatFCFA(contrat.loyer + contrat.toilettes)} />
           <LigneInfo libelle="Échéance" valeur={`le ${contrat.jour_echeance} du mois`} />
-          <LigneInfo libelle="Caution reçue" valeur={formatFCFA(contrat.caution)} />
+          <LigneInfo libelle="Caution loyer" valeur={formatFCFA(contrat.caution)} />
+          {contrat.caution_electricite ? <LigneInfo libelle="Caution électricité" valeur={formatFCFA(contrat.caution_electricite)} /> : null}
+          {contrat.caution_eau ? <LigneInfo libelle="Caution eau" valeur={formatFCFA(contrat.caution_eau)} /> : null}
           <LigneInfo libelle="Prix du kWh" valeur={formatFCFA(contrat.prix_kwh)} />
           <LigneInfo libelle="Relevé initial" valeur={`${contrat.releve_initial} kWh`} />
         </Carte>
@@ -344,6 +348,8 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
   const [loyer, setLoyer] = useState(String(contrat.loyer));
   const [toilettes, setToilettes] = useState(String(contrat.toilettes));
   const [caution, setCaution] = useState(String(contrat.caution));
+  const [cautionElec, setCautionElec] = useState(String(contrat.caution_electricite ?? 0));
+  const [cautionEau, setCautionEau] = useState(String(contrat.caution_eau ?? 0));
   const [prixKwh, setPrixKwh] = useState(String(contrat.prix_kwh));
   const [jour, setJour] = useState(String(contrat.jour_echeance));
   const [avecFin, setAvecFin] = useState<'non' | 'oui'>(contrat.date_fin ? 'oui' : 'non');
@@ -352,7 +358,7 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
   const [enCours, setEnCours] = useState(false);
 
   const enregistrer = async () => {
-    const v = [loyer, toilettes, caution, prixKwh, jour].map(lireMontant);
+    const v = [loyer, toilettes, caution, prixKwh, jour, cautionElec, cautionEau].map(lireMontant);
     if (v.some((x) => x === null)) {
       setErreur('Montants en FCFA, chiffres uniquement.');
       return;
@@ -365,6 +371,8 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
         loyer: v[0]!,
         toilettes: v[1]!,
         caution: v[2]!,
+        caution_electricite: v[5]!,
+        caution_eau: v[6]!,
         prix_kwh: v[3]!,
         jour_echeance: v[4]!,
       });
@@ -390,10 +398,18 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
       </View>
       <View className="flex-row gap-3">
         <View className="flex-1">
-          <Champ libelle="Caution (FCFA)" value={caution} onChangeText={setCaution} keyboardType="number-pad" />
+          <Champ libelle="Caution loyer (FCFA)" value={caution} onChangeText={setCaution} keyboardType="number-pad" />
         </View>
         <View className="flex-1">
           <Champ libelle="Échéance (jour)" value={jour} onChangeText={setJour} keyboardType="number-pad" />
+        </View>
+      </View>
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Champ libelle="Caution électricité" value={cautionElec} onChangeText={setCautionElec} keyboardType="number-pad" />
+        </View>
+        <View className="flex-1">
+          <Champ libelle="Caution eau" value={cautionEau} onChangeText={setCautionEau} keyboardType="number-pad" />
         </View>
       </View>
       <Champ libelle="Prix du kWh (FCFA)" value={prixKwh} onChangeText={setPrixKwh} keyboardType="number-pad" />
@@ -420,34 +436,48 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
   const [date, setDate] = useState(aujourdhui());
   const lire = useCallback(
     async (db: SqlDatabase) => {
-      const [situation, entree, sortie] = await Promise.all([
+      const [situation, entree, sortie, elec] = await Promise.all([
         situationLocataire(db, contrat.locataire_id),
         getEtatDesLieux(db, contrat.id, 'entree', aujourdhui()),
         getEtatDesLieux(db, contrat.id, 'sortie', aujourdhui()),
+        situationElectricite(db, contrat.id),
       ]);
       return {
         dette: situation.dette,
+        // Électricité consommée au-delà du crédit payé : à retenir sur la caution.
+        deficitElectricite: elec && elec.stock < 0 ? Math.round(-elec.stock * elec.prix_kwh) : 0,
         degradations: entree.enregistre && sortie.enregistre ? degradations(entree.elements, sortie.elements) : [],
       };
     },
     [contrat.id, contrat.locataire_id]
   );
-  const { donnees, chargement } = useRessource(lire, { dette: 0, degradations: [] as ReturnType<typeof degradations> });
+  const { donnees, chargement } = useRessource(lire, { dette: 0, deficitElectricite: 0, degradations: [] as ReturnType<typeof degradations> });
   const [reparations, setReparations] = useState('');
+  const [eau, setEau] = useState('');
   const [motif, setMotif] = useState('');
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
 
   const montantReparations = reparations.trim() === '' ? 0 : lireMontant(reparations);
-  const d = proposerSoldeCaution(contrat.caution, donnees.dette, montantReparations ?? 0);
+  const montantEau = eau.trim() === '' ? 0 : lireMontant(eau);
+  const charges = donnees.deficitElectricite + (montantEau ?? 0);
+  const fonds = cautionTotale(contrat);
+  const d = proposerSoldeCaution(fonds, donnees.dette, montantReparations ?? 0, charges);
+  const motifCharges = [
+    donnees.deficitElectricite ? `électricité consommée ${formatFCFA(donnees.deficitElectricite)}` : '',
+    montantEau ? `eau ${formatFCFA(montantEau)}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   const enregistrer = async () => {
     if (montantReparations === null) return setErreur('Montant des réparations invalide.');
+    if (montantEau === null) return setErreur('Montant de l’eau invalide.');
     const ok = await confirmer(
       'Confirmer le départ ?',
-      `Le contrat de ${nom} sera terminé le ${formatDate(date)}. Caution : ${formatFCFA(d.retenueImpayes)} pour les impayés, ${formatFCFA(
-        d.retenueReparations
-      )} pour les réparations, ${formatFCFA(d.cautionRendue)} rendus au locataire.`,
+      `Le contrat de ${nom} sera terminé le ${formatDate(date)}. Cautions : ${formatFCFA(d.retenueImpayes)} pour les loyers, ${formatFCFA(
+        d.retenueCharges
+      )} pour les charges, ${formatFCFA(d.retenueReparations)} pour les réparations, ${formatFCFA(d.cautionRendue)} rendus au locataire.`,
       'Confirmer le départ'
     );
     if (!ok) return;
@@ -457,6 +487,8 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
       await terminerContrat(await getDatabase(), contrat.id, date, {
         retenueImpayes: d.retenueImpayes,
         retenueReparations: d.retenueReparations,
+        retenueCharges: d.retenueCharges,
+        motifCharges,
         motifReparations: motif,
         cautionRendue: d.cautionRendue,
       });
@@ -486,6 +518,19 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
           ))}
         </View>
       ) : null}
+      {donnees.deficitElectricite ? (
+        <Text className="text-ink text-sm">
+          Électricité consommée sans crédit : <Text className="font-bold">{formatFCFA(donnees.deficitElectricite)}</Text>, retenue sur la caution.
+        </Text>
+      ) : null}
+      <Champ
+        libelle="Eau à payer (FCFA)"
+        value={eau}
+        onChangeText={setEau}
+        keyboardType="number-pad"
+        placeholder="0"
+        aide="Facture d’eau restant à régler par le locataire, s’il y en a."
+      />
       <Champ
         libelle="Coût des réparations (FCFA)"
         value={reparations}
@@ -497,12 +542,13 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
       {montantReparations ? <Champ libelle="Réparations concernées" obligatoire value={motif} onChangeText={setMotif} placeholder="Ex. porte, robinet" /> : null}
       <Carte>
         <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Décompte de la caution</Text>
-        <LigneInfo libelle="Caution versée à l’entrée" valeur={formatFCFA(contrat.caution)} />
+        <LigneInfo libelle="Cautions versées à l’entrée" valeur={formatFCFA(fonds)} />
         <LigneInfo libelle="− Loyers impayés" valeur={formatFCFA(d.retenueImpayes)} />
+        <LigneInfo libelle="− Charges (électricité, eau)" valeur={formatFCFA(d.retenueCharges)} />
         <LigneInfo libelle="− Réparations" valeur={formatFCFA(d.retenueReparations)} />
         <LigneInfo libelle="À rendre au locataire" valeur={<Text className="font-bold text-primary">{formatFCFA(d.cautionRendue)}</Text>} />
         {d.resteDu > 0 ? (
-          <Text className="text-danger text-sm pt-2">La caution ne suffit pas : {nom} doit encore {formatFCFA(d.resteDu)} de loyers.</Text>
+          <Text className="text-danger text-sm pt-2">Les cautions ne suffisent pas : {nom} doit encore {formatFCFA(d.resteDu)}.</Text>
         ) : null}
       </Carte>
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}

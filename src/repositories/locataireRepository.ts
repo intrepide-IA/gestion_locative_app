@@ -26,6 +26,8 @@ export interface Contrat {
   loyer: number;
   toilettes: number;
   caution: number;
+  caution_electricite: number;
+  caution_eau: number;
   prix_kwh: number;
   releve_initial: number;
   jour_echeance: number;
@@ -35,7 +37,13 @@ export interface Contrat {
   caution_retenue_reparations: number;
   motif_retenue: string | null;
   caution_rendue: number;
+  caution_retenue_charges: number;
+  motif_retenue_charges: string | null;
 }
+
+/** Fonds de garantie total d'un contrat : caution de loyer + électricité + eau. */
+export const cautionTotale = (c: Pick<Contrat, 'caution' | 'caution_electricite' | 'caution_eau'>) =>
+  c.caution + (c.caution_electricite ?? 0) + (c.caution_eau ?? 0);
 
 /** Locataire avec son contrat le plus récent (actif de préférence) et le logement associé. */
 export interface LocataireAvecContrat extends Locataire {
@@ -61,7 +69,12 @@ export interface ConditionsContrat {
   date_fin?: string | null;
   loyer: number;
   toilettes: number;
+  /** Caution de loyer. */
   caution: number;
+  /** Caution pour l'électricité (facultative). */
+  caution_electricite?: number;
+  /** Caution pour l'eau (facultative). */
+  caution_eau?: number;
   prix_kwh: number;
   releve_initial: number;
   jour_echeance: number;
@@ -103,6 +116,8 @@ function validerConditions(c: ConditionsContrat) {
     loyer: exigerMontant(c.loyer, 'Loyer'),
     toilettes: exigerMontant(c.toilettes, 'Toilettes'),
     caution: exigerMontant(c.caution, 'Caution'),
+    caution_electricite: exigerMontant(c.caution_electricite ?? 0, 'Caution électricité'),
+    caution_eau: exigerMontant(c.caution_eau ?? 0, 'Caution eau'),
     prix_kwh: exigerMontant(c.prix_kwh, 'Prix du kWh', { strictementPositif: true }),
     releve_initial: c.releve_initial,
     jour_echeance: c.jour_echeance,
@@ -161,20 +176,27 @@ export async function entrerLocataire(
       [f.nom_complet, f.telephone, f.piece_identite, f.notes, now]
     );
     const { lastInsertRowId: contratId } = await tx.run(
-      `INSERT INTO contrats (locataire_id, logement_id, date_debut, date_fin, loyer, toilettes, caution, prix_kwh,
-         releve_initial, jour_echeance, statut, cree_le)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)`,
-      [locataireId, logementId, c.date_debut, c.date_fin, c.loyer, c.toilettes, c.caution, c.prix_kwh, c.releve_initial, c.jour_echeance, now]
+      `INSERT INTO contrats (locataire_id, logement_id, date_debut, date_fin, loyer, toilettes, caution, caution_electricite, caution_eau,
+         prix_kwh, releve_initial, jour_echeance, statut, cree_le)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)`,
+      [
+        locataireId,
+        logementId,
+        c.date_debut,
+        c.date_fin,
+        c.loyer,
+        c.toilettes,
+        c.caution,
+        c.caution_electricite,
+        c.caution_eau,
+        c.prix_kwh,
+        c.releve_initial,
+        c.jour_echeance,
+        now,
+      ]
     );
-    // La caution reçue entre en trésorerie, distinguée des loyers (catégorie « Cautions reçues »).
-    if (c.caution > 0) {
-      const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'caution'");
-      await tx.run(
-        `INSERT INTO mouvements_financiers (date_operation, sens, montant, categorie_id, description, logement_id, origine_type, origine_id, statut, cree_le)
-         VALUES (?, 'entree', ?, ?, ?, ?, 'caution', ?, 'valide', ?)`,
-        [c.date_debut, c.caution, categorie!.id, `Caution de ${f.nom_complet}`, logementId, contratId, now]
-      );
-    }
+    // Les cautions reçues entrent en trésorerie, distinguées des loyers (catégorie « Cautions reçues »).
+    await enregistrerCautionEnTresorerie(tx, contratId, logementId, f.nom_complet, c, c.date_debut, now);
     return { locataireId, contratId };
   });
 }
@@ -203,16 +225,60 @@ export async function modifierConditionsContrat(
     if (contrat.statut !== 'actif') throw new ErreurMetier('Ce contrat est terminé.');
     const c = validerConditions({ ...conditions, date_debut: contrat.date_debut, releve_initial: contrat.releve_initial });
     await tx.run(
-      'UPDATE contrats SET date_fin = ?, loyer = ?, toilettes = ?, caution = ?, prix_kwh = ?, jour_echeance = ? WHERE id = ?',
-      [c.date_fin, c.loyer, c.toilettes, c.caution, c.prix_kwh, c.jour_echeance, contratId]
+      `UPDATE contrats SET date_fin = ?, loyer = ?, toilettes = ?, caution = ?, caution_electricite = ?, caution_eau = ?, prix_kwh = ?,
+         jour_echeance = ? WHERE id = ?`,
+      [c.date_fin, c.loyer, c.toilettes, c.caution, c.caution_electricite, c.caution_eau, c.prix_kwh, c.jour_echeance, contratId]
     );
+    // La trésorerie suit la caution réellement reçue.
+    const nom = await tx.get<{ nom_complet: string }>('SELECT nom_complet FROM locataires WHERE id = ?', [contrat.locataire_id]);
+    await enregistrerCautionEnTresorerie(tx, contratId, contrat.logement_id, nom?.nom_complet ?? '', c, contrat.date_debut, new Date().toISOString());
   });
 }
 
-/** Décompte de la caution au départ : retenues (impayés, réparations) et somme rendue. */
+function libelleCaution(nom: string, c: { caution: number; caution_electricite: number; caution_eau: number }): string {
+  const parts = [
+    c.caution ? `loyer ${c.caution}` : '',
+    c.caution_electricite ? `électricité ${c.caution_electricite}` : '',
+    c.caution_eau ? `eau ${c.caution_eau}` : '',
+  ].filter(Boolean);
+  return parts.length > 1 ? `Caution de ${nom} (${parts.join(', ')} FCFA)` : `Caution de ${nom}`;
+}
+
+/** Une seule entrée « Cautions reçues » par contrat, au total des cautions ; créée, ajustée ou annulée. */
+async function enregistrerCautionEnTresorerie(
+  tx: SqlDatabase,
+  contratId: number,
+  logementId: number,
+  nom: string,
+  c: { caution: number; caution_electricite: number; caution_eau: number },
+  date: string,
+  maintenant: string
+): Promise<void> {
+  const total = cautionTotale(c);
+  const existant = await tx.get<{ id: number }>("SELECT id FROM mouvements_financiers WHERE origine_type = 'caution' AND origine_id = ?", [contratId]);
+  if (existant) {
+    await tx.run(
+      "UPDATE mouvements_financiers SET montant = ?, description = ?, statut = CASE WHEN ? > 0 THEN 'valide' ELSE 'annule' END WHERE id = ?",
+      [Math.max(total, 1), libelleCaution(nom, c), total, existant.id]
+    );
+    return;
+  }
+  if (total <= 0) return;
+  const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'caution'");
+  await tx.run(
+    `INSERT INTO mouvements_financiers (date_operation, sens, montant, categorie_id, description, logement_id, origine_type, origine_id, statut, cree_le)
+     VALUES (?, 'entree', ?, ?, ?, ?, 'caution', ?, 'valide', ?)`,
+    [date, total, categorie!.id, libelleCaution(nom, c), logementId, contratId, maintenant]
+  );
+}
+
+/** Décompte de la caution au départ : retenues (impayés, charges, réparations) et somme rendue. */
 export interface SoldeCaution {
   /** Part de la caution qui règle les loyers impayés (sans nouvelle entrée en trésorerie). */
   retenueImpayes?: number;
+  /** Part gardée pour les charges impayées : électricité consommée sans crédit, eau… */
+  retenueCharges?: number;
+  motifCharges?: string | null;
   /** Part gardée pour réparer les dégradations. */
   retenueReparations?: number;
   motifReparations?: string | null;
@@ -220,12 +286,14 @@ export interface SoldeCaution {
   cautionRendue?: number;
 }
 
-/** Proposition de décompte : impayés d'abord, puis réparations, le reste est rendu. */
-export function proposerSoldeCaution(caution: number, dette: number, reparations: number) {
+/** Proposition de décompte : loyers impayés, puis charges (électricité, eau), puis réparations ; le reste est rendu. */
+export function proposerSoldeCaution(caution: number, dette: number, reparations: number, charges = 0) {
   const retenueImpayes = Math.min(caution, Math.max(0, dette));
-  const retenueReparations = Math.min(caution - retenueImpayes, Math.max(0, reparations));
-  const cautionRendue = caution - retenueImpayes - retenueReparations;
-  return { retenueImpayes, retenueReparations, cautionRendue, resteDu: Math.max(0, dette - retenueImpayes) };
+  const retenueCharges = Math.min(caution - retenueImpayes, Math.max(0, charges));
+  const retenueReparations = Math.min(caution - retenueImpayes - retenueCharges, Math.max(0, reparations));
+  const cautionRendue = caution - retenueImpayes - retenueCharges - retenueReparations;
+  const resteDu = Math.max(0, dette - retenueImpayes) + Math.max(0, charges - retenueCharges) + Math.max(0, reparations - retenueReparations);
+  return { retenueImpayes, retenueCharges, retenueReparations, cautionRendue, resteDu };
 }
 
 /**
@@ -245,6 +313,8 @@ export async function terminerContrat(
   const d: SoldeCaution = typeof solde === 'number' ? { cautionRendue: solde } : solde;
   const retenueImpayes = exigerMontant(d.retenueImpayes ?? 0, 'Retenue pour impayés');
   const retenueReparations = exigerMontant(d.retenueReparations ?? 0, 'Retenue pour réparations');
+  const retenueCharges = exigerMontant(d.retenueCharges ?? 0, 'Retenue pour charges');
+  if (retenueCharges > 0 && !texteOuNull(d.motifCharges)) throw new ErreurMetier('Précisez les charges retenues sur la caution (électricité, eau…).');
   const cautionRestituee = exigerMontant(d.cautionRendue ?? 0, 'Caution restituée');
   if (retenueReparations > 0 && !texteOuNull(d.motifReparations)) throw new ErreurMetier('Précisez les réparations retenues sur la caution.');
   await db.transaction(async (tx) => {
@@ -252,8 +322,9 @@ export async function terminerContrat(
     if (!contrat) throw new ErreurMetier('Contrat introuvable.');
     if (contrat.statut !== 'actif') throw new ErreurMetier('Ce contrat est déjà terminé.');
     if (sortie < contrat.date_debut) throw new ErreurMetier('La date de sortie précède la date d’entrée.');
-    if (retenueImpayes + retenueReparations + cautionRestituee > contrat.caution) {
-      throw new ErreurMetier(`Retenues et somme rendue dépassent la caution reçue (${contrat.caution} FCFA).`);
+    const fonds = cautionTotale(contrat);
+    if (retenueImpayes + retenueCharges + retenueReparations + cautionRestituee > fonds) {
+      throw new ErreurMetier(`Retenues et somme rendue dépassent les cautions reçues (${fonds} FCFA).`);
     }
     if (retenueImpayes > 0) {
       const dette = await situationLocataire(tx, contrat.locataire_id);
@@ -269,8 +340,17 @@ export async function terminerContrat(
     }
     await tx.run(
       `UPDATE contrats SET statut = 'termine', date_sortie = ?, caution_retenue_impayes = ?, caution_retenue_reparations = ?,
-         motif_retenue = ?, caution_rendue = ? WHERE id = ?`,
-      [sortie, retenueImpayes, retenueReparations, texteOuNull(d.motifReparations), cautionRestituee, contratId]
+         motif_retenue = ?, caution_rendue = ?, caution_retenue_charges = ?, motif_retenue_charges = ? WHERE id = ?`,
+      [
+        sortie,
+        retenueImpayes,
+        retenueReparations,
+        texteOuNull(d.motifReparations),
+        cautionRestituee,
+        retenueCharges,
+        texteOuNull(d.motifCharges),
+        contratId,
+      ]
     );
     await tx.run("UPDATE locataires SET statut = 'parti' WHERE id = ?", [contrat.locataire_id]);
     if (cautionRestituee > 0) {

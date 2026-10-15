@@ -265,8 +265,8 @@ describe('caution : fonds de garantie, jamais un loyer', () => {
     const db = await createMigratedDatabase();
     const { locataireId, contratId } = await installer(db, { caution: 78000 });
     await genererEcheances(db, '2026-11-10');
-    expect(proposerSoldeCaution(78000, 52000, 10000)).toEqual({ retenueImpayes: 52000, retenueReparations: 10000, cautionRendue: 16000, resteDu: 0 });
-    expect(proposerSoldeCaution(50000, 52000, 10000)).toEqual({ retenueImpayes: 50000, retenueReparations: 0, cautionRendue: 0, resteDu: 2000 });
+    expect(proposerSoldeCaution(78000, 52000, 10000)).toEqual({ retenueImpayes: 52000, retenueCharges: 0, retenueReparations: 10000, cautionRendue: 16000, resteDu: 0 });
+    expect(proposerSoldeCaution(50000, 52000, 10000)).toEqual({ retenueImpayes: 50000, retenueCharges: 0, retenueReparations: 0, cautionRendue: 0, resteDu: 12000 });
 
     await expect(
       terminerContrat(db, contratId, '2026-11-10', { retenueImpayes: 52000, retenueReparations: 10000, cautionRendue: 16000 })
@@ -283,5 +283,30 @@ describe('caution : fonds de garantie, jamais un loyer', () => {
     expect(await soldeTresorerie(db)).toBe(78000 - 16000);
     const c = await db.get<{ caution_retenue_impayes: number; motif_retenue: string }>('SELECT * FROM contrats WHERE id = ?', [contratId]);
     expect(c).toMatchObject({ caution_retenue_impayes: 52000, motif_retenue: 'Porte cassée' });
+  });
+});
+
+describe('cautions séparées : loyer, électricité, eau', () => {
+  test('une seule entrée en trésorerie au total, ajustée si les cautions changent', async () => {
+    const db = await createMigratedDatabase();
+    const { contratId } = await installer(db, { caution: 75000, caution_electricite: 10000, caution_eau: 5000 });
+    expect(await soldeTresorerie(db)).toBe(90000);
+    const m = await db.get<{ description: string }>("SELECT description FROM mouvements_financiers WHERE origine_type = 'caution'");
+    expect(m?.description).toContain('électricité 10000');
+    await modifierConditionsContrat(db, contratId, { ...conditions, caution: 75000, caution_electricite: 0, caution_eau: 5000 });
+    expect(await soldeTresorerie(db)).toBe(80000);
+  });
+
+  test('départ : loyers, puis charges (électricité, eau), puis réparations sur le fonds total', async () => {
+    const db = await createMigratedDatabase();
+    const { contratId } = await installer(db, { caution: 50000, caution_electricite: 10000, caution_eau: 5000 });
+    await genererEcheances(db, '2026-10-10');
+    const d = proposerSoldeCaution(65000, 26000, 8000, 6000);
+    expect(d).toEqual({ retenueImpayes: 26000, retenueCharges: 6000, retenueReparations: 8000, cautionRendue: 25000, resteDu: 0 });
+    await expect(terminerContrat(db, contratId, '2026-10-10', { ...d, motifReparations: 'Vitre' })).rejects.toThrow(/charges/);
+    await terminerContrat(db, contratId, '2026-10-10', { ...d, motifReparations: 'Vitre', motifCharges: 'Électricité consommée' });
+    const c = await db.get<{ caution_retenue_charges: number; caution_rendue: number }>('SELECT * FROM contrats WHERE id = ?', [contratId]);
+    expect(c).toMatchObject({ caution_retenue_charges: 6000, caution_rendue: 25000 });
+    expect(await soldeTresorerie(db)).toBe(65000 - 25000);
   });
 });

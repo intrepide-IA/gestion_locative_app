@@ -18,6 +18,8 @@ export interface DonneesContrat {
   loyer: number;
   toilettes: number;
   caution: number;
+  cautionElectricite: number;
+  cautionEau: number;
   jourEcheance: number;
   dateDebut: string;
   dateFin: string | null;
@@ -28,6 +30,8 @@ export async function donneesContrat(db: SqlDatabase, contratId: number): Promis
     loyer: number;
     toilettes: number;
     caution: number;
+    caution_electricite: number;
+    caution_eau: number;
     jour_echeance: number;
     date_debut: string;
     date_fin: string | null;
@@ -36,7 +40,7 @@ export async function donneesContrat(db: SqlDatabase, contratId: number): Promis
     piece_identite: string | null;
     reference: string;
   }>(
-    `SELECT c.loyer, c.toilettes, c.caution, c.jour_echeance, c.date_debut, c.date_fin, t.nom_complet, t.telephone, t.piece_identite, l.reference
+    `SELECT c.loyer, c.toilettes, c.caution, c.caution_electricite, c.caution_eau, c.jour_echeance, c.date_debut, c.date_fin, t.nom_complet, t.telephone, t.piece_identite, l.reference
      FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id WHERE c.id = ?`,
     [contratId]
   );
@@ -52,6 +56,8 @@ export async function donneesContrat(db: SqlDatabase, contratId: number): Promis
     loyer: c.loyer,
     toilettes: c.toilettes,
     caution: c.caution,
+    cautionElectricite: c.caution_electricite ?? 0,
+    cautionEau: c.caution_eau ?? 0,
     jourEcheance: c.jour_echeance,
     dateDebut: c.date_debut,
     dateFin: c.date_fin,
@@ -126,6 +132,13 @@ demander la résiliation pure et simple du bail. Le locataire devra libérer le 
 
 <h2>Article 6 : Caution</h2>
 <p>Le locataire verse une caution de : ${v(formatFCFA(d.caution))}${moisCaution > 0 ? ` (soit ${String(moisCaution).replace('.', ',')} mois de loyer)` : ''}.</p>
+${
+  d.cautionElectricite || d.cautionEau
+    ? `<p>Il verse en outre${d.cautionElectricite ? ` une caution pour l’électricité de ${v(formatFCFA(d.cautionElectricite))}` : ''}${
+        d.cautionElectricite && d.cautionEau ? ' et' : ''
+      }${d.cautionEau ? ` une caution pour l’eau de ${v(formatFCFA(d.cautionEau))}` : ''}, qui garantissent le paiement de ces consommations.</p>`
+    : ''
+}
 <p>Conformément à la réglementation en vigueur au Bénin, la caution ne peut excéder trois mois de loyer. Elle sera restituée à la fin du bail
 après vérification de l’état du logement.</p>
 

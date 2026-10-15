@@ -76,6 +76,8 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
   const [loyer, setLoyer] = useState(initial ? String(initial.loyer_indicatif) : '');
   const [toilettes, setToilettes] = useState(initial ? String(initial.toilettes) : '');
   const [caution, setCaution] = useState('');
+  const [cautionElec, setCautionElec] = useState('');
+  const [cautionEau, setCautionEau] = useState('');
   const [prixKwh, setPrixKwh] = useState(String(ctx.prixKwh));
   const [jour, setJour] = useState(String(jourEcheanceParDefaut(aujourdhui())));
   const [releve, setReleve] = useState('');
@@ -101,6 +103,8 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
       loyer: lireMontant(loyer),
       toilettes: toilettes.trim() === '' ? 0 : lireMontant(toilettes),
       caution: caution.trim() === '' ? 0 : lireMontant(caution),
+      cautionElec: cautionElec.trim() === '' ? 0 : lireMontant(cautionElec),
+      cautionEau: cautionEau.trim() === '' ? 0 : lireMontant(cautionEau),
       prixKwh: lireMontant(prixKwh),
       jour: lireMontant(jour),
       releve: releve.trim() === '' ? 0 : Number(releve.replace(',', '.')),
@@ -111,6 +115,8 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
     if (montants.loyer === null) e.loyer = 'Montant en FCFA, chiffres uniquement.';
     if (montants.toilettes === null) e.toilettes = 'Montant en FCFA, chiffres uniquement.';
     if (montants.caution === null) e.caution = 'Montant en FCFA, chiffres uniquement.';
+    if (montants.cautionElec === null) e.cautionElec = 'Montant en FCFA, chiffres uniquement.';
+    if (montants.cautionEau === null) e.cautionEau = 'Montant en FCFA, chiffres uniquement.';
     if (!montants.prixKwh) e.prixKwh = 'Prix en FCFA, supérieur à 0.';
     if (montants.jour === null || montants.jour < 1 || montants.jour > 28) e.jour = 'Un jour entre 1 et 28.';
     if (!Number.isFinite(montants.releve) || montants.releve < 0) e.releve = 'Index du compteur invalide.';
@@ -129,6 +135,8 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
           loyer: montants.loyer!,
           toilettes: montants.toilettes!,
           caution: montants.caution!,
+          caution_electricite: montants.cautionElec!,
+          caution_eau: montants.cautionEau!,
           prix_kwh: montants.prixKwh!,
           jour_echeance: montants.jour!,
           releve_initial: montants.releve,
@@ -176,12 +184,28 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
       </View>
       <View className="flex-row gap-3">
         <View className="flex-1">
-          <Champ libelle="Caution reçue (FCFA)" value={caution} onChangeText={setCaution} keyboardType="number-pad" placeholder="0" erreur={erreurs.caution} />
+          <Champ libelle="Caution loyer (FCFA)" value={caution} onChangeText={setCaution} keyboardType="number-pad" placeholder="0" erreur={erreurs.caution} />
         </View>
         <View className="flex-1">
           <Champ libelle="Échéance (jour)" value={jour} onChangeText={setJour} keyboardType="number-pad" erreur={erreurs.jour} />
         </View>
       </View>
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Champ
+            libelle="Caution électricité"
+            value={cautionElec}
+            onChangeText={setCautionElec}
+            keyboardType="number-pad"
+            placeholder="0"
+            erreur={erreurs.cautionElec}
+          />
+        </View>
+        <View className="flex-1">
+          <Champ libelle="Caution eau" value={cautionEau} onChangeText={setCautionEau} keyboardType="number-pad" placeholder="0" erreur={erreurs.cautionEau} />
+        </View>
+      </View>
+      <Text className="text-muted text-xs -mt-2">Cautions électricité et eau : facultatives, si vous les demandez en plus de la caution de loyer.</Text>
       <View className="flex-row gap-3">
         <View className="flex-1">
           <Champ libelle="Prix du kWh (FCFA)" value={prixKwh} onChangeText={setPrixKwh} keyboardType="number-pad" erreur={erreurs.prixKwh} />

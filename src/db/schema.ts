@@ -317,12 +317,24 @@ ALTER TABLE achats_electricite ADD COLUMN index_achat REAL;
 ALTER TABLE achats_electricite ADD COLUMN index_coupure REAL;
 `;
 
+/**
+ * V6 : cautions séparées. Certains propriétaires prennent, en plus de la caution de loyer, une caution
+ * pour l'électricité et une pour l'eau. Elles forment ensemble le fonds de garantie du contrat.
+ */
+const V6 = `
+ALTER TABLE contrats ADD COLUMN caution_electricite INTEGER NOT NULL DEFAULT 0 CHECK (caution_electricite >= 0);
+ALTER TABLE contrats ADD COLUMN caution_eau INTEGER NOT NULL DEFAULT 0 CHECK (caution_eau >= 0);
+ALTER TABLE contrats ADD COLUMN caution_retenue_charges INTEGER NOT NULL DEFAULT 0 CHECK (caution_retenue_charges >= 0);
+ALTER TABLE contrats ADD COLUMN motif_retenue_charges TEXT;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, description: 'Schéma initial Onílé', sql: V1 },
   { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
   { version: 3, description: 'État des lieux d’entrée et de sortie', sql: V3 },
   { version: 4, description: 'Décompte de la caution au départ', sql: V4 },
   { version: 5, description: 'Index du compteur sur les ventes d’électricité', sql: V5 },
+  { version: 6, description: 'Cautions électricité et eau', sql: V6 },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
