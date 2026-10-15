@@ -1,6 +1,5 @@
 import { nativeDb as db } from '../database/db.native';
 import type { Contrat } from '../types';
-import { PRIX_KWH_DEFAUT } from '../types';
 
 export async function getContratByLocataire(locataireId: number): Promise<Contrat | undefined> {
   const result = await db.getOne<Contrat>('SELECT * FROM contrats WHERE locataire_id = ? ORDER BY id DESC', [locataireId]);

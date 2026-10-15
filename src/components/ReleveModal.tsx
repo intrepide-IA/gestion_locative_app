@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { X, Gauge } from 'lucide-react-native';
 import { enregistrerReleve, getDernierReleve } from '../services/electriciteService';

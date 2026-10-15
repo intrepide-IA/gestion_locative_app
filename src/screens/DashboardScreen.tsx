@@ -1,6 +1,6 @@
-import React from 'react';
+import { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { MotiView } from 'moti';
+import { AnimatedView, FadeInDown } from '../components/ui/AnimatedView';
 import { CircularProgress } from '../components/CircularProgress';
 import { StatCard } from '../components/StatCard';
 import {
@@ -21,11 +21,11 @@ type QuickAction = 'locataire' | 'logement' | 'facture' | null;
 
 export function DashboardScreen() {
   const { setActiveTab } = useApp();
-  const { stats, paiementsRecents, loading, refresh } = useDashboard();
+  const { stats, paiementsRecents, loading, error, refresh } = useDashboard();
   const { proprietaire } = useProprietaire();
   const { logements, refresh: refreshLogements } = useLogements();
-  const { locataires, refresh: refreshLocataires } = useLocataires();
-  const [quickAction, setQuickAction] = React.useState<QuickAction>(null);
+  const { refresh: refreshLocataires } = useLocataires();
+  const [quickAction, setQuickAction] = useState<QuickAction>(null);
 
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -40,6 +40,15 @@ export function DashboardScreen() {
     setQuickAction(null);
   };
 
+  if (error) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background p-8">
+        <Text className="text-lg font-bold text-ink mb-2">Tableau de bord en cours de refonte</Text>
+        <Text className="text-center text-muted">{error.message}</Text>
+      </View>
+    );
+  }
+
   if (loading || !stats) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -50,16 +59,15 @@ export function DashboardScreen() {
 
   return (
     <ScrollView className="flex-1 bg-gray-50 px-5 pt-2" contentContainerStyle={{ paddingBottom: 100 }}>
-      <MotiView
-        from={{ opacity: 0, translateY: 10 }}
-        animate={{ opacity: 1, translateY: 0 }}
+      <AnimatedView
+        entering={FadeInDown.duration(300)}
         className="mb-8 mt-4"
       >
         <Text className="text-2xl font-bold text-gray-900">
           Bonjour, {proprietaire?.nom?.split(' ')[0] || 'Propriétaire'} 👋
         </Text>
         <Text className="text-gray-500 capitalize">{today}</Text>
-      </MotiView>
+      </AnimatedView>
 
       <View className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-8 flex-row items-center justify-between">
         <View>

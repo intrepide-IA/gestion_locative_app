@@ -1,5 +1,4 @@
 import { nativeDb as db } from '../database/db.native';
-import { nativeDb } from '../database/db.native';
 import type { ElectriciteStock, ConsommationElectricite, Locataire, Facture } from '../types';
 import { PRIX_KWH_DEFAUT } from '../types';
 

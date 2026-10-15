@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { X, Trash2 } from 'lucide-react-native';
 import type { Logement, TypeLogement } from '../types';

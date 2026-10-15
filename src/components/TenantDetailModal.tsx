@@ -1,8 +1,7 @@
-import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { MotiView } from 'moti';
+import { AnimatedView, SlideInDown } from './ui/AnimatedView';
 import { X, Edit, Wallet, Zap, Gauge, History, FileText, Trash2, CalendarX } from 'lucide-react-native';
-import type { Locataire, PaiementLoyer, Facture } from '../types';
+import type { Locataire } from '../types';
 import { deleteLocataire, marquerContratEchu } from '../services/locataireService';
 import { usePaiementsByLocataire, useFacturesByLocataire } from '../hooks/useDatabase';
 
@@ -88,9 +87,8 @@ export function TenantDetailModal({
     <Modal visible={isOpen} transparent animationType="slide">
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
-        <MotiView
-          from={{ translateY: 500 }}
-          animate={{ translateY: 0 }}
+        <AnimatedView
+          entering={SlideInDown.duration(300)}
           className="bg-white rounded-t-[32px] p-6 pb-12 shadow-2xl max-h-[90vh]"
         >
           <View className="w-12 h-1 bg-gray-200 self-center rounded-full mb-6" />
@@ -182,7 +180,7 @@ export function TenantDetailModal({
               )}
             </View>
           </ScrollView>
-        </MotiView>
+        </AnimatedView>
       </View>
     </Modal>
   );

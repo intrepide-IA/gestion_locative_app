@@ -1,39 +1,50 @@
-# GestiLoc - Gestion Locative Offline
+# Onílé — gestion locative hors ligne
 
-Application web de gestion locative 100% locale (offline) pour propriétaire individuel.
+Application Android (React Native + Expo SDK 57 + TypeScript + SQLite) pour un propriétaire individuel :
+logements, locataires, loyers, factures, électricité prépayée et comptabilité, sans serveur ni connexion.
 
-## Installation
+Référence fonctionnelle : le cahier des charges Onílé v2.0. Suivi de la refonte : [docs/refonte.md](docs/refonte.md).
+
+## Prérequis
+
+- Node.js 20 ou plus récent (les tests de base de données utilisent `node:sqlite`, Node 22.5+)
+- Un téléphone Android avec le mode développeur, ou un émulateur Android Studio
+
+## Commandes
 
 ```bash
 npm install
-npm run dev
+npm run typecheck   # TypeScript strict
+npm run lint        # ESLint (config Expo)
+npm test            # Jest : schéma SQLite et règles métier
+npm run check       # les trois à la suite
 ```
 
-Ouvrez http://localhost:5173 dans votre navigateur.
+Lancer sur un téléphone (build de développement, nécessaire à cause de SQLite et des modules natifs) :
 
-## Test sur téléphone
+```bash
+npx expo run:android
+```
 
-1. **Sur le même réseau Wi-Fi** : Lancez `npm run dev`, puis sur votre téléphone ouvrez `http://[IP_DE_VOTRE_PC]:5173`
-2. **Build production** : `npm run build` puis servez le dossier `dist/` (ex: avec `npx serve dist`)
-3. **PWA** : L'app peut être ajoutée à l'écran d'accueil sur mobile pour une expérience native
+Générer un APK installable :
 
-## Code PIN par défaut
+```bash
+npx eas-cli@latest build --platform android --profile preview
+```
 
-`1234` — Modifiable dans Paramètres > Sécurité et PIN
+Les dossiers `android/` et `ios/` sont générés (Continuous Native Generation) : ne pas les modifier à la main,
+configurer `app.json` à la place.
 
-## Fonctionnalités
+## Organisation
 
-- **Dashboard** : Stats en temps réel, taux de recouvrement, paiements récents
-- **Logements** : CRUD, filtres (tous/occupés/libres)
-- **Locataires** : CRUD, paiement loyer, achat électricité, relevé compteur
-- **Factures** : Échéances mensuelles, enregistrement paiements, génération PDF
-- **Paramètres** : Profil propriétaire, notifications, PIN, export/import JSON
+| Dossier | Rôle |
+| --- | --- |
+| `src/db` | Base SQLite : schéma, migrations versionnées (`PRAGMA user_version`), accès et transactions |
+| `src/theme` | Palette Onílé (source unique des couleurs, reprise par Tailwind) |
+| `src/screens`, `src/components` | Interface (NativeWind) |
+| `src/services` | Anciens services, remplacés lot par lot par une couche métier testée |
+| `src/database/db.native.ts` | Pont temporaire vers la nouvelle base, à supprimer en fin de refonte |
 
-## Export / Import
+## Données
 
-- **Export** : Paramètres > Données > Exporter (JSON)
-- **Import** : Paramètres > Données > Importer (remplace les données)
-
-## Stockage
-
-Données stockées localement dans IndexedDB (navigateur). Aucun serveur requis.
+Base locale `onile.db`. L'ancienne base `GestiLocDB` de la version précédente n'est ni lue ni effacée.

@@ -1,7 +1,6 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, Linking } from 'react-native';
 import { Phone, MessageCircle, Building2 } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { AnimatedView, FadeInDown } from './ui/AnimatedView';
 
 interface TenantCardProps {
   name: string;
@@ -37,10 +36,8 @@ export function TenantCard({
   };
 
   return (
-    <MotiView
-      from={{ opacity: 0, translateY: 10 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ delay: delay * 1000, type: 'timing', duration: 300 }}
+    <AnimatedView
+      entering={FadeInDown.delay(delay * 1000).duration(300)}
       className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3"
     >
       <View className="flex-row items-center justify-between mb-4">
@@ -89,6 +86,6 @@ export function TenantCard({
           )}
         </View>
       </View>
-    </MotiView>
+    </AnimatedView>
   );
 }

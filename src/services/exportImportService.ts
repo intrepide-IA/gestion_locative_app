@@ -2,9 +2,8 @@
  * Export / Import de la base de données
  */
 import { nativeDb as db } from '../database/db.native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import * as DocumentPicker from 'expo-document-picker';
 import type {
   Proprietaire,
   Logement,
@@ -65,43 +64,11 @@ export async function exportJSON(): Promise<void> {
   }
 }
 
+/**
+ * Désactivé pendant la refonte : l'ancien import vidait les tables hors transaction et reprenait
+ * les noms de colonnes du fichier (risque de perte de données et d'injection SQL).
+ * Il sera remplacé au lot 8 par un import validé et atomique.
+ */
 export async function importJSON(): Promise<void> {
-  const result = await DocumentPicker.getDocumentAsync({
-    type: 'application/json',
-  });
-
-  if (result.canceled) return;
-
-  const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
-  const data: ExportData = JSON.parse(fileContent);
-
-  // Clear all tables (Manual SQLite implementation)
-  const tables = [
-    'proprietaires', 'logements', 'locataires', 'contrats',
-    'paiements_loyer', 'electricite_stock', 'consommation_electricite', 'factures'
-  ];
-
-  for (const table of tables) {
-    await db.exec(`DELETE FROM ${table}`);
-  }
-
-  // Helper for batch insert
-  const batchInsert = async (table: string, items: any[]) => {
-    if (!items || items.length === 0) return;
-    for (const item of items) {
-      const keys = Object.keys(item);
-      const values = Object.values(item);
-      const placeholders = keys.map(() => '?').join(', ');
-      await db.exec(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders})`, values);
-    }
-  };
-
-  await batchInsert('proprietaires', data.proprietaires);
-  await batchInsert('logements', data.logements);
-  await batchInsert('locataires', data.locataires);
-  await batchInsert('contrats', data.contrats);
-  await batchInsert('paiements_loyer', data.paiements_loyer);
-  await batchInsert('electricite_stock', data.electricite_stock);
-  await batchInsert('consommation_electricite', data.consommation_electricite);
-  await batchInsert('factures', data.factures);
+  throw new Error('La restauration est indisponible pendant la refonte (prévue au lot 8).');
 }

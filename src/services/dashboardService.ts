@@ -26,7 +26,7 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [logements, locataires, paiementsMois, totalKwh] = await Promise.all([
+  const [logements, locataires, , totalKwh] = await Promise.all([
     db.query<Logement>('SELECT * FROM logements'),
     db.query<Locataire>("SELECT * FROM locataires WHERE statut = 'actif'"),
     db.query<PaiementLoyer>('SELECT * FROM paiements_loyer WHERE mois = ? AND annee = ?', [moisActuel, anneeActuelle]),

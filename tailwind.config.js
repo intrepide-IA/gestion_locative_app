@@ -1,14 +1,23 @@
+const { colors } = require('./src/theme/colors.tokens');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./App.{js,jsx,ts,tsx}", "./src/**/*.{js,jsx,ts,tsx}"],
+  content: ['./index.ts', './src/**/*.{js,jsx,ts,tsx}'],
+  presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        primary: "#3B82F6",
-        background: "#F9FAFB",
-        alert: "#EF4444",
+        ...colors,
+        // Alias conservés pour les écrans existants.
+        alert: colors.danger,
+      },
+      fontFamily: {
+        sans: ['Inter_400Regular'],
+        medium: ['Inter_500Medium'],
+        semibold: ['Inter_600SemiBold'],
+        bold: ['Inter_700Bold'],
       },
     },
   },
   plugins: [],
-}
+};

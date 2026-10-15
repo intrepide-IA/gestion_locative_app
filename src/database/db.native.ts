@@ -1,148 +1,24 @@
-import * as SQLite from 'expo-sqlite';
+/**
+ * @deprecated Pont temporaire pour les anciens services pendant la refonte.
+ * Il pointe vers la nouvelle base `onile.db`, mais les anciens services utilisent encore
+ * des colonnes de l'ancien schéma : ils seront remplacés service par service (lots 3 à 6),
+ * puis ce fichier sera supprimé. Tout nouveau code passe par `src/db`.
+ */
+import { getDatabase } from '../db/client';
+import type { SqlValue } from '../db/types';
 
-export class GestiLocNativeDB {
-    private db: SQLite.SQLiteDatabase | null = null;
+type LegacyParam = SqlValue | undefined;
 
-    async init() {
-        if (this.db) return;
-        this.db = await SQLite.openDatabaseAsync('GestiLocDB');
-        await this.setupTables();
-    }
+const normalize = (params: LegacyParam[]): SqlValue[] => params.map((value) => (value === undefined ? null : value));
 
-    private async setupTables() {
-        if (!this.db) return;
-
-        // Proprietaires
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS proprietaires (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nom TEXT NOT NULL
-      )
-    `);
-
-        // Logements
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS logements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        numero TEXT,
-        type TEXT,
-        adresse TEXT,
-        prix_loyer REAL,
-        charges REAL,
-        statut TEXT,
-        details TEXT,
-        proprietaire_id INTEGER
-      )
-    `);
-
-        // Locataires
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS locataires (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nom_complet TEXT NOT NULL,
-        telephone TEXT,
-        email TEXT,
-        logement_id INTEGER,
-        statut TEXT,
-        created_at TEXT,
-        caution REAL,
-        date_entree TEXT,
-        cin TEXT
-      )
-    `);
-
-        // Contrats
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS contrats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        locataire_id INTEGER,
-        logement_id INTEGER,
-        date_debut TEXT,
-        date_fin TEXT,
-        montant_loyer REAL,
-        conditions TEXT
-      )
-    `);
-
-        // Paiements
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS paiements_loyer (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        locataire_id INTEGER,
-        logement_id INTEGER,
-        montant REAL,
-        mois TEXT,
-        annee INTEGER,
-        date_paiement TEXT,
-        statut TEXT,
-        methode TEXT
-      )
-    `);
-
-        // Electricité Stock
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS electricite_stock (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        locataire_id INTEGER,
-        unites_restantes REAL,
-        derniere_recharge_date TEXT
-      )
-    `);
-
-        // Consommation Electricité
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS consommation_electricite (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        locataire_id INTEGER,
-        quantite REAL,
-        date_consommation TEXT,
-        montant REAL
-      )
-    `);
-
-        // Factures
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS factures (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        locataire_id INTEGER,
-        numero_unique TEXT,
-        type TEXT,
-        montant REAL,
-        date_emission TEXT,
-        statut TEXT,
-        mois TEXT,
-        annee INTEGER
-      )
-    `);
-
-        // Mouvements Compte
-        await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS mouvements_compte (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        locataire_id INTEGER,
-        type TEXT,
-        montant REAL,
-        description TEXT,
-        date_operation TEXT
-      )
-    `);
-    }
-
-    // Generic helper for queries
-    async query<T>(sql: string, params: any[] = []): Promise<T[]> {
-        if (!this.db) await this.init();
-        return await this.db!.getAllAsync<T>(sql, params);
-    }
-
-    async exec(sql: string, params: any[] = []): Promise<void> {
-        if (!this.db) await this.init();
-        await this.db!.runAsync(sql, params);
-    }
-
-    async getOne<T>(sql: string, params: any[] = []): Promise<T | null> {
-        if (!this.db) await this.init();
-        return await this.db!.getFirstAsync<T>(sql, params);
-    }
-}
-
-export const nativeDb = new GestiLocNativeDB();
+export const nativeDb = {
+  async query<T>(sql: string, params: LegacyParam[] = []): Promise<T[]> {
+    return (await getDatabase()).all<T>(sql, normalize(params));
+  },
+  async exec(sql: string, params: LegacyParam[] = []): Promise<void> {
+    await (await getDatabase()).run(sql, normalize(params));
+  },
+  async getOne<T>(sql: string, params: LegacyParam[] = []): Promise<T | null> {
+    return (await getDatabase()).get<T>(sql, normalize(params));
+  },
+};

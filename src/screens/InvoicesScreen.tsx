@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { MotiView } from 'moti';
+import { AnimatedView, FadeInDown } from '../components/ui/AnimatedView';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
 import { PaymentModal } from '../components/PaymentModal';
 import { FactureFormModal } from '../components/FactureFormModal';
@@ -178,11 +178,9 @@ export function InvoicesScreen() {
           filteredInvoices.map(({ facture, tenantName, property }, index) => {
             const status = getStatusStyle(facture.statut);
             return (
-              <MotiView
+              <AnimatedView
                 key={facture.id}
-                from={{ opacity: 0, translateY: 10 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ delay: index * 50, type: 'timing' }}
+                entering={FadeInDown.delay(index * 50).duration(250)}
               >
                 <TouchableOpacity
                   onPress={() =>
@@ -222,7 +220,7 @@ export function InvoicesScreen() {
                     </Text>
                   </View>
                 </TouchableOpacity>
-              </MotiView>
+              </AnimatedView>
             );
           })
         )}

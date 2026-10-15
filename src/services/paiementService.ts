@@ -1,11 +1,9 @@
 import { nativeDb as db } from '../database/db.native';
 import type { PaiementLoyer, StatutPaiement } from '../types';
 import { getContratActif } from './contratService';
-import { getLogement } from './logementService';
-import { getLocataire } from './locataireService';
 
 /** Calcule le montant dû pour un mois donné (loyer + toilettes) */
-export async function getMontantDuMois(locataireId: number, mois: number, annee: number): Promise<number> {
+export async function getMontantDuMois(locataireId: number, _mois: number, _annee: number): Promise<number> {
   const contrat = await getContratActif(locataireId);
   if (!contrat) return 0;
   // Note: Based on previous code, both logic paths returned the same value

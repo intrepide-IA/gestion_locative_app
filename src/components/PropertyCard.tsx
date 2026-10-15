@@ -1,7 +1,6 @@
-import React from 'react';
 import { View, Text } from 'react-native';
 import { Building2, User } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { AnimatedView, FadeIn } from './ui/AnimatedView';
 
 interface PropertyCardProps {
   name: string;
@@ -23,10 +22,8 @@ export function PropertyCard({
   const isOccupied = status === 'Occupé';
 
   return (
-    <MotiView
-      from={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: delay * 1000, type: 'timing', duration: 300 }}
+    <AnimatedView
+      entering={FadeIn.delay(delay * 1000).duration(300)}
       className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex-col mb-4 mx-2 w-[160px]"
     >
       <View className="h-24 bg-blue-50 items-center justify-center relative">
@@ -58,6 +55,6 @@ export function PropertyCard({
           )}
         </View>
       </View>
-    </MotiView>
+    </AnimatedView>
   );
 }

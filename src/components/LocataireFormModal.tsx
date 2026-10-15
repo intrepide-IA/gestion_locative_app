@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { X, Calendar } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -165,7 +165,7 @@ export function LocataireFormModal({ isOpen, onClose, onSuccess, editLocataire, 
               </View>
 
               <View>
-                <Text className="text-sm font-medium text-gray-700 mb-1">Date d'entrée</Text>
+                <Text className="text-sm font-medium text-gray-700 mb-1">Date d’entrée</Text>
                 <TouchableOpacity
                   onPress={() => !editLocataire && setShowDatePicker(true)}
                   className="bg-gray-50 rounded-xl px-4 py-4 flex-row justify-between items-center"

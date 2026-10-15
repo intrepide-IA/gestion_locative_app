@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { X, Zap } from 'lucide-react-native';
 import { acheterElectricite, getStockActuel } from '../services/electriciteService';

@@ -7,69 +7,85 @@ import * as proprietaireService from '../services/proprietaireService';
 import * as dashboardService from '../services/dashboardService';
 import type { DashboardStats } from '../services/dashboardService';
 
+interface AsyncResource<T> {
+  data: T;
+  loading: boolean;
+  error: Error | null;
+  /** Relance le chargement ; l'état est mis à jour à la fin. */
+  refresh: () => void;
+}
+
+/** Charge une ressource asynchrone, capture l'erreur au lieu de laisser l'écran en chargement infini. */
+function useAsyncResource<T>(load: () => Promise<T>, initial: T): AsyncResource<T> {
+  const [state, setState] = useState<{ data: T; loading: boolean; error: Error | null }>({
+    data: initial,
+    loading: true,
+    error: null,
+  });
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    let active = true;
+    load().then(
+      (data) => active && setState({ data, loading: false, error: null }),
+      (error: unknown) =>
+        active &&
+        setState((previous) => ({
+          ...previous,
+          loading: false,
+          error: error instanceof Error ? error : new Error(String(error)),
+        }))
+    );
+    return () => {
+      active = false;
+    };
+  }, [load, version]);
+  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  return { ...state, refresh };
+}
+
+const NO_LOGEMENTS: Logement[] = [];
+const NO_LOCATAIRES: Locataire[] = [];
+
 /** Hook pour les logements */
 export function useLogements() {
-  const [logements, setLogements] = useState<Logement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    const data = await logementService.getAllLogements();
-    setLogements(data);
-    setLoading(false);
-  }, []);
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-  return { logements, loading, refresh };
+  const { data: logements, loading, error, refresh } = useAsyncResource(logementService.getAllLogements, NO_LOGEMENTS);
+  return { logements, loading, error, refresh };
 }
 
 /** Hook pour les locataires actifs */
 export function useLocataires() {
-  const [locataires, setLocataires] = useState<Locataire[]>([]);
-  const [loading, setLoading] = useState(true);
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    const data = await locataireService.getAllLocataires();
-    setLocataires(data);
-    setLoading(false);
-  }, []);
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-  return { locataires, loading, refresh };
+  const { data: locataires, loading, error, refresh } = useAsyncResource(
+    locataireService.getAllLocataires,
+    NO_LOCATAIRES
+  );
+  return { locataires, loading, error, refresh };
 }
+
+const loadProprietaire = async (): Promise<Proprietaire | null> =>
+  (await proprietaireService.getFirstProprietaire()) ?? null;
 
 /** Hook pour le propriétaire */
 export function useProprietaire() {
-  const [proprietaire, setProprietaire] = useState<Proprietaire | null>(null);
-  const [loading, setLoading] = useState(true);
-  const refresh = useCallback(async () => {
-    const p = await proprietaireService.getFirstProprietaire();
-    setProprietaire(p ?? null);
-    setLoading(false);
-  }, []);
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-  return { proprietaire, loading, refresh };
+  const { data: proprietaire, loading, error, refresh } = useAsyncResource(loadProprietaire, null);
+  return { proprietaire, loading, error, refresh };
 }
+
+type PaiementRecent = { name: string; amount: number; date: string };
+
+const loadDashboard = async (): Promise<{ stats: DashboardStats | null; paiementsRecents: PaiementRecent[] }> => {
+  const [stats, paiementsRecents] = await Promise.all([
+    dashboardService.getDashboardStats(),
+    dashboardService.getPaiementsRecents(),
+  ]);
+  return { stats, paiementsRecents };
+};
+
+const NO_DASHBOARD = { stats: null, paiementsRecents: [] as PaiementRecent[] };
 
 /** Hook pour le dashboard */
 export function useDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [paiementsRecents, setPaiementsRecents] = useState<{ name: string; amount: number; date: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    const [s, p] = await Promise.all([dashboardService.getDashboardStats(), dashboardService.getPaiementsRecents()]);
-    setStats(s);
-    setPaiementsRecents(p);
-    setLoading(false);
-  }, []);
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-  return { stats, paiementsRecents, loading, refresh };
+  const { data, loading, error, refresh } = useAsyncResource(loadDashboard, NO_DASHBOARD);
+  return { stats: data.stats, paiementsRecents: data.paiementsRecents, loading, error, refresh };
 }
 
 export function usePaiementsByLocataire(locataireId?: number) {

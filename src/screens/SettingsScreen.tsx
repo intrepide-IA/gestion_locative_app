@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
-import { MotiView } from 'moti';
-import { Trash2, Bell, Shield, ChevronRight, LogOut, X, Download, Upload, FileJson } from 'lucide-react-native';
+import { Trash2, Bell, Shield, ChevronRight, LogOut, Download, Upload, FileJson } from 'lucide-react-native';
 import { nativeDb as db } from '../database/db.native';
 import { useProprietaire } from '../hooks/useDatabase';
 import { updateProprietaire } from '../services/proprietaireService';
-import { exportJSON, importJSON } from '../services/exportImportService';
+import { exportJSON } from '../services/exportImportService';
 import {
   setNotificationsEnabled,
   demanderPermission,
@@ -23,7 +22,6 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
   const [showProfilModal, setShowProfilModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [importing, setImporting] = useState(false);
 
   const handleNotificationsToggle = async () => {
     const next = !notifications;
@@ -44,61 +42,13 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
     }
   };
 
-  const handleImport = async () => {
-    Alert.alert(
-      'Importation',
-      'Importer remplacera toutes les données actuelles. Continuer ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Continuer',
-          onPress: async () => {
-            setImporting(true);
-            try {
-              await importJSON();
-              Alert.alert('Succès', 'Les données ont été importées. L\'application va redémarrer.', [
-                { text: 'OK', onPress: () => { /* In RN, maybe just trigger state refresh or relying on user restart */ } }
-              ]);
-            } catch (err) {
-              Alert.alert('Erreur', 'Erreur lors de l\'import: ' + (err as Error).message);
-            } finally {
-              setImporting(false);
-            }
-          }
-        }
-      ]
-    );
+  // Restauration et réinitialisation désactivées jusqu’au lot 8 (import validé et atomique, PIN requis).
+  const handleImport = () => {
+    Alert.alert('Bientôt disponible', 'La restauration d’une sauvegarde arrive avec le lot 8 de la refonte.');
   };
 
-  const handleResetDB = async () => {
-    Alert.alert(
-      'ATTENTION',
-      'Cette action supprimera DÉFINITIVEMENT toutes vos données. Êtes-vous vraiment sûr ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'TOUT EFFACER',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await db.exec('DELETE FROM locataires');
-              await db.exec('DELETE FROM logements');
-              await db.exec('DELETE FROM factures');
-              await db.exec('DELETE FROM paiements_loyer');
-              await db.exec('DELETE FROM contrats');
-              await db.exec('DELETE FROM electricite_stock');
-              await db.exec('DELETE FROM consommation_electricite');
-              // AsyncStorage clear is more complex as it might clear the PIN too
-              // await AsyncStorage.clear(); 
-              Alert.alert('Succès', 'La base de données a été réinitialisée.');
-              refresh();
-            } catch (err) {
-              Alert.alert('Erreur', 'Impossible de réinitialiser: ' + (err as Error).message);
-            }
-          }
-        }
-      ]
-    );
+  const handleResetDB = () => {
+    Alert.alert('Bientôt disponible', 'La réinitialisation protégée par PIN arrive avec le lot 8 de la refonte.');
   };
 
   const initials = proprietaire?.nom
@@ -172,7 +122,7 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
                 <View className="w-8 h-8 rounded-full bg-blue-50 items-center justify-center mr-3">
                   <Upload size={16} color="#3B82F6" />
                 </View>
-                <Text className="text-sm font-medium text-gray-900">Importer {importing ? '...' : ''}</Text>
+                <Text className="text-sm font-medium text-gray-900">Importer (bientôt)</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -182,7 +132,7 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
                 <View className="w-8 h-8 rounded-full bg-red-100 items-center justify-center mr-3">
                   <Trash2 size={16} color="#EF4444" />
                 </View>
-                <Text className="text-sm font-medium text-red-500">Réinitialiser la base</Text>
+                <Text className="text-sm font-medium text-red-500">Réinitialiser la base (bientôt)</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -271,7 +221,7 @@ function ProfilModal({ isOpen, onClose, proprietaire, onSuccess }: any) {
   const [adresse, setAdresse] = useState('');
   const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (proprietaire && isOpen) {
       setNom(proprietaire.nom);
       setTelephone(proprietaire.telephone);

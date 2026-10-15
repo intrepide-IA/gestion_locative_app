@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { MotiView } from 'moti';
+import { AnimatedView, SlideInDown, ZoomIn } from './ui/AnimatedView';
 import { X, CheckCircle2, CreditCard, Banknote, Smartphone } from 'lucide-react-native';
 import { enregistrerPaiement } from '../services/paiementService';
 import { ensureFactureLoyer, getFacture, annulerFacture } from '../services/factureService';
@@ -92,21 +92,19 @@ export function PaymentModal({
     <Modal visible={isOpen} transparent animationType="slide">
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
-        <MotiView
-          from={{ translateY: 300 }}
-          animate={{ translateY: 0 }}
+        <AnimatedView
+          entering={SlideInDown.duration(300)}
           className="bg-white rounded-t-[32px] p-6 pb-12 shadow-2xl"
         >
           {isSuccess ? (
-            <MotiView
-              from={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+            <AnimatedView
+              entering={ZoomIn.duration(250)}
               className="items-center justify-center py-10"
             >
               <CheckCircle2 size={80} color="#16A34A" className="mb-4" />
               <Text className="text-2xl font-bold text-gray-900 mb-2">Paiement validé</Text>
               <Text className="text-gray-500 text-center">Le reçu a été généré</Text>
-            </MotiView>
+            </AnimatedView>
           ) : (
             <>
               <TouchableOpacity onPress={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full">
@@ -166,7 +164,7 @@ export function PaymentModal({
               </TouchableOpacity>
             </>
           )}
-        </MotiView>
+        </AnimatedView>
       </View>
     </Modal>
   );

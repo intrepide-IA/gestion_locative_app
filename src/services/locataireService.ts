@@ -1,5 +1,5 @@
 import { nativeDb as db } from '../database/db.native';
-import type { Locataire, StatutLocataire } from '../types';
+import type { Locataire } from '../types';
 
 export async function getAllLocataires(): Promise<Locataire[]> {
   return db.query<Locataire>('SELECT * FROM locataires ORDER BY nom_complet');

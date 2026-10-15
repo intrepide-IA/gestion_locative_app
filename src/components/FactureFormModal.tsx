@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useLocataires } from '../hooks/useDatabase';

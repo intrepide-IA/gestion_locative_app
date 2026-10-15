@@ -3,7 +3,7 @@
  */
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import type { Proprietaire, Locataire, Facture, Logement } from '../types';
+import type { Proprietaire, Locataire, Facture } from '../types';
 import { getLogement } from './logementService';
 
 export async function genererFacturePDF(
