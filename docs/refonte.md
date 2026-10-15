@@ -2,6 +2,44 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 3 — Logements, locataires et contrats (15 octobre 2026)
+
+**Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-3-logements-locataires`.
+
+### Fait
+
+- Couche métier testée : `repositories/logementRepository.ts` et `repositories/locataireRepository.ts`.
+  - Logements : création, modification, référence unique (casse ignorée), montants entiers contrôlés,
+    occupation déduite des contrats actifs, retrait = suppression sans historique ou archivage sinon,
+    refusé si occupé.
+  - Entrée d'un locataire : fiche + contrat en une transaction, refusée si le logement est occupé ou
+    archivé (rien n'est écrit en cas d'échec).
+  - Conditions du contrat modifiables (les échéances déjà créées ne changent pas — lot 4).
+  - Départ : contrat terminé à la date de sortie, logement libéré et réattribuable, historique conservé ;
+    un locataire avec historique est archivé, jamais supprimé.
+- Écrans refaits au design Onílé (`src/features`) : Accueil (taux d'occupation, logements libres,
+  locataires actifs, actions rapides), Logements (recherche, filtres, fiche, ajout/modification/retrait,
+  attribution), Locataires (recherche, filtres actifs/partis, fiche, contrat, modification, départ).
+- Composants communs (`components/ui/kit.tsx`, `Feuille`, `ChampDate`) : boutons, badges couleur + libellé +
+  icône, cartes, champs avec erreurs, états vide / erreur / chargement.
+- Les listes relisent la base au retour sur l'écran et affichent une erreur au lieu d'une liste vide.
+- Ancien code supprimé : ancien tableau de bord, écrans et modales Logements/Locataires, badges d'onglets
+  (qui interrogeaient l'ancien schéma toutes les 30 s).
+
+### Vérifications
+
+| Contrôle | Résultat |
+| --- | --- |
+| `tsc --noEmit` | 0 erreur |
+| `jest` | 48 tests sur 48 |
+| Parcours dans l'aperçu web (375 px) | premier lancement → logement (validation, doublon refusé) → entrée locataire → fiche → départ → logement libéré |
+| `expo lint` | 2 erreurs restantes, dans l'onglet Factures (lot 4) |
+
+### Reste pour les lots suivants
+
+- Onglet Factures et paramètres « Données » : encore l'ancien code (lots 4 et 8).
+- Solde final et caution au départ : lot 4 / 6. Date de fin de contrat : non saisissable pour l'instant.
+
 ## Lot 2 — Accès et sécurité (15 octobre 2026)
 
 **Statut : codé, à valider sur téléphone.** Branche `refonte/lot-2-securite` (part du lot 1).

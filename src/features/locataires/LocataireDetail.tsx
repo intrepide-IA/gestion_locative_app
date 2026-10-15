@@ -1,0 +1,334 @@
+import { useCallback, useState } from 'react';
+import { Linking, View } from 'react-native';
+import { DoorOpen, Pencil, Phone, Trash2, FileSignature } from 'lucide-react-native';
+
+import { ChampDate } from '../../components/ui/ChampDate';
+import { Feuille } from '../../components/ui/Feuille';
+import { confirmer, informer } from '../../components/ui/confirmer';
+import { Badge, Bouton, Carte, Champ, Chargement, LigneInfo } from '../../components/ui/kit';
+import { Text } from '../../components/ui/Text';
+import { getDatabase } from '../../db/client';
+import type { SqlDatabase } from '../../db/types';
+import { messageErreur } from '../../domain/erreurs';
+import { aujourdhui, formatDate, formatFCFA, initiales, lireMontant } from '../../domain/format';
+import { useRessource } from '../../hooks/useRessource';
+import {
+  contratsDuLocataire,
+  getContratActif,
+  getLocataire,
+  modifierConditionsContrat,
+  modifierFicheLocataire,
+  retirerLocataire,
+  terminerContrat,
+  type Contrat,
+  type LocataireAvecContrat,
+} from '../../repositories/locataireRepository';
+import { colors } from '../../theme/colors';
+
+type Vue = 'fiche' | 'modifier' | 'conditions' | 'depart';
+
+interface Props {
+  locataireId: number | null;
+  onFermer: () => void;
+  /** Appelé après toute modification, pour rafraîchir la liste. */
+  onModifie: () => void;
+}
+
+export function LocataireDetail({ locataireId, onFermer, onModifie }: Props) {
+  const [vue, setVue] = useState<Vue>('fiche');
+  const fermer = () => {
+    setVue('fiche');
+    onFermer();
+  };
+  const titres: Record<Vue, string> = {
+    fiche: 'Fiche locataire',
+    modifier: 'Modifier la fiche',
+    conditions: 'Conditions du contrat',
+    depart: 'Départ du locataire',
+  };
+  return (
+    <Feuille ouverte={locataireId !== null} onFermer={fermer} titre={titres[vue]}>
+      {locataireId !== null ? (
+        <Contenu
+          locataireId={locataireId}
+          vue={vue}
+          setVue={setVue}
+          onModifie={() => {
+            setVue('fiche');
+            onModifie();
+          }}
+          onRetire={() => {
+            setVue('fiche');
+            onModifie();
+            onFermer();
+          }}
+        />
+      ) : null}
+    </Feuille>
+  );
+}
+
+interface Donnees {
+  locataire: LocataireAvecContrat | null;
+  contrat: Contrat | null;
+  historique: Awaited<ReturnType<typeof contratsDuLocataire>>;
+}
+
+function Contenu({
+  locataireId,
+  vue,
+  setVue,
+  onModifie,
+  onRetire,
+}: {
+  locataireId: number;
+  vue: Vue;
+  setVue: (v: Vue) => void;
+  onModifie: () => void;
+  onRetire: () => void;
+}) {
+  const lire = useCallback(
+    async (db: SqlDatabase): Promise<Donnees> => {
+      const [locataire, contrat, historique] = await Promise.all([
+        getLocataire(db, locataireId),
+        getContratActif(db, locataireId),
+        contratsDuLocataire(db, locataireId),
+      ]);
+      return { locataire, contrat, historique };
+    },
+    [locataireId]
+  );
+  const { donnees, chargement, rafraichir } = useRessource<Donnees>(lire, { locataire: null, contrat: null, historique: [] });
+  const { locataire, contrat, historique } = donnees;
+
+  if (chargement && !locataire) return <Chargement />;
+  if (!locataire) return <Text className="text-muted text-center py-8">Locataire introuvable.</Text>;
+
+  const apres = () => {
+    rafraichir();
+    onModifie();
+  };
+
+  if (vue === 'modifier') return <FormFiche locataire={locataire} onEnregistre={apres} />;
+  if (vue === 'conditions' && contrat) return <FormConditions contrat={contrat} onEnregistre={apres} />;
+  if (vue === 'depart' && contrat) return <FormDepart contrat={contrat} nom={locataire.nom_complet} onEnregistre={apres} />;
+
+  const retirer = async () => {
+    const ok = await confirmer(
+      'Retirer ce locataire ?',
+      'Sa fiche sera archivée : ses contrats et son historique restent conservés.',
+      'Retirer',
+      true
+    );
+    if (!ok) return;
+    try {
+      await retirerLocataire(await getDatabase(), locataire.id);
+      onRetire();
+    } catch (error) {
+      informer('Impossible de retirer', messageErreur(error));
+    }
+  };
+
+  return (
+    <>
+      <View className="items-center">
+        <View className="w-16 h-16 rounded-full bg-primary items-center justify-center">
+          <Text className="text-white text-xl font-bold">{initiales(locataire.nom_complet)}</Text>
+        </View>
+        <Text className="text-xl font-bold text-ink mt-2 text-center">{locataire.nom_complet}</Text>
+        <View className="mt-1">
+          <Badge libelle={contrat ? 'Locataire actif' : 'Parti'} ton={contrat ? 'succes' : 'neutre'} />
+        </View>
+        {locataire.telephone ? (
+          <Bouton
+            titre={locataire.telephone}
+            variante="discret"
+            icone={<Phone size={16} color={colors.primary} />}
+            onPress={() => Linking.openURL(`tel:${locataire.telephone!.replace(/\s/g, '')}`)}
+          />
+        ) : null}
+      </View>
+
+      {contrat ? (
+        <Carte>
+          <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Contrat en cours</Text>
+          <LigneInfo libelle="Logement" valeur={locataire.logement_reference ?? '—'} />
+          <LigneInfo libelle="Depuis le" valeur={formatDate(contrat.date_debut)} />
+          <LigneInfo libelle="Loyer" valeur={formatFCFA(contrat.loyer)} />
+          <LigneInfo libelle="Toilettes" valeur={formatFCFA(contrat.toilettes)} />
+          <LigneInfo libelle="Total mensuel" valeur={formatFCFA(contrat.loyer + contrat.toilettes)} />
+          <LigneInfo libelle="Échéance" valeur={`le ${contrat.jour_echeance} du mois`} />
+          <LigneInfo libelle="Caution reçue" valeur={formatFCFA(contrat.caution)} />
+          <LigneInfo libelle="Prix du kWh" valeur={formatFCFA(contrat.prix_kwh)} />
+          <LigneInfo libelle="Relevé initial" valeur={`${contrat.releve_initial} kWh`} />
+        </Carte>
+      ) : null}
+
+      {locataire.piece_identite || locataire.notes ? (
+        <Carte>
+          {locataire.piece_identite ? <LigneInfo libelle="Pièce d’identité" valeur={locataire.piece_identite} /> : null}
+          {locataire.notes ? <Text className="text-muted pt-2">{locataire.notes}</Text> : null}
+        </Carte>
+      ) : null}
+
+      {historique.filter((c) => c.statut === 'termine').length ? (
+        <Carte>
+          <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Contrats terminés</Text>
+          {historique
+            .filter((c) => c.statut === 'termine')
+            .map((c) => (
+              <LigneInfo
+                key={c.id}
+                libelle={c.logement_reference}
+                valeur={`${formatDate(c.date_debut)} → ${c.date_sortie ? formatDate(c.date_sortie) : '—'}`}
+              />
+            ))}
+        </Carte>
+      ) : null}
+
+      <Bouton titre="Modifier la fiche" variante="secondaire" icone={<Pencil size={18} color={colors.primary} />} onPress={() => setVue('modifier')} />
+      {contrat ? (
+        <>
+          <Bouton
+            titre="Modifier les conditions"
+            variante="secondaire"
+            icone={<FileSignature size={18} color={colors.primary} />}
+            onPress={() => setVue('conditions')}
+          />
+          <Bouton titre="Enregistrer le départ" variante="danger" icone={<DoorOpen size={18} color={colors.danger} />} onPress={() => setVue('depart')} />
+        </>
+      ) : (
+        <Bouton titre="Retirer de la liste" variante="danger" icone={<Trash2 size={18} color={colors.danger} />} onPress={retirer} />
+      )}
+    </>
+  );
+}
+
+function FormFiche({ locataire, onEnregistre }: { locataire: LocataireAvecContrat; onEnregistre: () => void }) {
+  const [nom, setNom] = useState(locataire.nom_complet);
+  const [telephone, setTelephone] = useState(locataire.telephone ?? '');
+  const [piece, setPiece] = useState(locataire.piece_identite ?? '');
+  const [notes, setNotes] = useState(locataire.notes ?? '');
+  const [erreur, setErreur] = useState('');
+  const [enCours, setEnCours] = useState(false);
+
+  const enregistrer = async () => {
+    setEnCours(true);
+    setErreur('');
+    try {
+      await modifierFicheLocataire(await getDatabase(), locataire.id, { nom_complet: nom, telephone, piece_identite: piece, notes });
+      onEnregistre();
+    } catch (error) {
+      setErreur(messageErreur(error, 'Enregistrement impossible.'));
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <>
+      <Champ libelle="Nom complet" obligatoire value={nom} onChangeText={setNom} />
+      <Champ libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" />
+      <Champ libelle="Pièce d’identité" value={piece} onChangeText={setPiece} />
+      <Champ libelle="Notes internes" value={notes} onChangeText={setNotes} multiline placeholder="Visibles par vous seul" />
+      {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
+      <Bouton titre="Enregistrer" onPress={enregistrer} chargement={enCours} />
+    </>
+  );
+}
+
+function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregistre: () => void }) {
+  const [loyer, setLoyer] = useState(String(contrat.loyer));
+  const [toilettes, setToilettes] = useState(String(contrat.toilettes));
+  const [caution, setCaution] = useState(String(contrat.caution));
+  const [prixKwh, setPrixKwh] = useState(String(contrat.prix_kwh));
+  const [jour, setJour] = useState(String(contrat.jour_echeance));
+  const [erreur, setErreur] = useState('');
+  const [enCours, setEnCours] = useState(false);
+
+  const enregistrer = async () => {
+    const v = [loyer, toilettes, caution, prixKwh, jour].map(lireMontant);
+    if (v.some((x) => x === null)) {
+      setErreur('Montants en FCFA, chiffres uniquement.');
+      return;
+    }
+    setEnCours(true);
+    setErreur('');
+    try {
+      await modifierConditionsContrat(await getDatabase(), contrat.id, {
+        date_fin: contrat.date_fin,
+        loyer: v[0]!,
+        toilettes: v[1]!,
+        caution: v[2]!,
+        prix_kwh: v[3]!,
+        jour_echeance: v[4]!,
+      });
+      onEnregistre();
+    } catch (error) {
+      setErreur(messageErreur(error, 'Enregistrement impossible.'));
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <>
+      <Text className="text-muted">
+        Les nouveaux montants s’appliqueront aux prochaines échéances. Les échéances déjà créées ne changent pas.
+      </Text>
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Champ libelle="Loyer (FCFA)" value={loyer} onChangeText={setLoyer} keyboardType="number-pad" />
+        </View>
+        <View className="flex-1">
+          <Champ libelle="Toilettes (FCFA)" value={toilettes} onChangeText={setToilettes} keyboardType="number-pad" />
+        </View>
+      </View>
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Champ libelle="Caution (FCFA)" value={caution} onChangeText={setCaution} keyboardType="number-pad" />
+        </View>
+        <View className="flex-1">
+          <Champ libelle="Échéance (jour)" value={jour} onChangeText={setJour} keyboardType="number-pad" />
+        </View>
+      </View>
+      <Champ libelle="Prix du kWh (FCFA)" value={prixKwh} onChangeText={setPrixKwh} keyboardType="number-pad" />
+      {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
+      <Bouton titre="Enregistrer les conditions" onPress={enregistrer} chargement={enCours} />
+    </>
+  );
+}
+
+function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: string; onEnregistre: () => void }) {
+  const [date, setDate] = useState(aujourdhui());
+  const [erreur, setErreur] = useState('');
+  const [enCours, setEnCours] = useState(false);
+
+  const enregistrer = async () => {
+    const ok = await confirmer(
+      'Confirmer le départ ?',
+      `Le contrat de ${nom} sera terminé le ${formatDate(date)} et le logement redeviendra libre. L’historique est conservé.`,
+      'Confirmer le départ'
+    );
+    if (!ok) return;
+    setEnCours(true);
+    setErreur('');
+    try {
+      await terminerContrat(await getDatabase(), contrat.id, date);
+      onEnregistre();
+    } catch (error) {
+      setErreur(messageErreur(error, 'Enregistrement impossible.'));
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <>
+      <Text className="text-muted">
+        Le solde final et l’utilisation de la caution seront calculés avec le module Finances (lot 4). Pour l’instant, le
+        départ termine le contrat et libère le logement.
+      </Text>
+      <ChampDate libelle="Date de sortie" valeur={date} onChange={setDate} minimum={contrat.date_debut} />
+      {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
+      <Bouton titre="Enregistrer le départ" variante="danger" onPress={enregistrer} chargement={enCours} />
+    </>
+  );
+}

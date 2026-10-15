@@ -11,16 +11,14 @@ import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { LayoutDashboard, Users, Building2, FileText, Settings } from 'lucide-react-native';
 
-import { DashboardScreen } from './screens/DashboardScreen';
-import { TenantsScreen } from './screens/TenantsScreen';
-import { PropertiesScreen } from './screens/PropertiesScreen';
+import { AccueilScreen } from './features/accueil/AccueilScreen';
+import { LocatairesScreen } from './features/locataires/LocatairesScreen';
+import { LogementsScreen } from './features/logements/LogementsScreen';
 import { InvoicesScreen } from './screens/InvoicesScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
-import { AppProvider } from './context/AppContext';
-import { useBadges } from './hooks/useBadges';
 import { getDatabase } from './db/client';
 import { colors } from './theme/colors';
 import { pinService } from './security/native';
@@ -43,8 +41,6 @@ const navigationTheme: Theme = {
 };
 
 function MainTabs({ onLogout }: { onLogout: () => void }) {
-  const { tenantsBadge, invoicesBadge } = useBadges();
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -64,7 +60,7 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
     >
       <Tab.Screen
         name="Dashboard"
-        component={DashboardScreen}
+        component={AccueilScreen}
         options={{
           title: 'Accueil',
           tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} />,
@@ -72,7 +68,7 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
       />
       <Tab.Screen
         name="Properties"
-        component={PropertiesScreen}
+        component={LogementsScreen}
         options={{
           title: 'Logements',
           tabBarIcon: ({ color, size }) => <Building2 size={size} color={color} />,
@@ -80,11 +76,10 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
       />
       <Tab.Screen
         name="Tenants"
-        component={TenantsScreen}
+        component={LocatairesScreen}
         options={{
           title: 'Locataires',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
-          tabBarBadge: tenantsBadge > 0 ? tenantsBadge : undefined,
         }}
       />
       <Tab.Screen
@@ -93,7 +88,6 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
         options={{
           title: 'Factures',
           tabBarIcon: ({ color, size }) => <FileText size={size} color={color} />,
-          tabBarBadge: invoicesBadge > 0 ? invoicesBadge : undefined,
         }}
       />
       <Tab.Screen
@@ -187,7 +181,6 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppProvider>
         <NavigationContainer theme={navigationTheme}>
           <StatusBar style={access === 'unlocked' ? 'dark' : 'light'} />
           <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -200,7 +193,6 @@ export default function App() {
             )}
           </Stack.Navigator>
         </NavigationContainer>
-      </AppProvider>
     </SafeAreaProvider>
   );
 }
