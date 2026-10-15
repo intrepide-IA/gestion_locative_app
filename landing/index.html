@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Onílé — Gestion locative simple, même sans internet</title>
+  <meta name="description" content="Onílé : l'application Android pour gérer vos logements, vos loyers, vos factures d'électricité et vos dépenses, 100 % hors ligne. Pensé pour le Bénin.">
+  <meta name="theme-color" content="#0F6B4F">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@500&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --primary: #0F6B4F;
+      --primary-dark: #0A5039;
+      --secondary: #2E9E7A;
+      --accent: #F5B301;
+      --background: #FBF6EF;
+      --ink: #1F2937;
+      --muted: #6B7280;
+      --border: #E5E7EB;
+      --danger: #EF4444;
+      --white: #FFFFFF;
+      --radius: 16px;
+      --shadow: 0 10px 30px rgba(15, 107, 79, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--background);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img, svg { display: block; max-width: 100%; }
+    a { color: inherit; }
+    .container { width: min(1120px, 100% - 32px); margin-inline: auto; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* Boutons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 22px; border-radius: 12px; font-weight: 600; font-size: 15px;
+      text-decoration: none; border: 2px solid transparent; cursor: pointer; transition: transform .15s, box-shadow .15s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .btn-accent { background: var(--accent); color: var(--ink); box-shadow: 0 6px 18px rgba(245, 179, 1, .35); }
+    .btn-ghost { border-color: rgba(255,255,255,.6); color: var(--white); }
+    .btn-primary { background: var(--primary); color: var(--white); }
+    .btn[aria-disabled="true"] { opacity: .75; cursor: not-allowed; transform: none; }
+
+    /* En-tête */
+    header.site {
+      position: sticky; top: 0; z-index: 10; background: rgba(251, 246, 239, .92);
+      backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 22px; color: var(--primary); }
+    .nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; font-size: 14px; font-weight: 500; }
+    .nav-links a { text-decoration: none; color: var(--ink); }
+    .nav-links a:hover { color: var(--primary); }
+    .nav .btn { padding: 10px 16px; font-size: 14px; }
+    @media (max-width: 760px) { .nav-links { display: none; } }
+
+    /* Héros */
+    .hero {
+      background: radial-gradient(1200px 500px at 85% 20%, rgba(46,158,122,.45), transparent 60%), var(--primary);
+      color: var(--white); overflow: hidden;
+    }
+    .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding: 72px 0 80px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 13px; font-weight: 600; }
+    .hero h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.1; margin: 18px 0 16px; letter-spacing: -0.02em; }
+    .hero p.lead { font-size: 18px; color: rgba(255,255,255,.85); max-width: 520px; margin: 0 0 28px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .hero-note { margin-top: 16px; font-size: 13px; color: rgba(255,255,255,.75); }
+    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; padding: 48px 0 56px; } .phone-wrap { order: -1; } }
+
+    /* Maquette de téléphone (illustration) */
+    .phone-wrap { display: flex; justify-content: center; }
+    .phone {
+      width: 280px; border-radius: 40px; background: #0b0f0e; padding: 12px; box-shadow: 0 30px 60px rgba(0,0,0,.35);
+    }
+    .screen { border-radius: 30px; background: var(--background); overflow: hidden; color: var(--ink); font-size: 12px; }
+    .screen-top { background: var(--primary); color: var(--white); padding: 22px 18px 18px; }
+    .screen-top small { opacity: .8; }
+    .screen-top strong { display: block; font-size: 16px; margin-top: 2px; }
+    .kpi { margin: -12px 14px 0; background: var(--white); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
+    .kpi .label { color: var(--muted); font-size: 11px; }
+    .kpi .value { font-size: 20px; font-weight: 800; color: var(--primary); }
+    .bar { height: 8px; border-radius: 99px; background: var(--border); margin-top: 8px; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 72%; background: var(--secondary); }
+    .list { padding: 12px 14px 18px; display: grid; gap: 8px; }
+    .row { display: flex; align-items: center; justify-content: space-between; background: var(--white); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--border); }
+    .row b { display: block; font-size: 12px; }
+    .row small { color: var(--muted); font-size: 10px; }
+    .pill { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
+    .pill.ok { background: rgba(46,158,122,.15); color: var(--primary); }
+    .pill.wait { background: rgba(245,179,1,.2); color: #8a6500; }
+    .pill.late { background: rgba(239,68,68,.12); color: #B91C1C; }
+    .tabbar { display: flex; justify-content: space-around; padding: 10px 6px 14px; background: var(--white); border-top: 1px solid var(--border); color: var(--muted); font-size: 9px; font-weight: 600; }
+    .tabbar .on { color: var(--primary); }
+
+    /* Sections */
+    section { padding: 80px 0; }
+    .section-head { text-align: center; max-width: 640px; margin: 0 auto 48px; }
+    .section-head h2 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+    .section-head p { color: var(--muted); margin: 0; }
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media (max-width: 900px) { .features { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; background: rgba(15,107,79,.08); color: var(--primary); margin-bottom: 14px; }
+    .card h3 { margin: 0 0 6px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    .why { background: var(--white); }
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    @media (max-width: 900px) { .why-grid { grid-template-columns: 1fr; } }
+    .checks { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 14px; }
+    .checks li { display: flex; gap: 12px; align-items: flex-start; }
+    .checks svg { flex: none; margin-top: 3px; color: var(--secondary); }
+    .quote {
+      background: var(--background); border-radius: 24px; padding: 40px; text-align: center; border: 1px solid var(--border);
+    }
+    .quote p { font-family: 'Caveat', cursive; font-size: 40px; line-height: 1.15; color: var(--primary); margin: 0; }
+    .quote .swoosh { width: 160px; height: 10px; margin: 14px auto 0; color: var(--accent); }
+
+    .download { background: var(--background); }
+    .download-box {
+      display: grid; grid-template-columns: 1.2fr .8fr; gap: 32px; align-items: center;
+      background: var(--primary); color: var(--white); border-radius: 28px; padding: 48px; overflow: hidden;
+    }
+    @media (max-width: 900px) { .download-box { grid-template-columns: 1fr; padding: 32px 24px; } }
+    .download-box h2 { margin: 0 0 10px; font-size: clamp(26px, 3.4vw, 34px); }
+    .download-box p { color: rgba(255,255,255,.85); margin: 0 0 24px; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; }
+    .meta div { background: rgba(255,255,255,.1); border-radius: 14px; padding: 14px 16px; }
+    .meta dt { font-size: 12px; color: rgba(255,255,255,.7); }
+    .meta dd { margin: 2px 0 0; font-weight: 700; }
+    .status-note { display: inline-flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; color: rgba(255,255,255,.8); }
+
+    footer.site { background: var(--primary-dark); color: rgba(255,255,255,.85); padding: 40px 0; font-size: 14px; }
+    .foot { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: center; }
+    .foot .brand { color: var(--white); }
+    .foot nav { display: flex; gap: 20px; }
+    .foot a { text-decoration: none; }
+    .foot a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <!-- Logo provisoire redessiné en SVG : à remplacer par le logo vectoriel officiel Onílé. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="logo" viewBox="0 0 64 64">
+      <path d="M32 5 6 26v29a4 4 0 0 0 4 4h44a4 4 0 0 0 4-4V26L32 5Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/>
+      <g fill="#F5B301"><rect x="24" y="24" width="7" height="7" rx="1.5"/><rect x="33" y="24" width="7" height="7" rx="1.5"/><rect x="24" y="33" width="7" height="7" rx="1.5"/><rect x="33" y="33" width="7" height="7" rx="1.5"/></g>
+      <path d="M8 54c14-1 30-6 48-17-6 11-17 20-34 22H10a4 4 0 0 1-2-5Z" fill="#F5B301"/>
+    </symbol>
+  </svg>
+
+  <header class="site">
+    <div class="container nav">
+      <a class="brand" href="#top" aria-label="Onílé, accueil">
+        <svg width="34" height="34" style="color:var(--primary)"><use href="#logo"/></svg>
+        Onílé
+      </a>
+      <ul class="nav-links">
+        <li><a href="#fonctionnalites">Fonctionnalités</a></li>
+        <li><a href="#pourquoi">Pourquoi Onílé</a></li>
+        <li><a href="#telecharger">Télécharger</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+      <a class="btn btn-primary" href="#telecharger">Télécharger</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <div>
+          <span class="eyebrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+            Fonctionne sans internet
+          </span>
+          <h1 id="hero-title">Votre maison, vos loyers, vos factures en toute simplicité.</h1>
+          <p class="lead">Onílé est une application Android pour gérer vos logements, vos locataires, vos paiements, l’électricité prépayée et vos dépenses, directement sur votre téléphone.</p>
+          <div class="hero-actions">
+            <a class="btn btn-accent" href="#telecharger">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+              Télécharger l’application (APK)
+            </a>
+            <a class="btn btn-ghost" href="#fonctionnalites">En savoir plus</a>
+          </div>
+          <p class="hero-note">Gérer aujourd’hui, habiter demain.</p>
+        </div>
+
+        <div class="phone-wrap" aria-hidden="true">
+          <!-- Illustration : à remplacer par une capture réelle de l'application au lot 10. -->
+          <div class="phone">
+            <div class="screen">
+              <div class="screen-top">
+                <small>Bonjour,</small>
+                <strong>Moussa</strong>
+              </div>
+              <div class="kpi">
+                <div class="label">Encaissé ce mois</div>
+                <div class="value">1 250 000 FCFA</div>
+                <div class="bar"><span></span></div>
+                <div class="label" style="margin-top:6px">72 % des loyers attendus</div>
+              </div>
+              <div class="list">
+                <div class="row"><div><b>Chambre 1</b><small>Loyer · 26 000 FCFA</small></div><span class="pill ok">Payée</span></div>
+                <div class="row"><div><b>Appartement 1</b><small>Loyer · 45 000 FCFA</small></div><span class="pill wait">Partielle</span></div>
+                <div class="row"><div><b>Appartement 2</b><small>Loyer · 45 000 FCFA</small></div><span class="pill late">En retard</span></div>
+              </div>
+              <div class="tabbar"><span class="on">Accueil</span><span>Logements</span><span>Locataires</span><span>Finances</span><span>Plus</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="fonctionnalites" aria-labelledby="f-title">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="f-title">Tout pour gérer votre maison, au même endroit</h2>
+          <p>Fini les cahiers et les calculs à la main : Onílé fait les comptes pour vous.</p>
+        </div>
+        <div class="features">
+          <article class="card">
+            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <h3>Locataires et contrats</h3>
+            <p>Fiches, contrats, cautions, entrées et départs, avec tout l’historique conservé.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <h3>Loyers et échéances</h3>
+            <p>Voyez d’un coup d’œil qui a payé, qui est en retard, et enregistrez les paiements partiels.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></div>
+            <h3>Factures et reçus PDF</h3>
+            <p>Des documents professionnels en FCFA, à envoyer au locataire par WhatsApp.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <h3>Électricité prépayée</h3>
+            <p>Ventes de kWh, relevés de compteur, stock restant et alertes avant épuisement.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg></div>
+            <h3>Recettes et dépenses</h3>
+            <p>Suivez réparations, entretien et revenus ; obtenez votre solde et vos rapports par mois.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+            <h3>Hors ligne et protégé</h3>
+            <p>Vos données restent sur votre téléphone, protégées par un code PIN, avec sauvegarde.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="pourquoi" class="why" aria-labelledby="w-title">
+      <div class="container why-grid">
+        <div>
+          <h2 id="w-title" style="font-size:clamp(26px,3.4vw,36px);line-height:1.2;margin:0">Pourquoi choisir Onílé&nbsp;?</h2>
+          <ul class="checks">
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Simple à utiliser</strong> — pensé pour un propriétaire, pas pour un comptable.</span></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Sécurisé et fiable</strong> — chaque paiement est tracé, rien ne disparaît en silence.</span></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Sans abonnement ni internet</strong> — tout fonctionne directement sur le téléphone.</span></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Pensé pour le Bénin</strong> — montants en FCFA, Mobile Money, partage WhatsApp.</span></li>
+          </ul>
+        </div>
+        <div class="quote">
+          <p>Plus qu’une appli,<br>une tranquillité d’esprit.</p>
+          <svg class="swoosh" viewBox="0 0 160 10" aria-hidden="true"><path d="M2 8C50 1 110 1 158 6" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section id="telecharger" class="download" aria-labelledby="d-title">
+      <div class="container">
+        <div class="download-box">
+          <div>
+            <h2 id="d-title">Téléchargez l’application</h2>
+            <p>Onílé est distribué en fichier APK, à installer directement sur votre téléphone ou votre tablette Android.</p>
+            <!-- Le lien sera activé quand un APK testé sera publié (lot 9 du cahier des charges). -->
+            <a class="btn btn-accent" aria-disabled="true" role="link" tabindex="0" title="Disponible prochainement">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+              Bientôt disponible
+            </a>
+            <div class="status-note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              Application en cours de finalisation : le téléchargement ouvrira à la sortie de la version 1.0.
+            </div>
+          </div>
+          <dl class="meta">
+            <div><dt>Version</dt><dd>1.0 (à venir)</dd></div>
+            <div><dt>Android minimum</dt><dd>8.0</dd></div>
+            <div><dt>Taille</dt><dd>À confirmer</dd></div>
+            <div><dt>Mise à jour</dt><dd>À confirmer</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site" id="contact">
+    <div class="container foot">
+      <div>
+        <a class="brand" href="#top">
+          <svg width="30" height="30" style="color:var(--white)"><use href="#logo"/></svg>
+          Onílé
+        </a>
+        <p style="margin:8px 0 0">Une solution pensée pour vous, ici au Bénin.</p>
+      </div>
+      <nav aria-label="Pied de page">
+        <a href="#fonctionnalites">Fonctionnalités</a>
+        <a href="#telecharger">Télécharger</a>
+        <a href="mailto:nexasolutionbenin@gmail.com">Contact</a>
+      </nav>
+      <p style="margin:0;width:100%;font-size:13px;color:rgba(255,255,255,.6)">Vos données restent sur votre téléphone : ce site ne collecte ni ne stocke aucune information de gestion locative.</p>
+    </div>
+  </footer>
+</body>
+</html>
