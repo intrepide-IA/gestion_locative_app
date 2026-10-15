@@ -6,11 +6,12 @@ import { Text } from './components/ui/Text';
 import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { BarreOnglets } from './components/navigation/BarreOnglets';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
-import { LayoutDashboard, Users, Building2, Receipt, Wallet } from 'lucide-react-native';
+import { House, Users, Building2, Receipt, Wallet } from 'lucide-react-native';
 
 import { AccueilScreen } from './features/accueil/AccueilScreen';
 import { LocatairesScreen } from './features/locataires/LocatairesScreen';
@@ -50,31 +51,14 @@ const navigationTheme: Theme = {
 
 /** Cinq onglets au plus ; le reste (paramètres, électricité, sauvegarde) s'ouvre depuis l'accueil. */
 function MainTabs() {
-  const insets = useSafeAreaInsets();
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopWidth: 0,
-          elevation: 10,
-          height: 68 + insets.bottom,
-          paddingBottom: insets.bottom + 10,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter', fontWeight: '600' },
-        tabBarItemStyle: { paddingHorizontal: 0 },
-      }}
-    >
+    <Tab.Navigator tabBar={(props) => <BarreOnglets {...props} />} screenOptions={{ headerShown: false }}>
       <Tab.Screen
         name="Dashboard"
         component={AccueilScreen}
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <House size={size} color={color} />,
         }}
       />
       <Tab.Screen

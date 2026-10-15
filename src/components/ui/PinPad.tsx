@@ -79,10 +79,13 @@ export function PinPad({ value, onChange, length, disabled, onSubmit, canSubmit,
   // Mise en page en styles explicites (pas de classes) : grille 3 × 4 identique sur tous les téléphones.
   return (
     <View style={styles.centre}>
-      <Animated.View style={[styles.points, shakeStyle]} accessibilityLabel={`${value.length} chiffre(s) saisi(s)`}>
-        {Array.from({ length }, (_, i) => (
-          <View key={i} style={[styles.point, { backgroundColor: i < value.length ? colors.accent : 'rgba(255,255,255,0.3)' }]} />
-        ))}
+      {/* La rangée de points est une View simple : sur Android, la vue animée (secousse) ne garde pas flexDirection. */}
+      <Animated.View style={shakeStyle}>
+        <View style={styles.points} accessibilityLabel={`${value.length} chiffre(s) saisi(s)`}>
+          {Array.from({ length }, (_, i) => (
+            <View key={i} style={[styles.point, { backgroundColor: i < value.length ? colors.accent : 'rgba(255,255,255,0.3)' }]} />
+          ))}
+        </View>
       </Animated.View>
       {rangees.map((rangee, i) => (
         <View key={i} style={styles.rangee}>

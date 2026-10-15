@@ -13,7 +13,7 @@ faire** : c'est la seule partie que je ne peux pas réaliser moi-même. L'APK 1.
 
 | # | Quoi | Pourquoi |
 | --- | --- | --- |
-| 1 | **Ton email et ton numéro** pour le site | La landing page affiche une adresse provisoire (celle de Nexa Solution). |
+| 1 | ~~Ton email et ton numéro~~ | Fait : imdadadenon@gmail.com, 01 56 78 40 63 et 01 99 99 70 31 sur la landing. |
 | 2 | **Installer l'APK et tester** sur ton téléphone (liste ci-dessous) | Le partage WhatsApp, les notifications, le chiffrement et l'impression PDF ne se vérifient que sur Android. |
 | 3 | **Où publier la landing page** (Netlify, GitHub Pages, Vercel… gratuit) | Je n'ai rien mis en ligne sans ton accord. |
 | 4 | **Où héberger l'APK** pour le bouton « Télécharger » (ex. GitHub Releases) | Les liens des builds Expo expirent ; il faut un lien HTTPS stable. |

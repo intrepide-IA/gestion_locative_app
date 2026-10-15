@@ -242,10 +242,11 @@ function BarreProgression({ part }: { part: number }) {
   useEffect(() => {
     largeur.set(withTiming(part, { duration: 900, easing: Easing.out(Easing.cubic) }));
   }, [part, largeur]);
-  const style = useAnimatedStyle(() => ({ width: `${largeur.value * 100}%` }));
+  // Tout le style dans le style animé : sur Android, la partie fixe d'un tableau de styles peut être perdue.
+  const style = useAnimatedStyle(() => ({ width: `${largeur.value * 100}%`, height: '100%', borderRadius: 999, backgroundColor: colors.accent }));
   return (
     <View className="h-2.5 rounded-full bg-white/20 mt-4 overflow-hidden">
-      <Animated.View style={[{ height: '100%', borderRadius: 999, backgroundColor: colors.accent }, style]} />
+      <Animated.View style={style} />
     </View>
   );
 }
