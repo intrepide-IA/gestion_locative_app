@@ -1,0 +1,22 @@
+# Render Blueprint : Dashboard Render → New → Blueprint → ce dépôt.
+# Les variables marquées sync: false sont demandées à la création (valeurs dans Supabase → Project Settings → API).
+services:
+  - type: web
+    name: onile-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: echo "Aucune dépendance"
+    startCommand: node index.mjs
+    healthCheckPath: /api/sante
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: ORIGINES_AUTORISEES
+        sync: false

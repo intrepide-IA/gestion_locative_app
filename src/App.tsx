@@ -24,6 +24,7 @@ import { ElectriciteScreen } from './features/electricite/ElectriciteScreen';
 import { SauvegardeScreen } from './features/plus/SauvegardeScreen';
 import { NotificationsScreen } from './features/notifications/NotificationsScreen';
 import { BailScreen } from './features/locataires/BailScreen';
+import { SynchronisationScreen } from './features/plus/SynchronisationScreen';
 import { EtatDesLieuxScreen } from './features/locataires/EtatDesLieuxScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
@@ -194,6 +195,7 @@ export default function App() {
                 <Stack.Screen name="Notifications">{({ navigation }) => <NotificationsScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="Sauvegarde">{({ navigation }) => <SauvegardeScreen onRetour={navigation.goBack} />}</Stack.Screen>
+                <Stack.Screen name="Synchronisation">{({ navigation }) => <SynchronisationScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="Bail">
                   {({ navigation, route }) => {
                     const { contratId } = route.params as { contratId: number };

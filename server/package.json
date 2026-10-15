@@ -1,0 +1,14 @@
+{
+  "name": "onile-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API Onílé (Render) : dernière version, lien de téléchargement, publication des versions",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  }
+}

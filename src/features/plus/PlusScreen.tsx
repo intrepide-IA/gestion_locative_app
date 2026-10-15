@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, Switch, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, ChevronRight, Database, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, ChevronRight, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { nouvelleVersion } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
 import { ApercuSignature } from '../../components/ui/ApercuSignature';
@@ -24,6 +25,8 @@ import { pinService } from '../../security/native';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../../security/pin';
 import { colors } from '../../theme/colors';
 
+const lireMiseAJour = () => nouvelleVersion();
+
 export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => void; onRetour: () => void }) {
   const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
   const [profil, setProfil] = useState(false);
@@ -31,6 +34,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const [signature, setSignature] = useState(false);
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
   const notifs = useRessource(notificationsActives, true);
+  const maj = useRessource(lireMiseAJour, null);
 
   const basculerNotifications = async (actives: boolean) => {
     try {
@@ -70,6 +74,20 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
           <ChevronRight size={18} color={colors.muted} />
         </Pressable>
 
+        {maj.donnees ? (
+          <Pressable
+            onPress={() => Linking.openURL(maj.donnees!.lien)}
+            accessibilityRole="button"
+            className="bg-accent rounded-2xl p-4 flex-row items-center active:opacity-80"
+          >
+            <Download size={20} color={colors.ink} />
+            <View className="flex-1 ml-3">
+              <Text className="font-bold text-ink">Nouvelle version {maj.donnees.version} disponible</Text>
+              <Text className="text-ink/80 text-sm">{maj.donnees.notes ?? 'Touchez pour la télécharger, puis installez-la par-dessus.'}</Text>
+            </View>
+          </Pressable>
+        ) : null}
+
         <Groupe titre="Documents">
           <Ligne
             icone={<PenLine size={18} color={colors.primary} />}
@@ -86,6 +104,11 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             icone={<Database size={18} color={colors.primary} />}
             libelle="Sauvegarde et restauration"
             onPress={() => navigation.navigate('Sauvegarde')}
+          />
+          <Ligne
+            icone={<Cloud size={18} color={colors.primary} />}
+            libelle="Synchronisation (compte)"
+            onPress={() => navigation.navigate('Synchronisation')}
             dernier
           />
         </Groupe>

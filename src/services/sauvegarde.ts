@@ -91,3 +91,6 @@ export async function reinitialiser(): Promise<void> {
   await reinitialiserDonnees(await getDatabase());
   await reinitialiserNotifications();
 }
+
+/** Chiffre un export (JSON) avec le mot de passe : utilisé aussi par la synchronisation cloud. */
+export const chiffrerFichier = (json: string, motDePasse: string) => chiffrerSauvegarde(json, motDePasse, aesExpo);
