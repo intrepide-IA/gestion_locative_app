@@ -5,7 +5,7 @@
  *      « Nouvelle version » de l'application la proposent aussitôt.
  *
  * Usage :
- *   node scripts/publier-version.mjs <url-ou-chemin-de-l-apk> ["notes"] [--lien-direct]
+ *   node scripts/publier-version.mjs <url-ou-chemin-de-l-apk> ["notes"] [--lien-direct] [--version=X.Y.Z --code=N]
  *
  * Réglages (variables d'environnement, ou fichier .env.publication à la racine, jamais commité) :
  *   ONILE_API_URL   ex. https://onile-api.onrender.com
@@ -35,6 +35,8 @@ if (existsSync(fichierReglages)) {
 
 const args = process.argv.slice(2);
 const lienDirect = args.includes('--lien-direct');
+// --version=1.0.5 --code=15 : publier un APK déjà construit d'une version antérieure à app.json.
+const option = (nom) => args.find((a) => a.startsWith(`--${nom}=`))?.split('=')[1];
 const [source, notes = ''] = args.filter((a) => !a.startsWith('--'));
 const API = process.env.ONILE_API_URL?.trim().replace(/\/$/, '');
 const JETON = process.env.ADMIN_TOKEN?.trim();
@@ -55,8 +57,9 @@ if (!API || !JETON) {
 }
 
 const app = JSON.parse(readFileSync(new URL('app.json', RACINE), 'utf8')).expo;
-const version = app.version;
-const versionCode = app.android.versionCode;
+const version = option('version') ?? app.version;
+const versionCode = Number(option('code') ?? app.android.versionCode);
+if (!/^\d+\.\d+\.\d+$/.test(version) || !Number.isInteger(versionCode)) arreter('--version=X.Y.Z et --code=N attendus.');
 const nomFichier = `onile-${version}.apk`;
 const tag = `v${version}`;
 
