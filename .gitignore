@@ -32,3 +32,8 @@ coverage/
 *.apk
 *.aab
 .env.publication
+credentials.json
+android/keystores/
+secrets-github.txt
+*.jks
+*.keystore
