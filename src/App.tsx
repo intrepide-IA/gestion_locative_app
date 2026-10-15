@@ -9,6 +9,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
+import { installerDemo } from './dev/installerDemo';
+
+installerDemo();
 import { LayoutDashboard, Users, Building2, Receipt, Menu, Wallet } from 'lucide-react-native';
 
 import { AccueilScreen } from './features/accueil/AccueilScreen';

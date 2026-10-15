@@ -2,6 +2,18 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 10 — Landing page (15 octobre 2026)
+
+**Statut : prête, non publiée.** Branche `refonte/lot-10-landing`.
+
+- Captures **réelles** de l'application (accueil, loyers, fiche locataire, finances, locataires) et un vrai reçu
+  PDF, produites par `scripts/captures-landing.mjs` (Chrome sans interface + jeu de démonstration de
+  l'aperçu web, `src/dev`, jamais inclus dans l'APK).
+- Nouvelle section « Aperçu », lien dans le menu, version 1.0.0 affichée.
+- Prévisualisation : `node scripts/serve-landing.mjs` puis http://localhost:4173.
+- Reste à faire avec le propriétaire : héberger l'APK (lien HTTPS), activer le bouton de téléchargement,
+  renseigner email et téléphone de contact, choisir l'hébergeur du site.
+
 ## Lot 9 — Finitions et version 1.0.0 (15 octobre 2026)
 
 **Statut : prêt pour le test sur téléphone.** Branche `refonte/lot-9-finalisation`.

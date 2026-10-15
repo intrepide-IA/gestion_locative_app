@@ -13,6 +13,15 @@
         "--clear"
       ],
       "port": 8081
+    },
+    {
+      "name": "onile-landing",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/serve-landing.mjs",
+        "4173"
+      ],
+      "port": 4173
     }
   ]
 }

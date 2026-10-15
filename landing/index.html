@@ -79,30 +79,21 @@
     .hero-note { margin-top: 16px; font-size: 13px; color: rgba(255,255,255,.75); }
     @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; padding: 48px 0 56px; } .phone-wrap { order: -1; } }
 
-    /* Maquette de téléphone (illustration) */
+    /* Captures réelles de l'application dans un cadre de téléphone */
     .phone-wrap { display: flex; justify-content: center; }
-    .phone {
-      width: 280px; border-radius: 40px; background: #0b0f0e; padding: 12px; box-shadow: 0 30px 60px rgba(0,0,0,.35);
-    }
-    .screen { border-radius: 30px; background: var(--background); overflow: hidden; color: var(--ink); font-size: 12px; }
-    .screen-top { background: var(--primary); color: var(--white); padding: 22px 18px 18px; }
-    .screen-top small { opacity: .8; }
-    .screen-top strong { display: block; font-size: 16px; margin-top: 2px; }
-    .kpi { margin: -12px 14px 0; background: var(--white); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
-    .kpi .label { color: var(--muted); font-size: 11px; }
-    .kpi .value { font-size: 20px; font-weight: 800; color: var(--primary); }
-    .bar { height: 8px; border-radius: 99px; background: var(--border); margin-top: 8px; overflow: hidden; }
-    .bar span { display: block; height: 100%; width: 72%; background: var(--secondary); }
-    .list { padding: 12px 14px 18px; display: grid; gap: 8px; }
-    .row { display: flex; align-items: center; justify-content: space-between; background: var(--white); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--border); }
-    .row b { display: block; font-size: 12px; }
-    .row small { color: var(--muted); font-size: 10px; }
-    .pill { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
-    .pill.ok { background: rgba(46,158,122,.15); color: var(--primary); }
-    .pill.wait { background: rgba(245,179,1,.2); color: #8a6500; }
-    .pill.late { background: rgba(239,68,68,.12); color: #B91C1C; }
-    .tabbar { display: flex; justify-content: space-around; padding: 10px 6px 14px; background: var(--white); border-top: 1px solid var(--border); color: var(--muted); font-size: 9px; font-weight: 600; }
-    .tabbar .on { color: var(--primary); }
+    .phone { width: 280px; border-radius: 40px; background: #0b0f0e; padding: 10px; box-shadow: 0 30px 60px rgba(0,0,0,.35); }
+    .phone img { width: 100%; height: auto; border-radius: 30px; }
+    .captures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+    @media (max-width: 1000px) { .captures { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .captures { grid-template-columns: 1fr; justify-items: center; } }
+    .captures figure { margin: 0; text-align: center; }
+    .captures .phone { width: 100%; max-width: 250px; margin: 0 auto 12px; padding: 8px; border-radius: 34px; box-shadow: 0 18px 40px rgba(0,0,0,.18); }
+    .captures .phone img { border-radius: 26px; }
+    .captures figcaption b { display: block; }
+    .captures figcaption span { color: var(--muted); font-size: 14px; }
+    .document { max-width: 760px; margin: 48px auto 0; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .document img { width: 100%; height: auto; border-radius: 8px; }
+    .document figcaption { margin: 10px 4px 0; color: var(--muted); font-size: 14px; text-align: center; }
 
     /* Sections */
     section { padding: 80px 0; }
@@ -170,6 +161,7 @@
       </a>
       <ul class="nav-links">
         <li><a href="#fonctionnalites">Fonctionnalités</a></li>
+        <li><a href="#apercu">Aperçu</a></li>
         <li><a href="#pourquoi">Pourquoi Onílé</a></li>
         <li><a href="#telecharger">Télécharger</a></li>
         <li><a href="#contact">Contact</a></li>
@@ -198,27 +190,10 @@
           <p class="hero-note">Gérer aujourd’hui, habiter demain.</p>
         </div>
 
-        <div class="phone-wrap" aria-hidden="true">
-          <!-- Illustration : à remplacer par une capture réelle de l'application au lot 10. -->
+        <div class="phone-wrap">
+          <!-- Capture réelle (données de démonstration) : scripts/captures-landing.mjs -->
           <div class="phone">
-            <div class="screen">
-              <div class="screen-top">
-                <small>Bonjour,</small>
-                <strong>Moussa</strong>
-              </div>
-              <div class="kpi">
-                <div class="label">Encaissé ce mois</div>
-                <div class="value">1 250 000 FCFA</div>
-                <div class="bar"><span></span></div>
-                <div class="label" style="margin-top:6px">72 % des loyers attendus</div>
-              </div>
-              <div class="list">
-                <div class="row"><div><b>Chambre 1</b><small>Loyer · 26 000 FCFA</small></div><span class="pill ok">Payée</span></div>
-                <div class="row"><div><b>Appartement 1</b><small>Loyer · 45 000 FCFA</small></div><span class="pill wait">Partielle</span></div>
-                <div class="row"><div><b>Appartement 2</b><small>Loyer · 45 000 FCFA</small></div><span class="pill late">En retard</span></div>
-              </div>
-              <div class="tabbar"><span class="on">Accueil</span><span>Logements</span><span>Locataires</span><span>Finances</span><span>Plus</span></div>
-            </div>
+            <img src="captures/accueil.webp" width="390" height="844" alt="Écran d’accueil d’Onílé : loyers du mois réglés, reste à percevoir, occupation et alertes">
           </div>
         </div>
       </div>
@@ -265,6 +240,37 @@
       </div>
     </section>
 
+    <section id="apercu" aria-labelledby="a-title">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="a-title">Aperçu de l’application</h2>
+          <p>Captures réelles d’Onílé, avec des données de démonstration.</p>
+        </div>
+        <div class="captures">
+          <figure>
+            <div class="phone"><img src="captures/loyers.webp" width="390" height="844" loading="lazy" alt="Écran Loyers : échéances du mois avec les statuts payée, partielle et en retard"></div>
+            <figcaption><b>Loyers du mois</b><span>Qui a payé, qui est en retard</span></figcaption>
+          </figure>
+          <figure>
+            <div class="phone"><img src="captures/fiche-locataire.webp" width="390" height="844" loading="lazy" alt="Fiche locataire : situation, encaissement et contrat"></div>
+            <figcaption><b>Fiche locataire</b><span>Situation, contrat, encaissement</span></figcaption>
+          </figure>
+          <figure>
+            <div class="phone"><img src="captures/finances.webp" width="390" height="844" loading="lazy" alt="Finances : trésorerie, entrées, sorties et impayés"></div>
+            <figcaption><b>Finances</b><span>Trésorerie, dépenses, rapports</span></figcaption>
+          </figure>
+          <figure>
+            <div class="phone"><img src="captures/locataires.webp" width="390" height="844" loading="lazy" alt="Liste des locataires actifs avec leur logement et leur loyer"></div>
+            <figcaption><b>Locataires</b><span>Tous vos contrats d’un coup d’œil</span></figcaption>
+          </figure>
+        </div>
+        <figure class="document">
+          <img src="captures/recu.webp" width="1220" height="715" loading="lazy" alt="Exemple de reçu PDF : montant reçu, mois réglé et reste à payer">
+          <figcaption>Exemple de reçu PDF, envoyé au locataire par WhatsApp en un geste.</figcaption>
+        </figure>
+      </div>
+    </section>
+
     <section id="pourquoi" class="why" aria-labelledby="w-title">
       <div class="container why-grid">
         <div>
@@ -300,7 +306,7 @@
             </div>
           </div>
           <dl class="meta">
-            <div><dt>Version</dt><dd>1.0 (à venir)</dd></div>
+            <div><dt>Version</dt><dd>1.0.0</dd></div>
             <div><dt>Android minimum</dt><dd>8.0</dd></div>
             <div><dt>Taille</dt><dd>À confirmer</dd></div>
             <div><dt>Mise à jour</dt><dd>À confirmer</dd></div>
