@@ -10,8 +10,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
-
-installerDemo();
 import { LayoutDashboard, Users, Building2, Receipt, Menu, Wallet } from 'lucide-react-native';
 
 import { AccueilScreen } from './features/accueil/AccueilScreen';
@@ -29,6 +27,9 @@ import { getDatabase } from './db/client';
 import { colors } from './theme/colors';
 import { pinService } from './security/native';
 import { shouldLockOnResume } from './security/autoLock';
+
+// Aperçu web de développement uniquement (sans effet dans l'application Android).
+installerDemo();
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
