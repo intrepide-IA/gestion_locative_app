@@ -42,6 +42,12 @@ export async function telechargerEtInstaller(v: VersionPubliee, onProgression: (
   const resultat = await tache.downloadAsync();
   if (!resultat || resultat.status !== 200) throw new Error('Téléchargement interrompu.');
   onProgression(1);
+  // Comptage anonyme pour les statistiques (jamais bloquant).
+  void fetch(`${URL_API}/api/telechargement`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ version: v.version }),
+  }).catch(() => undefined);
   const contenu = await FileSystem.getContentUriAsync(resultat.uri);
   // FLAG_GRANT_READ_URI_PERMISSION (1) : l'installateur peut lire le fichier de l'application.
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {

@@ -20,3 +20,13 @@ services:
         generateValue: true
       - key: ORIGINES_AUTORISEES
         sync: false
+      # Espace d'administration : e-mails autorisés (séparés par des virgules).
+      - key: ADMIN_EMAILS
+        value: imdadadenon@gmail.com
+      # Lettre d'information (Brevo) : clé API et adresse d'expéditeur validée dans Brevo.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EXPEDITEUR_EMAIL
+        sync: false
+      - key: EXPEDITEUR_NOM
+        value: Onílé

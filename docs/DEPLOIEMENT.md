@@ -105,3 +105,22 @@ Avant chaque nouveau build, augmenter `version` et `versionCode` dans `app.json`
 - `GET {API_URL}/telecharger` → redirection vers l'APK.
 - Dans l'application : Paramètres → Synchronisation → créer un compte → Synchroniser maintenant →
   la ligne apparaît dans Supabase (table `sauvegardes`, colonne `donnees` illisible : c'est normal).
+
+## 6. Espace d'administration et lettre d'information
+
+Adresse : `https://<ton-site>.vercel.app/admin` (non indexée par les moteurs de recherche).
+
+1. **Supabase → SQL Editor** : coller et exécuter `supabase/migrations/20261016000000_admin.sql`
+   (tables des téléchargements, des abonnés et des envois, fonction des statistiques).
+2. **Ton compte administrateur** : un compte Supabase avec l'e-mail `imdadadenon@gmail.com`. Crée-le depuis
+   l'application (Paramètres → Synchronisation → Créer mon compte) ou dans Supabase → Authentication → Add user.
+3. **Render → onile-api → Environment** : ajouter `ADMIN_EMAILS` = `imdadadenon@gmail.com`
+   (plusieurs e-mails : séparés par des virgules).
+4. **Envoi de la lettre (Brevo, gratuit jusqu'à 300 e-mails/jour)** :
+   - créer un compte sur brevo.com, valider une adresse d'expéditeur (Senders) ;
+   - SMTP & API → API Keys → créer une clé ;
+   - dans Render : `BREVO_API_KEY` = la clé, `EXPEDITEUR_EMAIL` = l'adresse validée, `EXPEDITEUR_NOM` = `Onílé`.
+
+Le tableau de bord montre : téléchargements (site, lien, application), comptes créés, comptes actifs,
+synchronisations, abonnés, courbe sur 30 jours, versions téléchargées. La lettre peut d'abord être envoyée en
+test à ta propre adresse ; chaque e-mail contient un lien de désinscription.

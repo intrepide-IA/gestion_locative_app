@@ -202,6 +202,17 @@
     details[open] summary::after { transform: rotate(45deg); }
     details p { margin: 0 0 20px; color: var(--muted); }
 
+    /* Lettre d'information */
+    .lettre { background: var(--white); border: 1px solid var(--line); border-radius: 32px; padding: 34px; display: grid; grid-template-columns: 1fr 1.1fr; gap: 26px; align-items: center; }
+    .lettre h2 { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; margin-bottom: 8px; }
+    .lettre p { margin: 0; color: var(--muted); }
+    #form-lettre { display: flex; flex-wrap: wrap; gap: 10px; }
+    #form-lettre input { flex: 1 1 220px; padding: 15px 16px; border-radius: 14px; border: 1px solid var(--line); font: 16px 'Inter', sans-serif; }
+    #form-lettre input:focus { outline: 2px solid var(--primary); }
+    #lettre-message { flex-basis: 100%; font-weight: 600; min-height: 1em; }
+    .lettre-note { flex-basis: 100%; font-size: 12.5px; }
+    @media (max-width: 760px) { .lettre { grid-template-columns: 1fr; padding: 24px; border-radius: 26px; } #form-lettre .btn { flex: 1 1 100%; } }
+
     /* Pied de page */
     footer.site { margin: 0 16px 16px; background: var(--ink); color: rgba(255,255,255,.8); border-radius: 36px; padding: 56px 0 28px; }
     .pied { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 30px; }
@@ -490,6 +501,24 @@
     </section>
   </main>
 
+  <section id="lettre" aria-labelledby="t-lettre" style="padding-top:10px">
+    <div class="container">
+      <div class="lettre reveler">
+        <div>
+          <h2 id="t-lettre">Restez informé</h2>
+          <p>Nouvelles versions et conseils de gestion, une à deux fois par mois. Désinscription en un clic.</p>
+        </div>
+        <form id="form-lettre" novalidate>
+          <label class="sr-only" for="email-lettre">Votre adresse e-mail</label>
+          <input id="email-lettre" type="email" placeholder="Votre adresse e-mail" autocomplete="email" required>
+          <button class="btn btn-dark" type="submit">S’inscrire</button>
+          <p id="lettre-message" role="status"></p>
+          <p class="lettre-note">En vous inscrivant, vous acceptez de recevoir la lettre d’Onílé. Voir la <a href="/confidentialite">politique de confidentialité</a>.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <footer class="site" id="contact">
     <div class="container">
       <div class="pied">
@@ -531,6 +560,34 @@
 
   <script>
     document.getElementById('annee').textContent = new Date().getFullYear();
+    // Lettre d'information : inscription via l'API (Supabase), sans rechargement de page.
+    document.getElementById('form-lettre').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const champ = document.getElementById('email-lettre');
+      const message = document.getElementById('lettre-message');
+      const email = champ.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        message.style.color = '#C0392B';
+        message.textContent = 'Saisissez une adresse e-mail valide.';
+        return;
+      }
+      message.style.color = 'var(--muted)';
+      message.textContent = 'Inscription…';
+      try {
+        const r = await fetch('https://onile-api.onrender.com/api/newsletter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (!r.ok) throw new Error();
+        message.style.color = 'var(--primary)';
+        message.textContent = 'Merci ! Vous êtes inscrit.';
+        champ.value = '';
+      } catch {
+        message.style.color = '#C0392B';
+        message.textContent = 'Inscription impossible pour le moment. Réessayez plus tard.';
+      }
+    });
     // Apparition douce des blocs au défilement (désactivée si l'utilisateur réduit les animations).
     const blocs = document.querySelectorAll('.reveler');
     if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

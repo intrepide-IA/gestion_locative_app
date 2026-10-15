@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administration — Onílé</title>
+  <meta name="theme-color" content="#0F6B4F">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary: #0F6B4F; --accent: #F5B301; --cream: #FBF6EF; --ink: #14211C; --muted: #5B6B64; --line: #E6E2DA; --white: #fff; --mint: #DDF1E8; --danger: #C0392B; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; color: var(--ink); background: var(--cream); -webkit-font-smoothing: antialiased; }
+    h1, h2 { font-family: 'Bricolage Grotesque', 'Inter', sans-serif; letter-spacing: -0.02em; margin: 0; }
+    .container { width: min(1120px, 100% - 32px); margin-inline: auto; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; gap: 12px; flex-wrap: wrap; }
+    .brand { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px; color: var(--primary); text-decoration: none; }
+    .brand small { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 13px; color: var(--muted); margin-left: 6px; }
+    .carte { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 22px; }
+    .connexion { max-width: 400px; margin: 60px auto; }
+    label { display: block; font-size: 14px; font-weight: 500; margin: 14px 0 6px; }
+    input, textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font: 15px 'Inter', sans-serif; background: var(--white); color: var(--ink); }
+    textarea { min-height: 200px; resize: vertical; line-height: 1.5; }
+    input:focus, textarea:focus { outline: 2px solid var(--primary); border-color: var(--primary); }
+    .btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 12px; border: 0; font: 600 15px 'Inter', sans-serif; cursor: pointer; }
+    .btn-principal { background: var(--primary); color: var(--white); }
+    .btn-clair { background: var(--white); color: var(--ink); border: 1px solid var(--line); }
+    .btn[disabled] { opacity: .5; cursor: default; }
+    .erreur { color: var(--danger); font-size: 14px; margin-top: 10px; min-height: 1em; }
+    .ok { color: var(--primary); font-size: 14px; margin-top: 10px; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 6px 0 18px; }
+    .kpi { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+    .kpi span { color: var(--muted); font-size: 13px; }
+    .kpi b { display: block; font-family: 'Bricolage Grotesque', sans-serif; font-size: 30px; line-height: 1.1; margin-top: 4px; }
+    .kpi small { color: var(--primary); font-size: 12px; font-weight: 600; }
+    .grille { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+    h2 { font-size: 18px; margin-bottom: 12px; }
+    .vide { color: var(--muted); font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; font-size: 13px; }
+    .liste { max-height: 320px; overflow: auto; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--mint); color: var(--primary); }
+    .badge.non { background: #F1F1EF; color: var(--muted); }
+    [hidden] { display: none !important; }
+    @media (max-width: 860px) { .grille { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a class="brand" href="/">Onílé<small>Administration</small></a>
+      <div id="session" hidden>
+        <span id="qui" style="color:var(--muted);font-size:14px;margin-right:10px"></span>
+        <button class="btn btn-clair" id="deconnexion" type="button">Se déconnecter</button>
+      </div>
+    </header>
+
+    <!-- Connexion : compte Supabase dont l'e-mail figure dans ADMIN_EMAILS (Render). -->
+    <section class="carte connexion" id="ecran-connexion" hidden>
+      <h1 style="font-size:28px">Connexion</h1>
+      <p class="vide">Réservé à l’administrateur d’Onílé.</p>
+      <form id="form-connexion">
+        <label for="email">E-mail</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="mdp">Mot de passe</label>
+        <input id="mdp" type="password" autocomplete="current-password" required>
+        <div class="actions"><button class="btn btn-principal" type="submit" id="bouton-connexion" style="width:100%">Se connecter</button></div>
+        <p class="erreur" id="erreur-connexion" role="alert"></p>
+      </form>
+    </section>
+
+    <main id="tableau" hidden>
+      <h1 style="font-size:32px;margin:4px 0 14px">Tableau de bord</h1>
+      <div class="kpis" id="kpis"></div>
+
+      <div class="grille">
+        <section class="carte">
+          <h2>Téléchargements et nouveaux comptes (30 jours)</h2>
+          <div id="courbe"></div>
+        </section>
+        <section class="carte">
+          <h2>Téléchargements par version</h2>
+          <div id="versions"></div>
+        </section>
+      </div>
+
+      <div class="grille">
+        <section class="carte">
+          <h2>Envoyer une lettre d’information</h2>
+          <form id="form-lettre">
+            <label for="sujet">Sujet</label>
+            <input id="sujet" required maxlength="150" placeholder="Ex. Onílé 1.1 : nouvelles fonctions">
+            <label for="contenu">Message</label>
+            <textarea id="contenu" required placeholder="Bonjour,&#10;&#10;Votre message… (une ligne vide = nouveau paragraphe). Le lien de désinscription est ajouté automatiquement."></textarea>
+            <div class="actions">
+              <button class="btn btn-clair" type="button" id="envoyer-test">M’envoyer un test</button>
+              <button class="btn btn-principal" type="submit" id="envoyer-tous">Envoyer à tous les abonnés</button>
+            </div>
+            <p class="erreur" id="message-lettre" role="status"></p>
+          </form>
+          <h2 style="margin-top:22px">Lettres envoyées</h2>
+          <div id="envois" class="liste"></div>
+        </section>
+        <section class="carte">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <h2>Abonnés</h2>
+            <button class="btn btn-clair" type="button" id="export">Exporter (CSV)</button>
+          </div>
+          <div id="abonnes" class="liste"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script>
+    const API = 'https://onile-api.onrender.com';
+    // Clé « anon » : publique par nature (déjà intégrée à l'application). L'accès est contrôlé par l'API.
+    const supa = window.supabase.createClient('https://qkitblhirhmjoqxjexxa.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFraXRibGhpcmhtam9xeGpleHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTQ5NzIsImV4cCI6MjEwNzYzMDk3Mn0.68TBpYIDhgTRtpg9l5CbPeQlfCOo_rmkzi5nhwjZGts');
+    const $ = (id) => document.getElementById(id);
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const date = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    let abonnes = [];
+
+    async function api(chemin, options = {}) {
+      const { data } = await supa.auth.getSession();
+      const r = await fetch(API + chemin, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token ?? ''}`, ...(options.headers ?? {}) },
+      });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw Object.assign(new Error(corps.erreur || `Erreur ${r.status}`), { statut: r.status });
+      return corps;
+    }
+
+    function afficher(ecran) {
+      $('ecran-connexion').hidden = ecran !== 'connexion';
+      $('tableau').hidden = ecran !== 'tableau';
+      $('session').hidden = ecran !== 'tableau';
+    }
+
+    function kpi(libelle, valeur, detail) {
+      return `<div class="kpi"><span>${esc(libelle)}</span><b>${esc(valeur)}</b>${detail ? `<small>${esc(detail)}</small>` : ''}</div>`;
+    }
+
+    /** Courbe simple sur 30 jours (deux séries), en SVG. */
+    function courbe(series) {
+      const jours = [];
+      for (let i = 29; i >= 0; i--) jours.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+      const valeurs = series.map((s) => jours.map((j) => s.donnees.find((d) => d.jour === j)?.n ?? 0));
+      const max = Math.max(1, ...valeurs.flat());
+      const L = 600, H = 200, m = 24;
+      const x = (i) => m + (i / 29) * (L - 2 * m);
+      const y = (v) => H - m - (v / max) * (H - 2 * m);
+      const traces = series.map((s, k) => {
+        const pts = valeurs[k].map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+        return `<polyline points="${pts}" fill="none" stroke="${s.couleur}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }).join('');
+      const legende = series.map((s) => `<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:13px;color:var(--muted)"><i style="width:14px;height:3px;background:${s.couleur};display:inline-block;border-radius:2px"></i>${esc(s.nom)}</span>`).join('');
+      return `<svg viewBox="0 0 ${L} ${H}" width="100%" role="img" aria-label="Évolution sur 30 jours">
+        <line x1="${m}" x2="${L - m}" y1="${H - m}" y2="${H - m}" stroke="#E6E2DA"/>
+        <text x="${m}" y="${m - 6}" font-size="11" fill="#5B6B64">${max}</text>${traces}
+        <text x="${m}" y="${H - 6}" font-size="11" fill="#5B6B64">${date(jours[0])}</text>
+        <text x="${L - m}" y="${H - 6}" font-size="11" fill="#5B6B64" text-anchor="end">aujourd’hui</text></svg><div>${legende}</div>`;
+    }
+
+    async function charger() {
+      try {
+        const s = await api('/api/admin/stats');
+        $('qui').textContent = s.admin;
+        afficher('tableau');
+        $('kpis').innerHTML = [
+          kpi('Téléchargements', s.telechargements, `+${s.telechargements_30j} en 30 jours`),
+          kpi('Comptes créés', s.comptes, `+${s.comptes_30j} en 30 jours`),
+          kpi('Comptes actifs', s.comptes_actifs_30j, 'ont synchronisé en 30 jours'),
+          kpi('Synchronisations', s.synchronisations, `+${s.synchronisations_30j} en 30 jours`),
+          kpi('Abonnés', s.abonnes, 'lettre d’information'),
+          kpi('Version publiée', s.version ?? '—', ''),
+        ].join('');
+        $('courbe').innerHTML = courbe([
+          { nom: 'Téléchargements', couleur: '#0F6B4F', donnees: s.telechargements_par_jour },
+          { nom: 'Nouveaux comptes', couleur: '#F5B301', donnees: s.comptes_par_jour },
+        ]);
+        $('versions').innerHTML = s.versions.length
+          ? `<table><tr><th>Version</th><th>Téléchargements</th></tr>${s.versions.map((v) => `<tr><td>${esc(v.version)}</td><td>${esc(v.n)}</td></tr>`).join('')}</table>`
+          : '<p class="vide">Aucun téléchargement compté pour le moment.</p>';
+        abonnes = await api('/api/admin/abonnes');
+        $('abonnes').innerHTML = abonnes.length
+          ? `<table><tr><th>E-mail</th><th>Depuis</th><th></th></tr>${abonnes.map((a) => `<tr><td>${esc(a.email)}</td><td>${date(a.cree_le)}</td><td><span class="badge ${a.desinscrit_le ? 'non' : ''}">${a.desinscrit_le ? 'désinscrit' : 'abonné'}</span></td></tr>`).join('')}</table>`
+          : '<p class="vide">Aucun abonné pour le moment.</p>';
+        const envois = await api('/api/admin/envois');
+        $('envois').innerHTML = envois.length
+          ? `<table><tr><th>Sujet</th><th>Envoyé le</th><th>Dest.</th></tr>${envois.map((e) => `<tr><td>${esc(e.sujet)}</td><td>${date(e.envoye_le)}</td><td>${esc(e.destinataires)}</td></tr>`).join('')}</table>`
+          : '<p class="vide">Aucune lettre envoyée.</p>';
+      } catch (e) {
+        if (e.statut === 401) {
+          await supa.auth.signOut();
+          afficher('connexion');
+          $('erreur-connexion').textContent = 'Ce compte n’a pas accès à l’administration.';
+        } else {
+          afficher('connexion');
+          $('erreur-connexion').textContent = `Tableau de bord indisponible : ${e.message}`;
+        }
+      }
+    }
+
+    $('form-connexion').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      $('erreur-connexion').textContent = '';
+      $('bouton-connexion').disabled = true;
+      const { error } = await supa.auth.signInWithPassword({ email: $('email').value.trim(), password: $('mdp').value });
+      $('bouton-connexion').disabled = false;
+      if (error) return ($('erreur-connexion').textContent = 'E-mail ou mot de passe incorrect.');
+      charger();
+    });
+
+    $('deconnexion').addEventListener('click', async () => {
+      await supa.auth.signOut();
+      afficher('connexion');
+    });
+
+    async function envoyer(test) {
+      const sujet = $('sujet').value.trim();
+      const contenu = $('contenu').value.trim();
+      const msg = $('message-lettre');
+      if (!sujet || !contenu) return (msg.className = 'erreur', msg.textContent = 'Sujet et message obligatoires.');
+      if (!test && !confirm(`Envoyer « ${sujet} » à tous les abonnés ?`)) return;
+      msg.className = 'ok';
+      msg.textContent = 'Envoi en cours…';
+      try {
+        const r = await api('/api/admin/newsletter', { method: 'POST', body: JSON.stringify({ sujet, contenu, test }) });
+        msg.textContent = test ? 'Test envoyé à votre adresse.' : `Lettre envoyée à ${r.envoyes} abonné(s)${r.echecs ? `, ${r.echecs} échec(s)` : ''}.`;
+        if (!test) charger();
+      } catch (e) {
+        msg.className = 'erreur';
+        msg.textContent = e.message;
+      }
+    }
+    $('envoyer-test').addEventListener('click', () => envoyer(true));
+    $('form-lettre').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      envoyer(false);
+    });
+
+    $('export').addEventListener('click', () => {
+      const lignes = [['email', 'inscrit_le', 'desinscrit_le'], ...abonnes.map((a) => [a.email, a.cree_le, a.desinscrit_le ?? ''])];
+      const csv = '﻿' + lignes.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'abonnes-onile.csv';
+      a.click();
+    });
+
+    supa.auth.getSession().then(({ data }) => (data.session ? charger() : afficher('connexion')));
+  </script>
+</body>
+</html>
