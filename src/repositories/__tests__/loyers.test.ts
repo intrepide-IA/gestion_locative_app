@@ -13,6 +13,7 @@ import {
   listerEcheancesDuMois,
   paiementsDuLocataire,
   echeancierDuLocataire,
+  previsionsDuMois,
   situationLocataire,
   syntheseDuMois,
 } from '../loyerRepository';
@@ -238,4 +239,15 @@ test('effet d’un paiement sur l’échéancier : jusqu’à quel mois il couvr
   const e = await echeancierDuLocataire(db, locataireId, '2026-10-10', 6);
   expect(payeJusquaApres(e, 20000)).toBeNull();
   expect(payeJusquaApres(e, 26000 * 3)).toEqual({ annee: 2026, mois: 12 });
+});
+
+test('mois à venir : l’onglet Loyers voit qu’un locataire a déjà payé d’avance', async () => {
+  const db = await createMigratedDatabase();
+  const { locataireId } = await installer(db);
+  await genererEcheances(db, '2026-10-10');
+  await payer(db, locataireId, 26000 * 2 + 10000, '2026-10-03');
+  expect(await previsionsDuMois(db, 2026, 11, '2026-10-10')).toMatchObject([{ statut: 'avance', regle: 26000, montant: 26000 }]);
+  expect(await previsionsDuMois(db, 2026, 12, '2026-10-10')).toMatchObject([{ statut: 'partielle', regle: 10000 }]);
+  expect(await previsionsDuMois(db, 2027, 1, '2026-10-10')).toMatchObject([{ statut: 'a_venir', regle: 0 }]);
+  expect(await previsionsDuMois(db, 2026, 10, '2026-10-10')).toEqual([]);
 });

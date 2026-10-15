@@ -32,8 +32,10 @@ import {
   LIBELLES_MODE,
   listerEcheancesDuMois,
   paiementsDeLEcheance,
+  previsionsDuMois,
   syntheseDuMois,
   type EcheanceDetaillee,
+  type PrevisionMois,
   type SyntheseMois,
 } from '../../repositories/loyerRepository';
 import { colors } from '../../theme/colors';
@@ -53,10 +55,11 @@ export function libelleStatut(e: Pick<EcheanceDetaillee, 'statut' | 'enRetard'>)
 
 interface DonneesMois {
   echeances: EcheanceDetaillee[];
+  previsions: PrevisionMois[];
   synthese: SyntheseMois;
 }
 
-const VIDE: DonneesMois = { echeances: [], synthese: { attendu: 0, regle: 0, reste: 0, encaisse: 0, enRetard: 0 } };
+const VIDE: DonneesMois = { echeances: [], previsions: [], synthese: { attendu: 0, regle: 0, reste: 0, encaisse: 0, enRetard: 0 } };
 
 export function LoyersScreen() {
   const maintenant = new Date();
@@ -69,17 +72,25 @@ export function LoyersScreen() {
     async (db: SqlDatabase): Promise<DonneesMois> => {
       const jour = aujourdhui();
       await genererEcheances(db, jour);
-      const [echeances, synthese] = await Promise.all([
+      const [echeances, synthese, previsions] = await Promise.all([
         listerEcheancesDuMois(db, periode.annee, periode.mois, jour),
         syntheseDuMois(db, periode.annee, periode.mois, jour),
+        previsionsDuMois(db, periode.annee, periode.mois, jour),
       ]);
       void synchroniserNotifications();
-      return { echeances, synthese };
+      // Mois à venir : ce qui sera dû et ce qui est déjà payé d'avance s'ajoute à la synthèse.
+      const attendu = previsions.reduce((t, p) => t + p.montant, 0);
+      const regle = previsions.reduce((t, p) => t + p.regle, 0);
+      return {
+        echeances,
+        previsions,
+        synthese: { ...synthese, attendu: synthese.attendu + attendu, regle: synthese.regle + regle, reste: synthese.reste + attendu - regle },
+      };
     },
     [periode]
   );
   const { donnees, chargement, erreur, rafraichir } = useRessource(lire, VIDE);
-  const { echeances, synthese } = donnees;
+  const { echeances, synthese, previsions } = donnees;
 
   const decaler = (delta: number) =>
     setPeriode(({ annee, mois }) => {
@@ -147,6 +158,37 @@ export function LoyersScreen() {
                 <Text className="text-white/90 text-sm font-semibold">{formatFCFA(synthese.encaisse)}</Text>
               </View>
             </View>
+            {previsions.length ? (
+              <View className="gap-2">
+                <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-1">Mois à venir · paiements d’avance</Text>
+                {previsions.map((p) => (
+                  <Carte
+                    key={p.locataire_id}
+                    onPress={() => setEncaissement({ id: p.locataire_id, nom: p.locataire_nom, reste: p.montant - p.regle })}
+                  >
+                    <View className="flex-row items-center">
+                      <View className="flex-1">
+                        <Text className="text-base font-semibold text-ink" numberOfLines={1}>
+                          {p.locataire_nom}
+                        </Text>
+                        <Text className="text-sm text-muted">
+                          {p.logement_reference} · échéance le {formatDate(p.date)}
+                        </Text>
+                      </View>
+                      <View className="items-end">
+                        <Badge
+                          libelle={p.statut === 'avance' ? 'Payé d’avance' : p.statut === 'partielle' ? 'Avance partielle' : 'À venir'}
+                          ton={p.statut === 'avance' ? 'succes' : p.statut === 'partielle' ? 'attention' : 'neutre'}
+                        />
+                        <Text className="text-sm font-semibold text-ink mt-1.5">
+                          {p.statut === 'avance' ? formatFCFA(p.montant) : `Reste ${formatFCFA(p.montant - p.regle)}`}
+                        </Text>
+                      </View>
+                    </View>
+                  </Carte>
+                ))}
+              </View>
+            ) : null}
             {echeances.length ? (
               <View className="-mx-5">
                 <Filtres
@@ -169,7 +211,7 @@ export function LoyersScreen() {
             <EtatErreur message={messageErreur(erreur, erreur.message)} onReessayer={rafraichir} />
           ) : chargement ? (
             <Chargement />
-          ) : echeances.length === 0 ? (
+          ) : previsions.length ? null : echeances.length === 0 ? (
             <EtatVide
               icone={<Receipt size={30} color={colors.primary} />}
               titre="Aucune échéance ce mois-ci"

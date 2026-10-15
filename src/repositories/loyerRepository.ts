@@ -375,3 +375,45 @@ export async function echeancierDuLocataire(db: SqlDatabase, locataireId: number
     moisFuturs: contrat ? moisFuturs : 0,
   });
 }
+
+export interface PrevisionMois {
+  locataire_id: number;
+  locataire_nom: string;
+  logement_reference: string;
+  date: string;
+  montant: number;
+  /** Part déjà couverte par l'avance du locataire. */
+  regle: number;
+  statut: 'avance' | 'partielle' | 'a_venir';
+}
+
+/**
+ * Mois pas encore facturé (à venir) : pour chaque contrat actif, ce qui sera dû et la part déjà
+ * payée d'avance. Permet de voir dès aujourd'hui qu'un locataire a déjà réglé un mois futur.
+ */
+export async function previsionsDuMois(db: SqlDatabase, annee: number, mois: number, aujourdhui: string): Promise<PrevisionMois[]> {
+  const contrats = await db.all<{ locataire_id: number; locataire_nom: string; logement_reference: string }>(
+    `SELECT c.locataire_id, t.nom_complet AS locataire_nom, l.reference AS logement_reference
+     FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
+     WHERE c.statut = 'actif'
+       AND NOT EXISTS (SELECT 1 FROM echeances e WHERE e.contrat_id = c.id AND e.annee = ? AND e.mois = ?)
+     ORDER BY l.reference COLLATE NOCASE`,
+    [annee, mois]
+  );
+  const ecart = (annee - Number(aujourdhui.slice(0, 4))) * 12 + (mois - Number(aujourdhui.slice(5, 7)));
+  if (ecart <= 0) return [];
+  const resultat: PrevisionMois[] = [];
+  for (const c of contrats) {
+    const e = await echeancierDuLocataire(db, c.locataire_id, aujourdhui, ecart + 1);
+    const l = e.lignes.find((x) => x.futur && x.annee === annee && x.mois === mois);
+    if (!l) continue;
+    resultat.push({
+      ...c,
+      date: l.date,
+      montant: l.montant,
+      regle: l.regle,
+      statut: l.statut === 'avance' ? 'avance' : l.regle > 0 ? 'partielle' : 'a_venir',
+    });
+  }
+  return resultat;
+}
