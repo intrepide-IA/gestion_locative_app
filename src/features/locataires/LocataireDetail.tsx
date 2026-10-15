@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
-import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
+import { DoorOpen, Pencil, Phone, ShieldAlert, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
+import { FormCorrection, FormSuppression } from './CorrectionsLocataire';
 import { useNavigation } from '@react-navigation/native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
@@ -45,7 +46,7 @@ import { PaiementForm } from '../loyers/PaiementForm';
 import { ElectriciteDetail } from '../electricite/ElectriciteDetail';
 import { synchroniserNotifications } from '../../services/notifications';
 
-type Vue = 'fiche' | 'modifier' | 'conditions' | 'depart';
+type Vue = 'fiche' | 'modifier' | 'conditions' | 'depart' | 'correction' | 'suppression';
 
 interface Props {
   locataireId: number | null;
@@ -65,6 +66,8 @@ export function LocataireDetail({ locataireId, onFermer, onModifie }: Props) {
     fiche: 'Fiche locataire',
     modifier: 'Modifier la fiche',
     conditions: 'Conditions du contrat',
+    correction: 'Corriger toutes les informations',
+    suppression: 'Supprimer le locataire',
     depart: 'Départ du locataire',
   };
   return (
@@ -159,6 +162,8 @@ function Contenu({
   if (vue === 'modifier') return <FormFiche locataire={locataire} onEnregistre={apres} />;
   if (vue === 'conditions' && contrat) return <FormConditions contrat={contrat} onEnregistre={apres} />;
   if (vue === 'depart' && contrat) return <FormDepart contrat={contrat} nom={locataire.nom_complet} onEnregistre={apres} />;
+  if (vue === 'correction' && contrat) return <FormCorrection locataire={locataire} contrat={contrat} onEnregistre={apres} />;
+  if (vue === 'suppression') return <FormSuppression locataire={locataire} onSupprime={onRetire} />;
 
   const retirer = async () => {
     const ok = await confirmer(
@@ -308,6 +313,14 @@ function Contenu({
       ) : (
         <Bouton titre="Retirer de la liste" variante="danger" icone={<Trash2 size={18} color={colors.danger} />} onPress={retirer} />
       )}
+
+      <View className="mt-2 pt-3 border-t border-border gap-2">
+        <Text className="text-xs font-bold text-muted uppercase tracking-wider">Corrections (code PIN et motif)</Text>
+        {contrat ? (
+          <Bouton titre="Corriger toutes les informations" variante="discret" icone={<ShieldAlert size={18} color={colors.primary} />} onPress={() => setVue('correction')} />
+        ) : null}
+        <Bouton titre="Supprimer définitivement" variante="discret" icone={<Trash2 size={18} color={colors.danger} />} onPress={() => setVue('suppression')} />
+      </View>
     </>
   );
 }

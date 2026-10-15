@@ -328,6 +328,19 @@ ALTER TABLE contrats ADD COLUMN caution_retenue_charges INTEGER NOT NULL DEFAULT
 ALTER TABLE contrats ADD COLUMN motif_retenue_charges TEXT;
 `;
 
+/** V7 : journal des corrections sensibles (motif obligatoire), jamais effacé. */
+const V7 = `
+CREATE TABLE journal_modifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  quand TEXT NOT NULL,
+  objet TEXT NOT NULL,
+  objet_id INTEGER,
+  action TEXT NOT NULL,
+  motif TEXT NOT NULL CHECK (length(trim(motif)) > 0),
+  details TEXT
+);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, description: 'Schéma initial Onílé', sql: V1 },
   { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
@@ -335,6 +348,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 4, description: 'Décompte de la caution au départ', sql: V4 },
   { version: 5, description: 'Index du compteur sur les ventes d’électricité', sql: V5 },
   { version: 6, description: 'Cautions électricité et eau', sql: V6 },
+  { version: 7, description: 'Journal des corrections', sql: V7 },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

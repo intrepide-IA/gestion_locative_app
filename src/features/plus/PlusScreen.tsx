@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, FileText, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, FileText, History, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -14,7 +14,8 @@ import { Text } from '../../components/ui/Text';
 import { APP_VERSION } from '../../constants';
 import { getDatabase } from '../../db/client';
 import { messageErreur } from '../../domain/erreurs';
-import { initiales } from '../../domain/format';
+import { formatDateHeure, initiales } from '../../domain/format';
+import { journalDesModifications } from '../../repositories/correctionsRepository';
 import { useRessource } from '../../hooks/useRessource';
 import { definirSignature, enregistrerProprietaire, getProprietaire, type Proprietaire } from '../../repositories/proprietaireRepository';
 import { importerImage } from '../../services/images';
@@ -33,6 +34,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const [profil, setProfil] = useState(false);
   const [pin, setPin] = useState(false);
   const [signature, setSignature] = useState(false);
+  const [journal, setJournal] = useState(false);
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
   const notifs = useRessource(notificationsActives, true);
   const rappels = useRessource(lireEtatRappels, null);
@@ -179,6 +181,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
 
         <Groupe titre="Sécurité">
           <Ligne icone={<Shield size={18} color={colors.primary} />} libelle="Modifier le code PIN" onPress={() => setPin(true)} />
+          <Ligne icone={<History size={18} color={colors.primary} />} libelle="Journal des modifications" onPress={() => setJournal(true)} />
           <Ligne icone={<Lock size={18} color={colors.primary} />} libelle="Verrouiller maintenant" onPress={onVerrouiller} dernier />
         </Groupe>
 
@@ -203,6 +206,9 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             rafraichir();
           }}
         />
+      </Feuille>
+      <Feuille ouverte={journal} onFermer={() => setJournal(false)} titre="Journal des modifications">
+        <Journal />
       </Feuille>
       <Feuille ouverte={pin} onFermer={() => setPin(false)} titre="Changer le code PIN">
         <FormPin onTermine={() => setPin(false)} />
@@ -381,6 +387,38 @@ function FormSignature({ actuelle, nom, onModifiee }: { actuelle: string | null;
       <Bouton titre="Importer une image" variante="secondaire" onPress={importer} chargement={enCours} />
       <Text className="text-muted text-xs">Image conseillée : signature à l’encre noire sur fond blanc ou transparent (PNG).</Text>
       {actuelle ? <Bouton titre="Retirer la signature" variante="danger" onPress={() => enregistrer(null)} /> : null}
+    </>
+  );
+}
+
+const lireJournal = (db: Parameters<typeof journalDesModifications>[0]) => journalDesModifications(db);
+
+/** Corrections et suppressions faites avec le code PIN : date, heure, action et motif. */
+function Journal() {
+  const { donnees, chargement } = useRessource(lireJournal, []);
+  if (chargement && !donnees.length) return <Text className="text-muted">Chargement…</Text>;
+  if (!donnees.length) return <Text className="text-muted">Aucune correction ni suppression pour le moment.</Text>;
+  return (
+    <>
+      {donnees.map((j) => {
+        let nom = '';
+        try {
+          const d = JSON.parse(j.details ?? '{}') as { nom?: string; apres?: { fiche?: { nom_complet?: string } } };
+          nom = d.nom ?? d.apres?.fiche?.nom_complet ?? '';
+        } catch {
+          nom = '';
+        }
+        return (
+          <View key={j.id} className="py-2.5 border-b border-border">
+            <Text className="text-ink font-semibold">
+              {j.action === 'suppression' ? 'Suppression' : 'Correction'}
+              {nom ? ` · ${nom}` : ''}
+            </Text>
+            <Text className="text-muted text-xs">{formatDateHeure(j.quand)}</Text>
+            <Text className="text-ink text-sm mt-0.5">Motif : {j.motif}</Text>
+          </View>
+        );
+      })}
     </>
   );
 }

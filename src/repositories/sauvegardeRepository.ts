@@ -32,6 +32,7 @@ export const TABLES_SAUVEGARDEES = [
   'mouvements_financiers',
   'justificatifs',
   'parametres',
+  'journal_modifications',
 ] as const;
 
 type NomTable = (typeof TABLES_SAUVEGARDEES)[number];
