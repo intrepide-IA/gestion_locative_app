@@ -23,10 +23,13 @@ import { preparerFactureEcheance, preparerRecu } from '../../documents';
 import { useApercu } from '../../components/documents/Apercu';
 import { LIBELLES_STATUT } from '../../domain/echeances';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatDate, formatFCFA, formatMois } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, formatMois, formatHeure, formatDateHeure } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import {
+  annulerFacture,
   annulerPaiement,
+  facturesDeLEcheance,
+  type FactureEcheance,
   genererEcheances,
   getEcheance,
   LIBELLES_MODE,
@@ -278,18 +281,20 @@ function DetailEcheance({
 }) {
   const lire = useCallback(
     async (db: SqlDatabase) => {
-      const [echeance, paiements] = await Promise.all([
+      const [echeance, paiements, factures] = await Promise.all([
         getEcheance(db, echeanceId, aujourdhui()),
         paiementsDeLEcheance(db, echeanceId),
+        facturesDeLEcheance(db, echeanceId),
       ]);
-      return { echeance, paiements };
+      return { echeance, paiements, factures };
     },
     [echeanceId]
   );
-  const { donnees, chargement, rafraichir } = useRessource(lire, { echeance: null, paiements: [] });
+  const { donnees, chargement, rafraichir } = useRessource(lire, { echeance: null, paiements: [], factures: [] as FactureEcheance[] });
+  const [factureAAnnuler, setFactureAAnnuler] = useState<string | null>(null);
   const ouvrirApercu = useApercu();
   const [aAnnuler, setAAnnuler] = useState<number | null>(null);
-  const { echeance, paiements } = donnees;
+  const { echeance, paiements, factures } = donnees;
 
   if (chargement && !echeance) return <Chargement />;
   if (!echeance) return <Text className="text-muted text-center py-8">Échéance introuvable.</Text>;
@@ -313,8 +318,28 @@ function DetailEcheance({
         <LigneInfo libelle="Déjà réglé" valeur={formatFCFA(echeance.paye)} />
         <LigneInfo libelle="Reste" valeur={<Text className="font-bold text-ink">{formatFCFA(echeance.reste)}</Text>} />
         <LigneInfo libelle="Échéance" valeur={formatDate(echeance.date_echeance)} />
-        {echeance.facture_numero ? <LigneInfo libelle="Facture" valeur={echeance.facture_numero} /> : null}
       </Carte>
+
+      {factures.length ? (
+        <Carte>
+          <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Factures</Text>
+          {factures.map((f) => (
+            <View key={f.numero} className="py-2 border-b border-border">
+              <View className="flex-row items-center justify-between">
+                <Text className={`font-semibold ${f.statut === 'annulee' ? 'text-muted line-through' : 'text-ink'}`}>{f.numero}</Text>
+                <Badge libelle={f.statut === 'annulee' ? 'Annulée' : 'Émise'} ton={f.statut === 'annulee' ? 'erreur' : 'succes'} />
+              </View>
+              <Text className="text-xs text-muted">Émise le {formatDateHeure(f.cree_le)}</Text>
+              {f.statut === 'annulee' && f.motif_annulation ? <Text className="text-xs text-danger">Motif : {f.motif_annulation}</Text> : null}
+              {f.statut === 'emise' ? (
+                <Pressable onPress={() => setFactureAAnnuler(f.numero)} accessibilityRole="button" className="mt-1 self-start">
+                  <Text className="text-danger text-sm font-medium">Annuler cette facture</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
+        </Carte>
+      ) : null}
 
       {echeance.reste > 0 ? (
         <Bouton
@@ -324,7 +349,7 @@ function DetailEcheance({
         />
       ) : null}
       <Bouton
-        titre={echeance.facture_numero ? 'Voir la facture' : 'Émettre la facture'}
+        titre={echeance.facture_numero ? 'Voir la facture' : factures.length ? 'Émettre une nouvelle facture' : 'Émettre la facture'}
         variante="secondaire"
         icone={<FileText size={18} color={colors.primary} />}
         onPress={() =>
@@ -347,7 +372,7 @@ function DetailEcheance({
                 {formatFCFA(p.part)}
               </Text>
               <Text className="text-muted text-sm">
-                {formatDate(p.date_paiement)} · {LIBELLES_MODE[p.mode]}
+                {formatDate(p.date_paiement)} à {formatHeure(p.cree_le)} · {LIBELLES_MODE[p.mode]}
                 {p.recu_numero ? ` · ${p.recu_numero}` : ''}
               </Text>
               {p.annule_le ? <Text className="text-danger text-xs mt-1">Annulé : {p.motif_annulation}</Text> : null}
@@ -372,6 +397,19 @@ function DetailEcheance({
           </View>
         </Carte>
       ))}
+      <DemandeMotif
+        ouverte={factureAAnnuler !== null}
+        titre="Annuler la facture"
+        explication="La facture reste dans l’historique avec le statut « Annulée » et son motif ; son numéro n’est jamais réutilisé. Le loyer reste dû : vous pourrez émettre une nouvelle facture."
+        libelleAction="Annuler la facture"
+        onFermer={() => setFactureAAnnuler(null)}
+        onValider={async (motif) => {
+          await annulerFacture(await getDatabase(), factureAAnnuler!, motif);
+          setFactureAAnnuler(null);
+          rafraichir();
+          onModifie();
+        }}
+      />
       <DemandeMotif
         ouverte={aAnnuler !== null}
         titre="Annuler ce paiement"

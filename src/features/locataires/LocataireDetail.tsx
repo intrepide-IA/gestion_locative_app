@@ -11,7 +11,7 @@ import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatDate, formatFCFA, formatMois, initiales, lireMontant } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, formatMois, initiales, lireMontant, formatHeure } from '../../domain/format';
 import type { Echeancier, StatutLigne } from '../../domain/echeances';
 import { useRessource } from '../../hooks/useRessource';
 import {
@@ -267,7 +267,7 @@ function Contenu({
           {paiements.slice(0, 10).map((p) => (
             <LigneInfo
               key={p.id}
-              libelle={`${formatDate(p.date_paiement)} · ${LIBELLES_MODE[p.mode]}`}
+              libelle={`${formatDate(p.date_paiement)} à ${formatHeure(p.cree_le)} · ${LIBELLES_MODE[p.mode]}${p.annule_le ? ' · annulé' : ''}`}
               valeur={
                 <Text
                   onPress={() => ouvrirApercu(() => preparerRecu(p.id))}

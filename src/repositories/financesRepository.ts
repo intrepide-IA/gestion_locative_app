@@ -36,6 +36,7 @@ export interface Mouvement {
   origine_id: number | null;
   statut: StatutMouvement;
   motif_annulation: string | null;
+  cree_le: string;
 }
 
 export interface Periode {

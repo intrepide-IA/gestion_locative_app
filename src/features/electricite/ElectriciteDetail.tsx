@@ -13,7 +13,7 @@ import { preparerFactureElectricite } from '../../documents';
 import { useApercu } from '../../components/documents/Apercu';
 import { calculerAchat, LIBELLES_STOCK, type EtatStock } from '../../domain/electricite';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatDate, formatFCFA, lireMontant } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, lireMontant, formatHeure } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import {
   achatsDuContrat,
@@ -150,7 +150,7 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
                     {formatKwh(a.kwh)} · {formatFCFA(a.montant_facture)}
                   </Text>
                   <Text className="text-muted text-sm">
-                    {formatDate(a.date_achat)} · {LIBELLES_MODE[a.mode]}
+                    {formatDate(a.date_achat)} à {formatHeure(a.cree_le)} · {LIBELLES_MODE[a.mode]}
                     {a.facture_numero ? ` · ${a.facture_numero}` : ''}
                   </Text>
                   {a.index_achat !== null && a.index_coupure !== null ? (

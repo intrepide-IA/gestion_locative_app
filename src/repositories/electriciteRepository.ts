@@ -32,6 +32,7 @@ export interface SituationElectricite {
 
 export interface Achat {
   id: number;
+  cree_le: string;
   index_achat: number | null;
   index_coupure: number | null;
   date_achat: string;

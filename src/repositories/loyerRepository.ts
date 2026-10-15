@@ -52,6 +52,7 @@ export interface PaiementDetaille {
   note: string | null;
   annule_le: string | null;
   motif_annulation: string | null;
+  cree_le: string;
   recu_numero: string | null;
   affecte: number;
 }
@@ -508,4 +509,19 @@ export async function previsionsDuMois(
     });
   }
   return resultat;
+}
+
+export interface FactureEcheance {
+  numero: string;
+  statut: 'emise' | 'annulee';
+  motif_annulation: string | null;
+  cree_le: string;
+}
+
+/** Toutes les factures d'une échéance, annulées comprises (historique visible). */
+export async function facturesDeLEcheance(db: SqlDatabase, echeanceId: number): Promise<FactureEcheance[]> {
+  return db.all<FactureEcheance>(
+    'SELECT numero, statut, motif_annulation, cree_le FROM factures WHERE echeance_id = ? ORDER BY id DESC',
+    [echeanceId]
+  );
 }

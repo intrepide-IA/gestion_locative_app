@@ -13,7 +13,7 @@ import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
 import { partagerFichierTexte } from '../../documents/partage';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatDate, formatFCFA, formatMois } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, formatMois, formatHeure, formatDateHeure } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import {
   annulerMouvement,
@@ -33,7 +33,7 @@ import { colors } from '../../theme/colors';
 import { MouvementForm } from './MouvementForm';
 
 type Vue = 'mois' | 'annee';
-type Filtre = 'toutes' | 'entrees' | 'sorties' | 'prevues';
+type Filtre = 'toutes' | 'entrees' | 'sorties' | 'prevues' | 'annulees';
 
 const MOIS_COURTS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const MOIS_ABREGES = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
@@ -100,9 +100,10 @@ export function FinancesScreen() {
   const visibles = useMemo(
     () =>
       donnees.mouvements.filter((m) => {
-        if (filtre === 'entrees') return m.sens === 'entree' && m.statut !== 'brouillon';
-        if (filtre === 'sorties') return m.sens === 'sortie' && m.statut !== 'brouillon';
+        if (filtre === 'entrees') return m.sens === 'entree' && m.statut === 'valide';
+        if (filtre === 'sorties') return m.sens === 'sortie' && m.statut === 'valide';
         if (filtre === 'prevues') return m.statut === 'brouillon';
+        if (filtre === 'annulees') return m.statut === 'annule';
         return true;
       }),
     [donnees.mouvements, filtre]
@@ -255,6 +256,7 @@ export function FinancesScreen() {
               { valeur: 'entrees', libelle: 'Entrées' },
               { valeur: 'sorties', libelle: 'Sorties' },
               { valeur: 'prevues', libelle: 'Prévues' },
+              { valeur: 'annulees', libelle: 'Annulées' },
             ]}
             valeur={filtre}
             onChange={setFiltre}
@@ -272,7 +274,7 @@ export function FinancesScreen() {
                   {m.categorie_nom}
                 </Text>
                 <Text className="text-muted text-sm" numberOfLines={1}>
-                  {formatDate(m.date_operation)}
+                  {formatDate(m.date_operation)} à {formatHeure(m.cree_le)}
                   {m.description ? ` · ${m.description}` : ''}
                 </Text>
               </View>
@@ -353,6 +355,7 @@ function DetailMouvement({ mouvement: m, onModifie }: { mouvement: Mouvement; on
         <LigneInfo libelle="Catégorie" valeur={m.categorie_nom} />
         <LigneInfo libelle="Montant" valeur={`${m.sens === 'entree' ? '+' : '−'}${formatFCFA(m.montant)}`} />
         <LigneInfo libelle="Date" valeur={formatDate(m.date_operation)} />
+        <LigneInfo libelle="Enregistrée le" valeur={formatDateHeure(m.cree_le)} />
         {m.reference ? <LigneInfo libelle="Référence" valeur={m.reference} /> : null}
         {m.mode ? <LigneInfo libelle="Moyen" valeur={LIBELLES_MODE[m.mode]} /> : null}
         {m.beneficiaire ? <LigneInfo libelle="Bénéficiaire" valeur={m.beneficiaire} /> : null}

@@ -30,6 +30,20 @@ export function aujourdhui(date: Date = new Date()): string {
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
+/** Horodatage ISO (UTC) → heure locale « 14:05 ». */
+export function formatHeure(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Horodatage ISO (UTC) → « 15 oct. 2026 à 14:05 » en heure locale. */
+export function formatDateHeure(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return formatDate(iso);
+  return `${formatDate(aujourdhui(d))} à ${formatHeure(iso)}`;
+}
+
 /** « Moussa Adéyèmi » → « MA ». */
 export function initiales(nom: string): string {
   return nom

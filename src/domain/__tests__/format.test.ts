@@ -1,4 +1,4 @@
-import { aujourdhui, formatDate, formatFCFA, formatMois, initiales, lireMontant } from '../format';
+import { aujourdhui, formatDate, formatDateHeure, formatFCFA, formatHeure, formatMois, initiales, lireMontant } from '../format';
 
 test('montants en FCFA avec espaces fines', () => {
   expect(formatFCFA(1250000)).toBe('1 250 000 FCFA');
@@ -23,4 +23,10 @@ test('lecture stricte des montants saisis', () => {
   expect(lireMontant('12abc')).toBeNull();
   expect(lireMontant('12,5')).toBeNull();
   expect(lireMontant('')).toBeNull();
+});
+
+test('date et heure locales d’un horodatage', () => {
+  const iso = new Date(2026, 9, 15, 9, 5).toISOString();
+  expect(formatHeure(iso)).toBe('09:05');
+  expect(formatDateHeure(iso)).toBe('15 oct. 2026 à 09:05');
 });

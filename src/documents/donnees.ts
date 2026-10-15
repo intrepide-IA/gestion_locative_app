@@ -19,12 +19,13 @@ export async function donneesRecu(db: SqlDatabase, paiementId: number): Promise<
     reference: string | null;
     annule_le: string | null;
     motif_annulation: string | null;
+    cree_le: string;
     nom_complet: string;
     telephone: string | null;
     piece_identite: string | null;
     locataire_id: number;
   }>(
-    `SELECT r.numero, r.solde_restant, p.date_paiement, p.montant, p.mode, p.reference, p.annule_le, p.motif_annulation,
+    `SELECT r.numero, r.solde_restant, p.date_paiement, p.montant, p.mode, p.reference, p.annule_le, p.motif_annulation, p.cree_le,
             t.nom_complet, t.telephone, t.piece_identite, t.id AS locataire_id
      FROM paiements p JOIN recus r ON r.paiement_id = p.id JOIN locataires t ON t.id = p.locataire_id
      WHERE p.id = ?`,
@@ -44,6 +45,7 @@ export async function donneesRecu(db: SqlDatabase, paiementId: number): Promise<
   return {
     numero: p.numero,
     date: p.date_paiement,
+    enregistreLe: p.cree_le,
     montant: p.montant,
     mode: LIBELLES_MODE[p.mode],
     reference: p.reference,
@@ -114,12 +116,13 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     mode: ModePaiement;
     index_achat: number | null;
     index_coupure: number | null;
+    cree_le: string;
     nom_complet: string;
     telephone: string | null;
     piece_identite: string | null;
     reference: string;
   }>(
-    `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode, a.index_achat, a.index_coupure,
+    `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode, a.index_achat, a.index_coupure, a.cree_le,
             t.nom_complet, t.telephone, t.piece_identite, l.reference
      FROM achats_electricite a JOIN factures f ON f.achat_electricite_id = a.id
      JOIN contrats c ON c.id = a.contrat_id JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
@@ -130,6 +133,7 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
   return {
     numero: a.numero,
     date: a.date_achat,
+    enregistreLe: a.cree_le,
     kwh: a.kwh,
     prixKwh: a.prix_kwh,
     montantFacture: a.montant_facture,

@@ -2,7 +2,7 @@
  * Gabarits HTML des documents PDF (reçu, facture), aux couleurs Onílé.
  * Toutes les valeurs saisies sont échappées avant insertion (cahier des charges NF-10).
  */
-import { formatDate, formatFCFA, formatMois } from '../domain/format';
+import { formatDate, formatDateHeure, formatFCFA, formatMois } from '../domain/format';
 import { colors } from '../theme/colors';
 
 export function echapper(valeur: unknown): string {
@@ -38,6 +38,8 @@ export interface Destinataire {
 export interface DonneesRecu {
   numero: string;
   date: string;
+  /** Horodatage de l'enregistrement (ISO), pour l'heure. */
+  enregistreLe: string;
   montant: number;
   mode: string;
   reference: string | null;
@@ -139,7 +141,7 @@ export function htmlRecu(d: DonneesRecu): string {
     ? d.lignes.map((l) => `<tr><td>Loyer ${echapper(moisCapitalise(l.annee, l.mois))}</td><td class="num">${formatFCFA(l.montant)}</td></tr>`).join('')
     : '';
   const credit = d.credit > 0 ? `<tr><td>Avance conservée en crédit</td><td class="num">${formatFCFA(d.credit)}</td></tr>` : '';
-  const corps = `<div class="bloc"><h2>Paiement</h2>Date : <b>${formatDate(d.date)}</b><br>Mode : ${echapper(d.mode)}${
+  const corps = `<div class="bloc"><h2>Paiement</h2>Date : <b>${formatDate(d.date)}</b><br>Enregistré le ${formatDateHeure(d.enregistreLe)}<br>Mode : ${echapper(d.mode)}${
     d.reference ? `<br>Référence : ${echapper(d.reference)}` : ''
   }</div><!--blocs-->
 <table><thead><tr><th>Objet</th><th class="num">Montant</th></tr></thead><tbody>${lignes}${credit}</tbody></table>
@@ -154,9 +156,7 @@ ${d.annule ? `<p style="color:${colors.danger};margin-top:18px"><b>Paiement annu
 export function htmlFacture(d: DonneesFacture): string {
   const reste = Math.max(0, d.montant - d.regle);
   const statut = reste === 0 ? 'Réglée' : d.regle > 0 ? 'Partiellement réglée' : 'À régler';
-  const corps = `<div class="bloc"><h2>Facture</h2>Période : <b>${echapper(moisCapitalise(d.periode.annee, d.periode.mois))}</b><br>Émise le ${formatDate(
-    d.dateEmission
-  )}<br>Échéance : <b>${formatDate(d.dateEcheance)}</b></div><!--blocs-->
+  const corps = `<div class="bloc"><h2>Facture</h2>Période : <b>${echapper(moisCapitalise(d.periode.annee, d.periode.mois))}</b><br>Émise le ${formatDateHeure(d.dateEmission)}<br>Échéance : <b>${formatDate(d.dateEcheance)}</b></div><!--blocs-->
 <table><thead><tr><th>Désignation</th><th class="num">Montant</th></tr></thead><tbody>
   <tr><td>Loyer</td><td class="num">${formatFCFA(d.loyer)}</td></tr>
   ${d.toilettes > 0 ? `<tr><td>Contribution toilettes</td><td class="num">${formatFCFA(d.toilettes)}</td></tr>` : ''}
@@ -173,6 +173,8 @@ export function htmlFacture(d: DonneesFacture): string {
 export interface DonneesFactureElectricite {
   numero: string;
   date: string;
+  /** Horodatage de l'enregistrement (ISO), pour l'heure. */
+  enregistreLe: string;
   kwh: number;
   prixKwh: number;
   montantFacture: number;
@@ -192,7 +194,7 @@ const formatKwh = (kwh: number) => `${String(kwh).replace('.', ',')} kWh`;
 const formatIndex = (index: number) => String(index).replace('.', ',');
 
 export function htmlFactureElectricite(d: DonneesFactureElectricite): string {
-  const corps = `<div class="bloc"><h2>Électricité prépayée</h2>Date : <b>${formatDate(d.date)}</b><br>Mode : ${echapper(d.mode)}<br>Statut : ${
+  const corps = `<div class="bloc"><h2>Électricité prépayée</h2>Date : <b>${formatDate(d.date)}</b><br>Enregistrée le ${formatDateHeure(d.enregistreLe)}<br>Mode : ${echapper(d.mode)}<br>Statut : ${
     d.annulee ? 'Annulée' : 'Payée'
   }</div><!--blocs-->
 <table><thead><tr><th>Désignation</th><th class="num">Quantité</th><th class="num">Prix unitaire</th><th class="num">Montant</th></tr></thead><tbody>
