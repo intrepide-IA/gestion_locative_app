@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, ChevronRight, Database, Lock, Shield, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +15,8 @@ import { initiales } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import { enregistrerProprietaire, getProprietaire, type Proprietaire } from '../../repositories/proprietaireRepository';
 import { formatDelay } from '../../security/format';
+import { definirNotificationsActives, notificationsActives } from '../../repositories/rappelsRepository';
+import { demanderPermissionNotifications, synchroniserNotifications } from '../../services/notifications';
 import { pinService } from '../../security/native';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../../security/pin';
 import { colors } from '../../theme/colors';
@@ -24,6 +26,24 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
   const [profil, setProfil] = useState(false);
   const [pin, setPin] = useState(false);
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
+  const notifs = useRessource(notificationsActives, true);
+
+  const basculerNotifications = async (actives: boolean) => {
+    try {
+      if (actives && !(await demanderPermissionNotifications())) {
+        informer(
+          'Autorisation refusée',
+          'Autorisez les notifications d’Onílé dans les réglages Android pour recevoir les rappels de loyers et les alertes d’électricité.'
+        );
+        return;
+      }
+      await definirNotificationsActives(await getDatabase(), actives);
+      notifs.rafraichir();
+      await synchroniserNotifications();
+    } catch (error) {
+      informer('Action impossible', messageErreur(error));
+    }
+  };
 
   const bientot = (fonction: string, lot: string) => informer('Bientôt disponible', `${fonction} arrive avec le ${lot} de la refonte.`);
 
@@ -51,18 +71,31 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
           <Ligne icone={<Zap size={18} color={colors.primary} />} libelle="Électricité prépayée" onPress={() => navigation.navigate('Electricite')} dernier />
         </Groupe>
 
+        <Groupe titre="Rappels">
+          <View className="flex-row items-center px-4 py-4">
+            <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3">
+              <Bell size={18} color={colors.primary} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base text-ink">Notifications</Text>
+              <Text className="text-muted text-xs">Loyers (J-3, jour J, J+3), fins de contrat, électricité, sauvegarde</Text>
+            </View>
+            <Switch
+              value={notifs.donnees}
+              onValueChange={basculerNotifications}
+              trackColor={{ true: colors.secondary, false: colors.border }}
+              thumbColor={colors.white}
+              accessibilityLabel="Activer les notifications"
+            />
+          </View>
+        </Groupe>
+
         <Groupe titre="Sécurité">
           <Ligne icone={<Shield size={18} color={colors.primary} />} libelle="Modifier le code PIN" onPress={() => setPin(true)} />
           <Ligne icone={<Lock size={18} color={colors.primary} />} libelle="Verrouiller maintenant" onPress={onVerrouiller} dernier />
         </Groupe>
 
         <Groupe titre="Bientôt">
-          <Ligne
-            icone={<Bell size={18} color={colors.muted} />}
-            libelle="Notifications et rappels"
-            detail="Lot 7"
-            onPress={() => bientot('La programmation des rappels', 'lot 7')}
-          />
           <Ligne
             icone={<Database size={18} color={colors.muted} />}
             libelle="Sauvegarde et restauration"

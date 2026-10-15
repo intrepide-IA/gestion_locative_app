@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { House, KeyRound, UserPlus, Users, Zap } from 'lucide-react-native';
+import { AlertCircle, House, KeyRound, Receipt, UserPlus, Users, Wallet, Zap } from 'lucide-react-native';
 
 import { LogoSymbole } from '../../components/brand/Logo';
 import { Carte, EtatErreur, PastilleIcone } from '../../components/ui/kit';
@@ -20,6 +20,7 @@ import { aujourdhui, formatFCFA, formatMois } from '../../domain/format';
 import { colors } from '../../theme/colors';
 import { EntreeLocataireForm } from '../locataires/EntreeLocataireForm';
 import { LogementForm } from '../logements/LogementForm';
+import { synchroniserNotifications } from '../../services/notifications';
 
 interface Synthese {
   prenom: string;
@@ -34,6 +35,7 @@ interface Synthese {
 const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
   const jour = aujourdhui();
   await genererEcheances(db, jour);
+  void synchroniserNotifications();
   const periode = { annee: Number(jour.slice(0, 4)), mois: Number(jour.slice(5, 7)) };
   const [proprietaire, logements, locataires, loyers, electricite] = await Promise.all([
     getProprietaire(db),
@@ -49,7 +51,7 @@ const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
     locatairesActifs: locataires.filter((l) => l.contrat_statut === 'actif').length,
     loyers,
     periode,
-    alertesElectricite: electricite.filter((e) => e.etat !== 'ok'),
+    alertesElectricite: electricite.filter((e) => e.etat !== 'ok' && e.achetes > 0),
   };
 };
 
@@ -109,7 +111,7 @@ export function AccueilScreen() {
         </View>
 
         {s.alertesElectricite.length ? (
-          <Carte onPress={() => navigation.navigate('Settings', { screen: 'Electricite' })}>
+          <Carte onPress={() => navigation.navigate('Settings', { screen: 'Electricite', initial: false })}>
             <View className="flex-row items-center">
               <PastilleIcone ton="jaune">
                 <Zap size={20} color="#8A6500" />
@@ -125,9 +127,17 @@ export function AccueilScreen() {
         ) : null}
 
         <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-2">Actions rapides</Text>
-        <View className="flex-row gap-3">
+        <View className="flex-row flex-wrap gap-3">
+          <Raccourci icone={<Wallet size={22} color={colors.primary} />} libelle="Encaisser un loyer" onPress={() => navigation.navigate('Invoices')} />
+          <Raccourci icone={<Receipt size={22} color={colors.primary} />} libelle="Ajouter une dépense" onPress={() => navigation.navigate('Finances')} />
+          <Raccourci
+            icone={<Zap size={22} color={colors.primary} />}
+            libelle="Vendre des kWh"
+            onPress={() => navigation.navigate('Settings', { screen: 'Electricite', initial: false })}
+          />
           <Raccourci icone={<KeyRound size={22} color={colors.primary} />} libelle="Ajouter un logement" onPress={() => setNouveauLogement(true)} />
           <Raccourci icone={<UserPlus size={22} color={colors.primary} />} libelle="Nouveau locataire" onPress={() => setNouveauLocataire(true)} />
+          <Raccourci icone={<AlertCircle size={22} color={colors.primary} />} libelle="Voir les impayés" onPress={() => navigation.navigate('Invoices')} />
         </View>
 
       </ScrollView>
@@ -170,7 +180,8 @@ function Raccourci({ icone, libelle, onPress }: { icone: React.ReactNode; libell
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      className="flex-1 bg-white border border-border rounded-2xl p-4 items-center active:bg-background"
+      className="bg-white border border-border rounded-2xl p-3 items-center active:bg-background"
+      style={{ width: '30.5%' }}
     >
       <View className="w-11 h-11 rounded-xl bg-primary/10 items-center justify-center">{icone}</View>
       <Text className="text-sm font-semibold text-ink mt-2 text-center">{libelle}</Text>

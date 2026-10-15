@@ -35,6 +35,7 @@ import {
 } from '../../repositories/loyerRepository';
 import { PaiementForm } from '../loyers/PaiementForm';
 import { ElectriciteDetail } from '../electricite/ElectriciteDetail';
+import { synchroniserNotifications } from '../../services/notifications';
 
 type Vue = 'fiche' | 'modifier' | 'conditions' | 'depart';
 
@@ -110,6 +111,7 @@ function Contenu({
         situationLocataire(db, locataireId),
         paiementsDuLocataire(db, locataireId),
       ]);
+      void synchroniserNotifications();
       return { locataire, contrat, historique, situation, paiements };
     },
     [locataireId]

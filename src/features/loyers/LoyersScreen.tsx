@@ -37,6 +37,7 @@ import {
 } from '../../repositories/loyerRepository';
 import { colors } from '../../theme/colors';
 import { PaiementForm } from './PaiementForm';
+import { synchroniserNotifications } from '../../services/notifications';
 
 type Filtre = 'toutes' | 'retard' | 'attente' | 'partielles' | 'payees';
 
@@ -71,6 +72,7 @@ export function LoyersScreen() {
         listerEcheancesDuMois(db, periode.annee, periode.mois, jour),
         syntheseDuMois(db, periode.annee, periode.mois, jour),
       ]);
+      void synchroniserNotifications();
       return { echeances, synthese };
     },
     [periode]

@@ -11,13 +11,20 @@ import { useRessource } from '../../hooks/useRessource';
 import { listerSituationsElectricite, type SituationElectricite } from '../../repositories/electriciteRepository';
 import { colors } from '../../theme/colors';
 import { ElectriciteDetail, formatKwh, tonStock } from './ElectriciteDetail';
+import { synchroniserNotifications } from '../../services/notifications';
 
 const AUCUNE: SituationElectricite[] = [];
 
+const lire = async (db: Parameters<typeof listerSituationsElectricite>[0]) => {
+  const situations = await listerSituationsElectricite(db);
+  void synchroniserNotifications();
+  return situations;
+};
+
 export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
-  const { donnees, chargement, erreur, rafraichir } = useRessource(listerSituationsElectricite, AUCUNE);
+  const { donnees, chargement, erreur, rafraichir } = useRessource(lire, AUCUNE);
   const [selection, setSelection] = useState<number | null>(null);
-  const alertes = donnees.filter((s) => s.etat !== 'ok').length;
+  const alertes = donnees.filter((s) => s.etat !== 'ok' && s.achetes > 0).length;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -55,7 +62,11 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
                   <Text className="text-sm text-muted">{item.logement_reference}</Text>
                 </View>
                 <View className="items-end">
-                  <Badge libelle={LIBELLES_STOCK[item.etat]} ton={tonStock(item.etat)} />
+                  {item.achetes === 0 && item.consommes === 0 ? (
+                    <Badge libelle="Aucun achat" ton="neutre" />
+                  ) : (
+                    <Badge libelle={LIBELLES_STOCK[item.etat]} ton={tonStock(item.etat)} />
+                  )}
                   <Text className="text-sm font-semibold text-ink mt-1.5">
                     {item.stock < 0 ? `−${formatKwh(-item.stock)}` : formatKwh(item.stock)}
                   </Text>

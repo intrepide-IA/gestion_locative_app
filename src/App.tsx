@@ -35,7 +35,7 @@ function PlusStack({ onVerrouiller }: { onVerrouiller: () => void }) {
   return (
     <PlusPile.Navigator screenOptions={{ headerShown: false }}>
       <PlusPile.Screen name="PlusMenu">{() => <PlusScreen onVerrouiller={onVerrouiller} />}</PlusPile.Screen>
-      <PlusPile.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={() => navigation.goBack()} />}</PlusPile.Screen>
+      <PlusPile.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={() => navigation.popTo('PlusMenu')} />}</PlusPile.Screen>
     </PlusPile.Navigator>
   );
 }

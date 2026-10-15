@@ -2,6 +2,22 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 7 — Notifications et accueil (15 octobre 2026)
+
+**Statut : livré ; logique vérifiée par tests, notifications réelles à vérifier sur l'APK.** Branche `refonte/lot-7-notifications`.
+
+- Rappels calculés à partir des données (`domain/rappels.ts`) : loyer J-3, jour J et J+3 à 9 h, fin de contrat
+  J-7, alerte électricité (bas / épuisé / déficit, seulement pour les locataires qui achètent du prépayé),
+  rappel mensuel de sauvegarde.
+- Synchronisation (`repositories/rappelsRepository.ts`, testée) : chaque rappel est programmé une seule fois
+  (table `notifications_programmees`), annulé s'il n'a plus lieu d'être (loyer réglé, notifications
+  coupées), jamais relancé. Programmation par le système Android (pas de minuteur dans l'app).
+- Autorisation demandée au premier lancement ; interrupteur « Notifications » dans Plus.
+- Accueil : six actions rapides (encaisser, dépense, vendre des kWh, logement, locataire, impayés), alertes
+  d'électricité, loyers du mois.
+- Vérifié : 85 tests ; navigation des raccourcis contrôlée dans l'aperçu (le web n'affiche pas de
+  notifications : à tester sur le téléphone).
+
 ## Lot 6 — Comptabilité simplifiée (15 octobre 2026)
 
 **Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-6-finances`.

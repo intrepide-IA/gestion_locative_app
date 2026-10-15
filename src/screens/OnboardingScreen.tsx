@@ -8,6 +8,7 @@ import { PinPad, useShake } from '../components/ui/PinPad';
 import { getDatabase } from '../db/client';
 import { enregistrerProprietaire } from '../repositories/proprietaireRepository';
 import { pinService } from '../security/native';
+import { demanderPermissionNotifications } from '../services/notifications';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../security/pin';
 
 type Step = 'profil' | 'pin' | 'confirmation';
@@ -52,6 +53,8 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     try {
       await enregistrerProprietaire(await getDatabase(), { nom, telephone, adresse });
       await pinService.createPin(pin);
+      // Autorisation des notifications demandée une fois, au premier lancement (Android 13+).
+      await demanderPermissionNotifications().catch(() => false);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Enregistrement impossible.');
