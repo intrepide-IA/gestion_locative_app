@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, ChevronRight, Database, Lock, Shield } from 'lucide-react-native';
+import { Bell, ChevronRight, Database, Lock, Shield, Zap } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
@@ -22,6 +23,7 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
   const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
   const [profil, setProfil] = useState(false);
   const [pin, setPin] = useState(false);
+  const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
 
   const bientot = (fonction: string, lot: string) => informer('Bientôt disponible', `${fonction} arrive avec le ${lot} de la refonte.`);
 
@@ -44,6 +46,10 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
           </View>
           <ChevronRight size={18} color={colors.muted} />
         </Pressable>
+
+        <Groupe titre="Gestion">
+          <Ligne icone={<Zap size={18} color={colors.primary} />} libelle="Électricité prépayée" onPress={() => navigation.navigate('Electricite')} dernier />
+        </Groupe>
 
         <Groupe titre="Sécurité">
           <Ligne icone={<Shield size={18} color={colors.primary} />} libelle="Modifier le code PIN" onPress={() => setPin(true)} />

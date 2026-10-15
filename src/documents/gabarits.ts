@@ -146,3 +146,36 @@ export function htmlFacture(d: DonneesFacture): string {
 </table>`;
   return page('FACTURE', d.numero, corps, d, d.annulee ? 'ANNULÉE' : undefined);
 }
+
+export interface DonneesFactureElectricite {
+  numero: string;
+  date: string;
+  kwh: number;
+  prixKwh: number;
+  montantFacture: number;
+  montantRecu: number;
+  ecart: number;
+  mode: string;
+  annulee: boolean;
+  emetteur: Emetteur;
+  destinataire: Destinataire;
+}
+
+const formatKwh = (kwh: number) => `${String(kwh).replace('.', ',')} kWh`;
+
+export function htmlFactureElectricite(d: DonneesFactureElectricite): string {
+  const corps = `<div class="bloc"><h2>Électricité prépayée</h2>Date : <b>${formatDate(d.date)}</b><br>Mode : ${echapper(d.mode)}<br>Statut : ${
+    d.annulee ? 'Annulée' : 'Payée'
+  }</div><!--blocs-->
+<table><thead><tr><th>Désignation</th><th class="num">Quantité</th><th class="num">Prix unitaire</th><th class="num">Montant</th></tr></thead><tbody>
+  <tr><td>Électricité prépayée</td><td class="num">${formatKwh(d.kwh)}</td><td class="num">${formatFCFA(d.prixKwh)} / kWh</td><td class="num">${formatFCFA(
+    d.montantFacture
+  )}</td></tr>
+</tbody></table>
+<table class="totaux">
+  <tr class="grand"><td>Total facturé</td><td class="num">${formatFCFA(d.montantFacture)}</td></tr>
+  <tr><td>Montant reçu</td><td class="num">${formatFCFA(d.montantRecu)}</td></tr>
+  ${d.ecart > 0 ? `<tr><td>Rendu (arrondi à 0,1 kWh)</td><td class="num">${formatFCFA(d.ecart)}</td></tr>` : ''}
+</table>`;
+  return page('FACTURE', d.numero, corps, d, d.annulee ? 'ANNULÉE' : undefined);
+}

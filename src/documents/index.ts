@@ -1,7 +1,7 @@
 import { getDatabase } from '../db/client';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
-import { donneesFacture, donneesRecu } from './donnees';
-import { htmlFacture, htmlRecu } from './gabarits';
+import { donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
+import { htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
 import { partagerPdf } from './partage';
 
 /** Reçu PDF d'un paiement, partagé via la feuille Android. */
@@ -17,4 +17,10 @@ export async function partagerFactureEcheance(echeanceId: number): Promise<strin
   const d = await donneesFacture(db, numero);
   await partagerPdf(htmlFacture(d), `Facture-${numero}`, `Facture ${numero}`);
   return numero;
+}
+
+/** Facture PDF d'une vente d'électricité. */
+export async function partagerFactureElectricite(achatId: number): Promise<void> {
+  const d = await donneesFactureElectricite(await getDatabase(), achatId);
+  await partagerPdf(htmlFactureElectricite(d), `Facture-${d.numero}`, `Facture ${d.numero}`);
 }

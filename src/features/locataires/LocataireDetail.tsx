@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Linking, View } from 'react-native';
-import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet } from 'lucide-react-native';
+import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
@@ -34,6 +34,7 @@ import {
   type SituationLocataire,
 } from '../../repositories/loyerRepository';
 import { PaiementForm } from '../loyers/PaiementForm';
+import { ElectriciteDetail } from '../electricite/ElectriciteDetail';
 
 type Vue = 'fiche' | 'modifier' | 'conditions' | 'depart';
 
@@ -122,6 +123,7 @@ function Contenu({
   });
   const { locataire, contrat, historique, situation, paiements } = donnees;
   const [encaisser, setEncaisser] = useState(false);
+  const [electricite, setElectricite] = useState(false);
 
   if (chargement && !locataire) return <Chargement />;
   if (!locataire) return <Text className="text-muted text-center py-8">Locataire introuvable.</Text>;
@@ -183,6 +185,10 @@ function Contenu({
       <Bouton titre="Encaisser un paiement" icone={<Wallet size={18} color={colors.white} />} onPress={() => setEncaisser(true)} />
 
       {contrat ? (
+        <Bouton titre="Électricité (stock, ventes, relevés)" variante="secondaire" icone={<Zap size={18} color={colors.primary} />} onPress={() => setElectricite(true)} />
+      ) : null}
+
+      {contrat ? (
         <Carte>
           <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Contrat en cours</Text>
           <LigneInfo libelle="Logement" valeur={locataire.logement_reference ?? '—'} />
@@ -241,6 +247,8 @@ function Contenu({
           <Text className="text-muted text-xs pt-2">Touchez un montant pour partager son reçu.</Text>
         </Carte>
       ) : null}
+
+      <ElectriciteDetail contratId={electricite && contrat ? contrat.id : null} onFermer={() => setElectricite(false)} onModifie={apres} />
 
       <PaiementForm
         ouverte={encaisser}

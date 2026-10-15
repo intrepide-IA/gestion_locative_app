@@ -2,7 +2,7 @@
 import type { SqlDatabase } from '../db/types';
 import { ErreurMetier } from '../domain/erreurs';
 import { LIBELLES_MODE, type ModePaiement } from '../repositories/loyerRepository';
-import type { DonneesFacture, DonneesRecu, Emetteur } from './gabarits';
+import type { DonneesFacture, DonneesFactureElectricite, DonneesRecu, Emetteur } from './gabarits';
 
 async function emetteur(db: SqlDatabase): Promise<Emetteur> {
   const p = await db.get<Emetteur>('SELECT nom, telephone, adresse FROM proprietaire WHERE id = 1');
@@ -96,5 +96,43 @@ export async function donneesFacture(db: SqlDatabase, numero: string): Promise<D
     annulee: f.statut === 'annulee',
     emetteur: await emetteur(db),
     destinataire: { nom: f.nom_complet, telephone: f.telephone, logement: f.reference },
+  };
+}
+
+export async function donneesFactureElectricite(db: SqlDatabase, achatId: number): Promise<DonneesFactureElectricite> {
+  const a = await db.get<{
+    numero: string;
+    statut: string;
+    date_achat: string;
+    kwh: number;
+    prix_kwh: number;
+    montant_facture: number;
+    montant_recu: number;
+    ecart_arrondi: number;
+    mode: ModePaiement;
+    nom_complet: string;
+    telephone: string | null;
+    reference: string;
+  }>(
+    `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode,
+            t.nom_complet, t.telephone, l.reference
+     FROM achats_electricite a JOIN factures f ON f.achat_electricite_id = a.id
+     JOIN contrats c ON c.id = a.contrat_id JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
+     WHERE a.id = ? ORDER BY f.id DESC LIMIT 1`,
+    [achatId]
+  );
+  if (!a) throw new ErreurMetier('Facture introuvable.');
+  return {
+    numero: a.numero,
+    date: a.date_achat,
+    kwh: a.kwh,
+    prixKwh: a.prix_kwh,
+    montantFacture: a.montant_facture,
+    montantRecu: a.montant_recu,
+    ecart: a.ecart_arrondi,
+    mode: LIBELLES_MODE[a.mode],
+    annulee: a.statut === 'annulee',
+    emetteur: await emetteur(db),
+    destinataire: { nom: a.nom_complet, telephone: a.telephone, logement: a.reference },
   };
 }

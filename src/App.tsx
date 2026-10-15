@@ -16,6 +16,7 @@ import { LocatairesScreen } from './features/locataires/LocatairesScreen';
 import { LogementsScreen } from './features/logements/LogementsScreen';
 import { LoyersScreen } from './features/loyers/LoyersScreen';
 import { PlusScreen } from './features/plus/PlusScreen';
+import { ElectriciteScreen } from './features/electricite/ElectriciteScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
@@ -26,6 +27,17 @@ import { shouldLockOnResume } from './security/autoLock';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const PlusPile = createNativeStackNavigator();
+
+/** Onglet Plus : menu, puis écrans secondaires (électricité…). */
+function PlusStack({ onVerrouiller }: { onVerrouiller: () => void }) {
+  return (
+    <PlusPile.Navigator screenOptions={{ headerShown: false }}>
+      <PlusPile.Screen name="PlusMenu">{() => <PlusScreen onVerrouiller={onVerrouiller} />}</PlusPile.Screen>
+      <PlusPile.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={() => navigation.goBack()} />}</PlusPile.Screen>
+    </PlusPile.Navigator>
+  );
+}
 
 const navigationTheme: Theme = {
   ...DefaultTheme,
@@ -97,7 +109,7 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
           tabBarIcon: ({ color, size }) => <Menu size={size} color={color} />,
         }}
       >
-        {() => <PlusScreen onVerrouiller={onLogout} />}
+        {() => <PlusStack onVerrouiller={onLogout} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

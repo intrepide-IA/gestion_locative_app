@@ -2,6 +2,21 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 5 — Électricité prépayée (15 octobre 2026)
+
+**Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-5-electricite`.
+
+- `repositories/electriciteRepository.ts` (testé) : vente de kWh au prix du contrat (arrondi à 0,1 kWh
+  inférieur, montant facturé recalculé, écart « à rendre » affiché, jamais perdu), facture d'électricité
+  numérotée, encaissement en trésorerie, annulation tracée.
+- Relevés : consommation = nouvel index − précédent (relevé initial du contrat au départ) ; index inférieur
+  refusé, sauf « nouveau compteur » déclaré (consommation 0, nouvelle référence).
+- Stock calculé (achetés − consommés), états Suffisant / Bas (< 5 kWh, réglable) / Épuisé / Déficit.
+- Écran Électricité (Plus → Électricité prépayée), fiche électricité depuis la fiche locataire, alerte
+  sur l'accueil. Facture d'électricité PDF.
+- Vérifié : 74 tests ; dans l'aperçu, 5 030 FCFA → 20,1 kWh, 5 025 FCFA facturés, 5 FCFA à rendre ;
+  relevé 1 000 → 1 012 = 12 kWh, stock 8,1 kWh ; index 990 refusé.
+
 ## Lot 4 — Loyers, paiements, factures et reçus (15 octobre 2026)
 
 **Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-4-loyers`.

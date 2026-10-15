@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { House, KeyRound, UserPlus, Users } from 'lucide-react-native';
+import { House, KeyRound, UserPlus, Users, Zap } from 'lucide-react-native';
 
 import { LogoSymbole } from '../../components/brand/Logo';
 import { Carte, EtatErreur, PastilleIcone } from '../../components/ui/kit';
@@ -13,6 +13,9 @@ import { listerLogements } from '../../repositories/logementRepository';
 import { listerLocataires } from '../../repositories/locataireRepository';
 import { getProprietaire } from '../../repositories/proprietaireRepository';
 import { genererEcheances, syntheseDuMois, type SyntheseMois } from '../../repositories/loyerRepository';
+import { listerSituationsElectricite, type SituationElectricite } from '../../repositories/electriciteRepository';
+import { LIBELLES_STOCK } from '../../domain/electricite';
+import { useNavigation } from '@react-navigation/native';
 import { aujourdhui, formatFCFA, formatMois } from '../../domain/format';
 import { colors } from '../../theme/colors';
 import { EntreeLocataireForm } from '../locataires/EntreeLocataireForm';
@@ -25,17 +28,19 @@ interface Synthese {
   locatairesActifs: number;
   loyers: SyntheseMois;
   periode: { annee: number; mois: number };
+  alertesElectricite: SituationElectricite[];
 }
 
 const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
   const jour = aujourdhui();
   await genererEcheances(db, jour);
   const periode = { annee: Number(jour.slice(0, 4)), mois: Number(jour.slice(5, 7)) };
-  const [proprietaire, logements, locataires, loyers] = await Promise.all([
+  const [proprietaire, logements, locataires, loyers, electricite] = await Promise.all([
     getProprietaire(db),
     listerLogements(db),
     listerLocataires(db),
     syntheseDuMois(db, periode.annee, periode.mois, jour),
+    listerSituationsElectricite(db),
   ]);
   return {
     prenom: proprietaire?.nom.split(/\s+/)[0] ?? '',
@@ -44,6 +49,7 @@ const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
     locatairesActifs: locataires.filter((l) => l.contrat_statut === 'actif').length,
     loyers,
     periode,
+    alertesElectricite: electricite.filter((e) => e.etat !== 'ok'),
   };
 };
 
@@ -54,12 +60,14 @@ const VIDE: Synthese = {
   locatairesActifs: 0,
   loyers: { attendu: 0, regle: 0, reste: 0, encaisse: 0, enRetard: 0 },
   periode: { annee: 2026, mois: 1 },
+  alertesElectricite: [],
 };
 
 export function AccueilScreen() {
   const { donnees: s, erreur, rafraichir } = useRessource(lireSynthese, VIDE);
   const [nouveauLogement, setNouveauLogement] = useState(false);
   const [nouveauLocataire, setNouveauLocataire] = useState(false);
+  const navigation = useNavigation<{ navigate: (onglet: string, params?: object) => void }>();
 
   const taux = s.logements ? Math.round((s.occupes / s.logements) * 100) : 0;
 
@@ -99,6 +107,22 @@ export function AccueilScreen() {
           <Statistique icone={<House size={20} color={colors.white} />} valeur={taux} suffixe=" %" libelle={`Occupation (${s.occupes}/${s.logements})`} />
           <Statistique icone={<Users size={20} color={colors.white} />} valeur={s.locatairesActifs} libelle="Locataire(s) actif(s)" />
         </View>
+
+        {s.alertesElectricite.length ? (
+          <Carte onPress={() => navigation.navigate('Settings', { screen: 'Electricite' })}>
+            <View className="flex-row items-center">
+              <PastilleIcone ton="jaune">
+                <Zap size={20} color="#8A6500" />
+              </PastilleIcone>
+              <View className="flex-1 ml-3">
+                <Text className="font-semibold text-ink">Électricité : {s.alertesElectricite.length} alerte(s)</Text>
+                <Text className="text-muted text-sm" numberOfLines={2}>
+                  {s.alertesElectricite.map((e) => `${e.locataire_nom} (${LIBELLES_STOCK[e.etat].toLowerCase()})`).join(', ')}
+                </Text>
+              </View>
+            </View>
+          </Carte>
+        ) : null}
 
         <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-2">Actions rapides</Text>
         <View className="flex-row gap-3">
