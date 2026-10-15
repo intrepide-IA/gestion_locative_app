@@ -20,6 +20,22 @@ faire** : c'est la seule partie que je ne peux pas réaliser moi-même. L'APK 1.
 | 5 | Ton accord pour **fusionner la refonte dans `main`** sur GitHub | Le travail est sur des branches ; `main` contient encore l'ancienne application. |
 | 6 | (Facultatif) Le logo officiel en **SVG** | J'ai redessiné le symbole en vectoriel (version « étroite » que tu as validée) ; un fichier du graphiste serait l'idéal. |
 
+## Version 1.0.2 (retours du premier test sur téléphone)
+
+| Retour | Correction |
+| --- | --- |
+| Pavé PIN déformé (points verticaux, 4 touches par ligne) | Grille 3 × 4 en styles fixes, identique sur tous les téléphones |
+| Le clavier cache le bas des formulaires | Les feuilles remontent au-dessus du clavier |
+| Barre de 6 onglets trop chargée | 5 onglets ; Paramètres (roue dentée) et Notifications (cloche) sur l’accueil |
+| Page d’accueil à améliorer | Progression animée des loyers, trésorerie, « À traiter », raccourcis |
+| Notifications | Page Notifications (urgent / à surveiller / conseil) + pastille sur la cloche |
+| Facture sans infos complètes | Blocs Propriétaire et Locataire (nom, téléphone, adresse, logement, pièce) |
+| Diagramme en bâtons | Courbe linéaire animée (6 mois ou année) |
+| Premier loyer | Dû le même jour du mois suivant l’entrée (caution versée à l’entrée) |
+| Électricité qui dépasse | Index de coupure (index lu + kWh payés), date d’épuisement estimée, rappels la veille et le jour J |
+| Contrat papier | Contrat de bail numérique d’après ton modèle : clauses, photo de la pièce, signatures au doigt, PDF à partager |
+| Ta signature | Paramètres → Ma signature : importer une image ou dessiner ; apposée sur contrats, reçus et factures |
+
 ## L'APK
 
 - Build réussi : https://expo.dev/accounts/intrepide_ia/projects/onile/builds/d08b9ba5-be47-45b1-9fd0-179dfe41e96f
