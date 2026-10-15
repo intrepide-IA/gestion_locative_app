@@ -2,6 +2,24 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 6 — Comptabilité simplifiée (15 octobre 2026)
+
+**Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-6-finances`.
+
+- `repositories/financesRepository.ts` (testé) : registre des entrées et sorties ; dépenses numérotées
+  DEP-AAAA-NNNNN ; dépense « prévue » hors trésorerie jusqu'à son paiement ; annulation tracée des
+  saisies manuelles (les mouvements issus des loyers et de l'électricité se corrigent à leur source).
+- Trésorerie = solde de départ (réglable) + entrées validées − sorties validées.
+- Caution reçue à l'entrée : entrée distincte des loyers ; caution rendue au départ : sortie tracée,
+  plafonnée à la caution reçue.
+- Rapport par mois ou par année : entrées, sorties, résultat, loyers facturés / encaissés / impayés
+  (affichés comme créance, pas comme argent disponible), cautions, dépenses prévues, par catégorie,
+  évolution mensuelle ; export CSV (Excel, séparateur « ; »).
+- Onglet Finances (6e onglet).
+- Vérifié : 81 tests ; dans l'aperçu, trésorerie 20 025 → −9 975 FCFA après paiement d'une
+  dépense prévue de 30 000 FCFA ; vue annuelle et catégories contrôlées.
+- Non fait : pièce justificative (photo) d'une dépense — nécessite un module de caméra/galerie.
+
 ## Lot 5 — Électricité prépayée (15 octobre 2026)
 
 **Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-5-electricite`.

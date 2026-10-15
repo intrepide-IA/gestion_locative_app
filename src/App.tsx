@@ -9,12 +9,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
-import { LayoutDashboard, Users, Building2, Receipt, Menu } from 'lucide-react-native';
+import { LayoutDashboard, Users, Building2, Receipt, Menu, Wallet } from 'lucide-react-native';
 
 import { AccueilScreen } from './features/accueil/AccueilScreen';
 import { LocatairesScreen } from './features/locataires/LocatairesScreen';
 import { LogementsScreen } from './features/logements/LogementsScreen';
 import { LoyersScreen } from './features/loyers/LoyersScreen';
+import { FinancesScreen } from './features/finances/FinancesScreen';
 import { PlusScreen } from './features/plus/PlusScreen';
 import { ElectriciteScreen } from './features/electricite/ElectriciteScreen';
 import { PinScreen } from './screens/PinScreen';
@@ -67,7 +68,8 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter', fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 9.5, fontFamily: 'Inter', fontWeight: '600' },
+        tabBarItemStyle: { paddingHorizontal: 0 },
       }}
     >
       <Tab.Screen
@@ -100,6 +102,14 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
         options={{
           title: 'Loyers',
           tabBarIcon: ({ color, size }) => <Receipt size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Finances"
+        component={FinancesScreen}
+        options={{
+          title: 'Finances',
+          tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
         }}
       />
       <Tab.Screen

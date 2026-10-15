@@ -1,5 +1,6 @@
 import type { SqlDatabase } from '../db/types';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
+import { prochainNumero } from './numerotation';
 
 export type StatutLocataire = 'actif' | 'contrat_termine' | 'parti';
 
@@ -160,6 +161,15 @@ export async function entrerLocataire(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)`,
       [locataireId, logementId, c.date_debut, c.date_fin, c.loyer, c.toilettes, c.caution, c.prix_kwh, c.releve_initial, c.jour_echeance, now]
     );
+    // La caution reçue entre en trésorerie, distinguée des loyers (catégorie « Cautions reçues »).
+    if (c.caution > 0) {
+      const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'caution'");
+      await tx.run(
+        `INSERT INTO mouvements_financiers (date_operation, sens, montant, categorie_id, description, logement_id, origine_type, origine_id, statut, cree_le)
+         VALUES (?, 'entree', ?, ?, ?, ?, 'caution', ?, 'valide', ?)`,
+        [c.date_debut, c.caution, categorie!.id, `Caution de ${f.nom_complet}`, logementId, contratId, now]
+      );
+    }
     return { locataireId, contratId };
   });
 }
@@ -198,15 +208,33 @@ export async function modifierConditionsContrat(
  * Départ du locataire : le contrat est terminé à la date de sortie, le logement redevient libre.
  * Rien n'est supprimé : contrats, paiements et factures restent dans l'historique.
  */
-export async function terminerContrat(db: SqlDatabase, contratId: number, dateSortie: string): Promise<void> {
+export async function terminerContrat(
+  db: SqlDatabase,
+  contratId: number,
+  dateSortie: string,
+  /** Part de la caution rendue au locataire (sortie de trésorerie). */
+  cautionRestituee = 0,
+  maintenant = new Date().toISOString()
+): Promise<void> {
   const sortie = exigerDate(dateSortie, 'Date de sortie');
+  exigerMontant(cautionRestituee, 'Caution restituée');
   await db.transaction(async (tx) => {
     const contrat = await tx.get<Contrat>('SELECT * FROM contrats WHERE id = ?', [contratId]);
     if (!contrat) throw new ErreurMetier('Contrat introuvable.');
     if (contrat.statut !== 'actif') throw new ErreurMetier('Ce contrat est déjà terminé.');
     if (sortie < contrat.date_debut) throw new ErreurMetier('La date de sortie précède la date d’entrée.');
+    if (cautionRestituee > contrat.caution) throw new ErreurMetier('La somme rendue dépasse la caution reçue.');
     await tx.run("UPDATE contrats SET statut = 'termine', date_sortie = ? WHERE id = ?", [sortie, contratId]);
     await tx.run("UPDATE locataires SET statut = 'parti' WHERE id = ?", [contrat.locataire_id]);
+    if (cautionRestituee > 0) {
+      const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'restitution_caution'");
+      const reference = await prochainNumero(tx, 'DEP', Number(sortie.slice(0, 4)));
+      await tx.run(
+        `INSERT INTO mouvements_financiers (reference, date_operation, sens, montant, categorie_id, description, logement_id, statut, cree_le)
+         VALUES (?, ?, 'sortie', ?, ?, 'Restitution de caution', ?, 'valide', ?)`,
+        [reference, sortie, cautionRestituee, categorie!.id, contrat.logement_id, maintenant]
+      );
+    }
   });
 }
 

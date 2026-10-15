@@ -38,3 +38,13 @@ export async function partagerPdf(html: string): Promise<void> {
   calque.append(barre, cadre);
   document.body.appendChild(calque);
 }
+
+/** Aperçu web : téléchargement direct du fichier. */
+export async function partagerFichierTexte(contenu: string, nomFichier: string, mimeType: string): Promise<void> {
+  const url = URL.createObjectURL(new Blob([`\uFEFF${contenu}`], { type: mimeType }));
+  const lien = document.createElement('a');
+  lien.href = url;
+  lien.download = nomFichier;
+  lien.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

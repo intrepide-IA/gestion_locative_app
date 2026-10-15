@@ -371,10 +371,13 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
 
 function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: string; onEnregistre: () => void }) {
   const [date, setDate] = useState(aujourdhui());
+  const [rendu, setRendu] = useState('');
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
 
   const enregistrer = async () => {
+    const montantRendu = rendu.trim() === '' ? 0 : lireMontant(rendu);
+    if (montantRendu === null) return setErreur('Montant de caution rendu invalide.');
     const ok = await confirmer(
       'Confirmer le départ ?',
       `Le contrat de ${nom} sera terminé le ${formatDate(date)} et le logement redeviendra libre. L’historique est conservé.`,
@@ -384,7 +387,7 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
     setEnCours(true);
     setErreur('');
     try {
-      await terminerContrat(await getDatabase(), contrat.id, date);
+      await terminerContrat(await getDatabase(), contrat.id, date, montantRendu);
       onEnregistre();
     } catch (error) {
       setErreur(messageErreur(error, 'Enregistrement impossible.'));
@@ -395,10 +398,17 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
   return (
     <>
       <Text className="text-muted">
-        Le contrat est terminé à cette date et le logement redevient libre. Les échéances jusqu’au mois de sortie restent dues ;
-        l’utilisation de la caution sera gérée avec le module Finances.
+        Le contrat est terminé à cette date et le logement redevient libre. Les échéances jusqu’au mois de sortie restent dues.
       </Text>
       <ChampDate libelle="Date de sortie" valeur={date} onChange={setDate} minimum={contrat.date_debut} />
+      <Champ
+        libelle="Caution rendue au locataire (FCFA)"
+        value={rendu}
+        onChangeText={setRendu}
+        keyboardType="number-pad"
+        placeholder="0"
+        aide={`Caution reçue : ${formatFCFA(contrat.caution)}. La somme rendue est enregistrée en dépense.`}
+      />
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
       <Bouton titre="Enregistrer le départ" variante="danger" onPress={enregistrer} chargement={enCours} />
     </>

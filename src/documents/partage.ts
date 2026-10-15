@@ -14,3 +14,12 @@ export async function partagerPdf(html: string, nomFichier: string, titre: strin
   if (!(await Sharing.isAvailableAsync())) throw new Error('Le partage n’est pas disponible sur cet appareil.');
   await Sharing.shareAsync(destination, { mimeType: 'application/pdf', dialogTitle: titre, UTI: 'com.adobe.pdf' });
 }
+
+/** Partage un fichier texte (CSV…) via la feuille Android. */
+export async function partagerFichierTexte(contenu: string, nomFichier: string, mimeType: string, titre: string): Promise<void> {
+  const destination = `${FileSystem.cacheDirectory}${nomFichier.replace(/[^\w.-]+/g, '-')}`;
+  // BOM UTF-8 : Excel affiche correctement les accents.
+  await FileSystem.writeAsStringAsync(destination, `\uFEFF${contenu}`);
+  if (!(await Sharing.isAvailableAsync())) throw new Error('Le partage n’est pas disponible sur cet appareil.');
+  await Sharing.shareAsync(destination, { mimeType, dialogTitle: titre });
+}
