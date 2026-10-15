@@ -5,7 +5,6 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 import {
   AlertCircle,
   Bell,
-  CalendarClock,
   ChevronRight,
   Database,
   House,
@@ -25,7 +24,7 @@ import { Carte, EtatErreur } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import type { SqlDatabase } from '../../db/types';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatFCFA, formatMois } from '../../domain/format';
+import { aujourdhui, formatFCFA, formatMois, initiales } from '../../domain/format';
 import type { Alerte } from '../../domain/rappels';
 import { useRessource } from '../../hooks/useRessource';
 import { soldeTresorerie } from '../../repositories/financesRepository';
@@ -284,28 +283,28 @@ function Chiffre({ icone, libelle, valeur, onPress }: { icone: ReactNode; libell
   );
 }
 
-const COULEURS_GRAVITE = { urgent: colors.danger, attention: '#C99A00', info: colors.primary } as const;
+const POINT_GRAVITE = { urgent: colors.danger, attention: colors.accent, info: null } as const;
 
 function LigneAlerte({ alerte: a, dernier, onPress }: { alerte: Alerte; dernier: boolean; onPress: () => void }) {
-  const couleur = COULEURS_GRAVITE[a.gravite];
-  const Icone = a.type === 'loyer' ? Wallet : a.type === 'fin_contrat' ? CalendarClock : a.type === 'electricite' ? Zap : Database;
+  const point = POINT_GRAVITE[a.gravite];
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       className={`flex-row items-center px-4 py-3 active:bg-background ${dernier ? '' : 'border-b border-border'}`}
     >
-      <View className="w-9 h-9 rounded-xl items-center justify-center" style={{ backgroundColor: `${couleur}1A` }}>
-        <Icone size={18} color={couleur} />
+      <View className="w-9 h-9 rounded-full bg-background items-center justify-center">
+        {a.qui ? <Text className="text-ink font-semibold text-sm">{initiales(a.qui)}</Text> : <Database size={16} color={colors.muted} />}
       </View>
       <View className="flex-1 ml-3">
         <Text className="font-semibold text-ink" numberOfLines={1}>
-          {a.titre}
+          {a.qui ?? a.titre}
         </Text>
         <Text className="text-muted text-sm" numberOfLines={1}>
-          {a.detail}
+          {a.qui ? a.titre : a.detail}
         </Text>
       </View>
+      {point ? <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: point }} /> : null}
       <ChevronRight size={16} color={colors.muted} />
     </Pressable>
   );

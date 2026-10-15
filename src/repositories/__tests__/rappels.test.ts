@@ -144,6 +144,7 @@ test('rappels de contrôle du compteur : veille et jour de l’épuisement estim
     ['releve-3-2026-10-05', 12],
   ]);
   expect(r[1].corps).toContain('Index de coupure : 1040');
+  expect(r[1].titre).toBe('Awa');
   const alertes = alertesEnCours({ echeancesImpayees: [], contratsAvecFin: [], stocks: [stock], derniereSauvegarde: '2026-10-10' }, '2026-10-14');
   expect(alertes.map((a) => a.titre)).toEqual(['Électricité : épuisement estimé dans 1 jour']);
 });

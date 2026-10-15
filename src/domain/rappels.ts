@@ -40,18 +40,19 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
   const futur = (r: RappelSouhaite) => r.date.getTime() > maintenant.getTime() && rappels.push(r);
 
   for (const e of d.echeancesImpayees) {
-    const quoi = `${e.locataire_nom} (${e.logement_reference}) : ${formatFCFA(e.reste)}`;
-    futur({ cle: `loyer-${e.id}-j-3`, type: 'loyer', titre: 'Loyer dans 3 jours', corps: quoi, date: aHeure(e.date_echeance, -3) });
-    futur({ cle: `loyer-${e.id}-j`, type: 'loyer', titre: 'Loyer à payer aujourd’hui', corps: quoi, date: aHeure(e.date_echeance) });
-    futur({ cle: `loyer-${e.id}-j+3`, type: 'loyer', titre: 'Loyer en retard', corps: `${quoi} — échéance dépassée de 3 jours`, date: aHeure(e.date_echeance, 3) });
+    const montant = `${formatFCFA(e.reste)} (${e.logement_reference})`;
+    const qui = e.locataire_nom;
+    futur({ cle: `loyer-${e.id}-j-3`, type: 'loyer', titre: qui, corps: `Loyer de ${montant} attendu dans 3 jours.`, date: aHeure(e.date_echeance, -3) });
+    futur({ cle: `loyer-${e.id}-j`, type: 'loyer', titre: qui, corps: `Loyer de ${montant} attendu aujourd’hui.`, date: aHeure(e.date_echeance) });
+    futur({ cle: `loyer-${e.id}-j+3`, type: 'loyer', titre: qui, corps: `Loyer de ${montant} toujours pas réglé, 3 jours après l’échéance.`, date: aHeure(e.date_echeance, 3) });
   }
 
   for (const c of d.contratsAvecFin) {
     futur({
       cle: `fin-${c.id}-${c.date_fin}`,
       type: 'fin_contrat',
-      titre: 'Fin de contrat dans 7 jours',
-      corps: `${c.locataire_nom} (${c.logement_reference})`,
+      titre: c.locataire_nom,
+      corps: `Son contrat (${c.logement_reference}) se termine dans 7 jours.`,
       date: aHeure(c.date_fin, -7),
     });
   }
@@ -63,8 +64,13 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
     rappels.push({
       cle: `kwh-${s.contrat_id}-${s.etat}-${s.achetes}-${s.consommes}`,
       type: 'electricite',
-      titre: `Électricité : ${LIBELLES_STOCK[s.etat].toLowerCase()}`,
-      corps: `${s.locataire_nom} : ${String(s.stock).replace('.', ',')} kWh`,
+      titre: s.locataire_nom,
+      corps:
+        s.etat === 'bas'
+          ? `Plus que ${String(s.stock).replace('.', ',')} kWh d’électricité.`
+          : s.etat === 'epuise'
+            ? 'Crédit d’électricité épuisé.'
+            : `Électricité consommée sans crédit : ${String(-s.stock).replace('.', ',')} kWh.`,
       date: new Date(maintenant.getTime() + 5000),
     });
   }
@@ -78,15 +84,15 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
     futur({
       cle: `${base}-j-1`,
       type: 'electricite',
-      titre: 'Électricité bientôt épuisée',
-      corps: `${s.locataire_nom} : crédit estimé épuisé demain.${coupure}`,
+      titre: s.locataire_nom,
+      corps: `Son crédit d’électricité devrait s’épuiser demain.${coupure}`,
       date: aHeure(s.epuisement_estime, -1, 18),
     });
     futur({
       cle: `${base}-j`,
       type: 'electricite',
-      titre: 'Vérifiez le compteur',
-      corps: `${s.locataire_nom} : crédit estimé épuisé aujourd’hui.${coupure}`,
+      titre: s.locataire_nom,
+      corps: `Son crédit d’électricité devrait s’épuiser aujourd’hui : passez voir le compteur.${coupure}`,
       date: aHeure(s.epuisement_estime),
     });
   }
@@ -97,8 +103,8 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
     futur({
       cle: `releve-${s.contrat_id}-${s.dernier_releve_le}`,
       type: 'electricite',
-      titre: 'Relevez le compteur',
-      corps: `${s.locataire_nom} : aucun relevé depuis 7 jours.`,
+      titre: s.locataire_nom,
+      corps: 'Pas de relevé de compteur depuis une semaine.',
       date: aHeure(ajouterJours(s.dernier_releve_le, 7)),
     });
   }
@@ -107,8 +113,8 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
   rappels.push({
     cle: `sauvegarde-${moisSuivant.getFullYear()}-${String(moisSuivant.getMonth() + 1).padStart(2, '0')}`,
     type: 'sauvegarde',
-    titre: 'Pensez à sauvegarder vos données',
-    corps: 'Paramètres → Sauvegarde : exportez une copie et gardez-la hors du téléphone.',
+    titre: 'Onílé',
+    corps: 'Pensez à sauvegarder vos données ce mois-ci (Paramètres → Sauvegarde).',
     date: moisSuivant,
   });
 
@@ -123,6 +129,8 @@ export interface Alerte {
   cle: string;
   type: RappelSouhaite['type'];
   gravite: GraviteAlerte;
+  /** Locataire concerné (null pour un conseil général). */
+  qui: string | null;
   titre: string;
   detail: string;
   /** Jour de référence AAAA-MM-JJ (échéance, fin de contrat…), pour le tri. */
@@ -147,14 +155,15 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
 
   for (const e of d.echeancesImpayees) {
     const ecart = ecartJours(jour, e.date_echeance);
-    const qui = `${e.locataire_nom} · ${e.logement_reference}`;
+    const qui = e.locataire_nom;
     if (ecart < 0) {
       alertes.push({
         cle: `loyer-${e.id}`,
         type: 'loyer',
         gravite: 'urgent',
         titre: `Loyer en retard de ${pluriel(-ecart, 'jour')}`,
-        detail: `${qui} : ${formatFCFA(e.reste)} à percevoir`,
+        qui,
+        detail: `${formatFCFA(e.reste)} · ${e.logement_reference}`,
         jour: e.date_echeance,
       });
     } else if (ecart <= 3) {
@@ -163,7 +172,8 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
         type: 'loyer',
         gravite: 'attention',
         titre: ecart === 0 ? 'Loyer à percevoir aujourd’hui' : `Loyer attendu dans ${pluriel(ecart, 'jour')}`,
-        detail: `${qui} : ${formatFCFA(e.reste)}`,
+        qui,
+        detail: `${formatFCFA(e.reste)} · ${e.logement_reference}`,
         jour: e.date_echeance,
       });
     }
@@ -177,7 +187,8 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
       type: 'fin_contrat',
       gravite: ecart <= 7 ? 'urgent' : 'attention',
       titre: ecart < 0 ? 'Contrat arrivé à échéance' : ecart === 0 ? 'Le contrat se termine aujourd’hui' : `Fin de contrat dans ${pluriel(ecart, 'jour')}`,
-      detail: `${c.locataire_nom} · ${c.logement_reference}`,
+      qui: c.locataire_nom,
+      detail: c.logement_reference,
       jour: c.date_fin,
     });
   }
@@ -191,7 +202,8 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
           type: 'electricite',
           gravite: 'attention',
           titre: reste <= 0 ? 'Électricité : crédit estimé épuisé' : `Électricité : épuisement estimé dans ${pluriel(reste, 'jour')}`,
-          detail: `${s.locataire_nom}${s.index_coupure !== undefined ? ` · coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : ''}`,
+          qui: s.locataire_nom,
+          detail: s.index_coupure !== undefined ? `Coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : '',
           jour: s.epuisement_estime,
         });
       }
@@ -203,7 +215,8 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
       type: 'electricite',
       gravite: s.etat === 'bas' ? 'attention' : 'urgent',
       titre: `Électricité : ${LIBELLES_STOCK[s.etat].toLowerCase()}`,
-      detail: `${s.locataire_nom} : ${String(s.stock).replace('.', ',')} kWh restants${
+      qui: s.locataire_nom,
+      detail: `${String(s.stock).replace('.', ',')} kWh restants${
         s.index_coupure !== undefined ? ` · coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : ''
       }`,
       jour,
@@ -217,7 +230,8 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
       type: 'sauvegarde',
       gravite: 'info',
       titre: ancienne === null ? 'Aucune sauvegarde de vos données' : `Dernière sauvegarde il y a ${ancienne} jours`,
-      detail: 'Exportez une copie chiffrée et gardez-la hors du téléphone.',
+      qui: null,
+      detail: 'Exportez une copie et gardez-la hors du téléphone.',
       jour,
     });
   }
