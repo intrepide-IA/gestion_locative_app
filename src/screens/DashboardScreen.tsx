@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { Text } from '../components/ui/Text';
 import { AnimatedView, FadeInDown } from '../components/ui/AnimatedView';
 import { CircularProgress } from '../components/CircularProgress';
 import { StatCard } from '../components/StatCard';

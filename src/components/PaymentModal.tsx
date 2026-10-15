@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { Text } from './ui/Text';
 import { AnimatedView, SlideInDown, ZoomIn } from './ui/AnimatedView';
 import { X, CheckCircle2, CreditCard, Banknote, Smartphone } from 'lucide-react-native';
 import { enregistrerPaiement } from '../services/paiementService';

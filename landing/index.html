@@ -152,12 +152,13 @@
   </style>
 </head>
 <body>
-  <!-- Logo provisoire redessiné en SVG : à remplacer par le logo vectoriel officiel Onílé. -->
+  <!-- Symbole Onílé vectoriel (source : assets/brand/onile-symbole.svg). -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <symbol id="logo" viewBox="0 0 64 64">
-      <path d="M32 5 6 26v29a4 4 0 0 0 4 4h44a4 4 0 0 0 4-4V26L32 5Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/>
-      <g fill="#F5B301"><rect x="24" y="24" width="7" height="7" rx="1.5"/><rect x="33" y="24" width="7" height="7" rx="1.5"/><rect x="24" y="33" width="7" height="7" rx="1.5"/><rect x="33" y="33" width="7" height="7" rx="1.5"/></g>
-      <path d="M8 54c14-1 30-6 48-17-6 11-17 20-34 22H10a4 4 0 0 1-2-5Z" fill="#F5B301"/>
+    <symbol id="logo" viewBox="0 0 512 512">
+      <path d="M118 392V214L252 96l134 116v26" fill="none" stroke="currentColor" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#F5B301"><rect x="207" y="194" width="35" height="35" rx="8"/><rect x="250" y="194" width="35" height="35" rx="8"/><rect x="207" y="237" width="35" height="35" rx="8"/><rect x="250" y="237" width="35" height="35" rx="8"/></g>
+      <path d="M89 392c86-58 210-92 346-102-26 54-120 92-224 120-44 12-82 26-104 34-18 6-26-8-18-52Z" fill="var(--logo-band, #17885A)"/>
+      <path d="M152 458c112-12 214-58 286-130 6 76-42 138-118 156-62 14-122 4-168-26Z" fill="#F5B301"/>
     </symbol>
   </svg>
 
@@ -313,7 +314,7 @@
     <div class="container foot">
       <div>
         <a class="brand" href="#top">
-          <svg width="30" height="30" style="color:var(--white)"><use href="#logo"/></svg>
+          <svg width="30" height="30" style="color:var(--white);--logo-band:#fff"><use href="#logo"/></svg>
           Onílé
         </a>
         <p style="margin:8px 0 0">Une solution pensée pour vous, ici au Bénin.</p>

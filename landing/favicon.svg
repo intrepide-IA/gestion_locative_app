@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0F6B4F"/><g transform="translate(8 8) scale(.75)"><path d="M32 5 6 26v29a4 4 0 0 0 4 4h44a4 4 0 0 0 4-4V26L32 5Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><g fill="#F5B301"><rect x="24" y="24" width="7" height="7" rx="1.5"/><rect x="33" y="24" width="7" height="7" rx="1.5"/><rect x="24" y="33" width="7" height="7" rx="1.5"/><rect x="33" y="33" width="7" height="7" rx="1.5"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Symbole Onílé redessiné en vectoriel d'après le guide de marque (maison, fenêtre, bande verte, soleil). -->
+  <path d="M118 392V214L252 96l134 116v26" fill="none" stroke="#0F6B4F" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#F5B301">
+    <rect x="207" y="194" width="35" height="35" rx="8"/>
+    <rect x="250" y="194" width="35" height="35" rx="8"/>
+    <rect x="207" y="237" width="35" height="35" rx="8"/>
+    <rect x="250" y="237" width="35" height="35" rx="8"/>
+  </g>
+  <path d="M89 392c86-58 210-92 346-102-26 54-120 92-224 120-44 12-82 26-104 34-18 6-26-8-18-52Z" fill="#17885A"/>
+  <path d="M152 458c112-12 214-58 286-130 6 76-42 138-118 156-62 14-122 4-168-26Z" fill="#F5B301"/>
+  <circle cx="384" cy="418" r="13" fill="#17885A"/>
+</svg>

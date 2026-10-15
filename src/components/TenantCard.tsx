@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, Linking } from 'react-native';
+import { View, TouchableOpacity, Linking } from 'react-native';
+import { Text } from './ui/Text';
 import { Phone, MessageCircle, Building2 } from 'lucide-react-native';
 import { AnimatedView, FadeInDown } from './ui/AnimatedView';
 

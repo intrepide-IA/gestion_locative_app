@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from './Text';
 import { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { Check, Delete } from 'lucide-react-native';
 

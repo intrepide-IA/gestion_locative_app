@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
-import { Lock } from 'lucide-react-native';
+import { View } from 'react-native';
+import { Text } from '../components/ui/Text';
 
 import { AnimatedView, FadeInDown } from '../components/ui/AnimatedView';
+import { Logo } from '../components/brand/Logo';
 import { PinPad, useShake } from '../components/ui/PinPad';
 import { pinService } from '../security/native';
 import { formatDelay } from '../security/format';
 import { PIN_MAX_LENGTH } from '../security/pin';
-import { colors } from '../theme/colors';
 
 interface PinScreenProps {
   onSuccess: () => void;
@@ -79,11 +79,7 @@ export function PinScreen({ onSuccess }: PinScreenProps) {
   return (
     <View className="flex-1 items-center justify-center bg-primary px-6">
       <AnimatedView entering={FadeInDown.duration(300)} className="items-center mb-12">
-        <View className="w-16 h-16 bg-white rounded-2xl items-center justify-center mb-4">
-          <Lock size={30} color={colors.primary} />
-        </View>
-        <Text className="text-3xl font-bold text-white">Onílé</Text>
-        <Text className="text-white/80 mt-1">Gérer aujourd’hui, habiter demain</Text>
+        <Logo variante="fond-vert" taille={84} />
         <Text className="text-white mt-6 text-base">{locked ? 'Saisie bloquée' : 'Entrez votre code PIN'}</Text>
         <Text className={`mt-2 text-sm ${locked ? 'text-accent' : 'text-white/80'}`} accessibilityLiveRegion="polite">
           {locked ? `${message} Réessayez dans ${formatDelay(lockedUntil!, now)}.` : message}

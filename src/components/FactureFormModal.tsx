@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Modal, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Text } from './ui/Text';
 import { X } from 'lucide-react-native';
 import { useLocataires } from '../hooks/useDatabase';
 import { ensureFactureLoyer, createFacture } from '../services/factureService';

@@ -12,10 +12,8 @@ module.exports = {
         alert: colors.danger,
       },
       fontFamily: {
-        sans: ['Inter_400Regular'],
-        medium: ['Inter_500Medium'],
-        semibold: ['Inter_600SemiBold'],
-        bold: ['Inter_700Bold'],
+        // Inter : famille embarquée dans l'APK (plugin expo-font) ; la graisse vient de font-medium, font-bold…
+        sans: ['Inter'],
       },
     },
   },

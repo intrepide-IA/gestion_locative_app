@@ -1,4 +1,5 @@
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './ui/Text';
 import { Building2, User } from 'lucide-react-native';
 import { AnimatedView, FadeIn } from './ui/AnimatedView';
 

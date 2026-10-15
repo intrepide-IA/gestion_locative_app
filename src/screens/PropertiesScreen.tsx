@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { Text } from '../components/ui/Text';
 import { Search, Plus } from 'lucide-react-native';
 import { PropertyCard } from '../components/PropertyCard';
 import { LogementFormModal } from '../components/LogementFormModal';

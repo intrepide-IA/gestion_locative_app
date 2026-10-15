@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { Text } from './ui/Text';
 import { X, Gauge } from 'lucide-react-native';
 import { enregistrerReleve, getDernierReleve } from '../services/electriciteService';
 

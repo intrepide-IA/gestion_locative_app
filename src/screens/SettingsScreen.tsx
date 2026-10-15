@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
+import { Text } from '../components/ui/Text';
 import { Trash2, Bell, Shield, ChevronRight, LogOut, Download, Upload, FileJson } from 'lucide-react-native';
 import { useProprietaire } from '../hooks/useDatabase';
 import { updateProprietaire } from '../services/proprietaireService';

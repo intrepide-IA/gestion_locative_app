@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Building2 } from 'lucide-react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { Text } from '../components/ui/Text';
 
 import { AnimatedView, FadeInDown } from '../components/ui/AnimatedView';
+import { LogoSymbole } from '../components/brand/Logo';
 import { PinPad, useShake } from '../components/ui/PinPad';
 import { getDatabase } from '../db/client';
 import { enregistrerProprietaire } from '../repositories/proprietaireRepository';
 import { pinService } from '../security/native';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../security/pin';
-import { colors } from '../theme/colors';
 
 type Step = 'profil' | 'pin' | 'confirmation';
 
@@ -64,9 +64,7 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 bg-background">
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
           <AnimatedView entering={FadeInDown.duration(300)} className="items-center mb-8">
-            <View className="w-16 h-16 bg-primary rounded-2xl items-center justify-center mb-4">
-              <Building2 size={32} color={colors.white} />
-            </View>
+            <LogoSymbole taille={88} />
             <Text className="text-3xl font-bold text-primary">Bienvenue sur Onílé</Text>
             <Text className="text-muted mt-2 text-center">
               Commençons par votre profil. Il apparaîtra sur vos factures et reçus.

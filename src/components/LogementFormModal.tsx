@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Modal, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Text } from './ui/Text';
 import { X, Trash2 } from 'lucide-react-native';
 import type { Logement, TypeLogement } from '../types';
 import { createLogement, updateLogement, deleteLogement } from '../services/logementService';

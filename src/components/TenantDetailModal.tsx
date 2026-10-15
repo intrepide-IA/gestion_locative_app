@@ -1,4 +1,5 @@
-import { View, Text, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Text } from './ui/Text';
 import { AnimatedView, SlideInDown } from './ui/AnimatedView';
 import { X, Edit, Wallet, Zap, Gauge, History, FileText, Trash2, CalendarX } from 'lucide-react-native';
 import type { Locataire } from '../types';

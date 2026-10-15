@@ -1,17 +1,14 @@
 import '../global.css';
 
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
+import { Text } from './components/ui/Text';
 import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useFonts } from 'expo-font';
-import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
-import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
-import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
-import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { loadFonts } from './theme/fonts';
 import { LayoutDashboard, Users, Building2, FileText, Settings } from 'lucide-react-native';
 
 import { DashboardScreen } from './screens/DashboardScreen';
@@ -62,7 +59,7 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter', fontWeight: '600' },
       }}
     >
       <Tab.Screen
@@ -125,6 +122,15 @@ function useDatabaseReady(): DatabaseState {
   return state;
 }
 
+function useFontsReady(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    // En cas d'échec, l'app continue avec la police système plutôt que de rester bloquée.
+    loadFonts().finally(() => setReady(true));
+  }, []);
+  return ready;
+}
+
 type Access = 'checking' | 'onboarding' | 'locked' | 'unlocked';
 
 /**
@@ -158,7 +164,7 @@ function useAccess(ready: boolean) {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  const fontsLoaded = useFontsReady();
   const database = useDatabaseReady();
   const { access, unlock, lock } = useAccess(database.status === 'ready');
 

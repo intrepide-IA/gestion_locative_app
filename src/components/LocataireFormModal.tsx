@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, Modal, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { Text } from './ui/Text';
 import { X, Calendar } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { Locataire } from '../types';
