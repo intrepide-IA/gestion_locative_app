@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, FileText, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -110,6 +110,12 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             libelle="Ma signature"
             detail={proprietaire?.signature ? 'Enregistrée' : 'À ajouter'}
             onPress={() => setSignature(true)}
+          />
+          <Ligne
+            icone={<FileText size={18} color={colors.primary} />}
+            libelle="Modèle de contrat"
+            detail="Modifier / importer"
+            onPress={() => navigation.navigate('ModeleContrat')}
             dernier
           />
         </Groupe>

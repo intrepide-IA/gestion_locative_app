@@ -1,6 +1,6 @@
 /** Constantes de l'application */
 
 export const APP_NAME = 'Onílé';
-export const APP_VERSION = '1.0.7';
+export const APP_VERSION = '1.0.8';
 /** versionCode Android (app.json) : comparé à la dernière version publiée pour proposer la mise à jour. */
-export const APP_VERSION_CODE = 17;
+export const APP_VERSION_CODE = 18;

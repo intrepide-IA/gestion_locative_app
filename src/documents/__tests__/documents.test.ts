@@ -79,3 +79,22 @@ test('contrat de bail : clauses remplies, premier loyer le mois suivant, textes 
   expect(html).toContain('<b>3 mois</b> de loyer constitue');
   expect(html).toContain('src="data:image/svg+xml;base64,PHN2Zy8+"');
 });
+
+test('contrat avec le modèle personnalisé du propriétaire', async () => {
+  const { enregistrerModeleContrat } = jest.requireActual<typeof import('../contrat')>('../contrat');
+  const db = await createMigratedDatabase();
+  await enregistrerProprietaire(db, { nom: 'Koffi', telephone: null, adresse: 'Porto-Novo' });
+  const logementId = await creerLogement(db, { reference: 'A1', type: 'autre', loyer_indicatif: 30000, toilettes: 0 });
+  const { contratId } = await entrerLocataire(db, { nom_complet: 'Bio' }, logementId, {
+    date_debut: '2026-10-15', loyer: 30000, toilettes: 0, caution: 60000, caution_electricite: 10000, prix_kwh: 250, releve_initial: 0, jour_echeance: 15,
+  });
+  await enregistrerModeleContrat(db, '# BAIL SIMPLE\nArticle 1 : Prix\n{{locataire_nom}} paie {{loyer}} le {{jour_paiement}}. Caution électricité : {{caution_electricite}}.');
+  // Les montants utilisent des espaces insécables : on les normalise pour comparer.
+  const html = htmlContrat(await donneesContrat(db, contratId)).replace(/[  ]/g, ' ');
+  expect(html).toContain('<h1>BAIL SIMPLE</h1>');
+  expect(html).toContain('<b>Bio</b> paie <b>30 000 FCFA</b> le <b>15</b>');
+  expect(html).toContain('<b>10 000 FCFA</b>');
+  expect(html).not.toContain('Article 9 : Obligations du bailleur');
+  await enregistrerModeleContrat(db, null);
+  expect(htmlContrat(await donneesContrat(db, contratId))).toContain('Article 9 : Obligations du bailleur');
+});
