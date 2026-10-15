@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, Minus, Pencil, Plus } from 'lucide-react-native';
 
 import { Feuille } from '../../components/ui/Feuille';
-import { confirmer, informer } from '../../components/ui/confirmer';
+import { informer } from '../../components/ui/confirmer';
+import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import { Badge, Bouton, Carte, Champ, EnTete, EtatErreur, Filtres, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
@@ -327,6 +328,7 @@ const ORIGINES: Record<string, string> = {
 
 function DetailMouvement({ mouvement: m, onModifie }: { mouvement: Mouvement; onModifie: () => void }) {
   const [enCours, setEnCours] = useState(false);
+  const [motif, setMotif] = useState(false);
   const manuel = !m.origine_type;
 
   const agir = async (travail: () => Promise<void>) => {
@@ -367,14 +369,21 @@ function DetailMouvement({ mouvement: m, onModifie }: { mouvement: Mouvement; on
           titre="Annuler l’opération"
           variante="danger"
           chargement={enCours}
-          onPress={() =>
-            agir(async () => {
-              const ok = await confirmer('Annuler cette opération ?', 'Elle restera visible, marquée annulée, et ne comptera plus dans la trésorerie.', 'Annuler l’opération', true);
-              if (ok) await annulerMouvement(await getDatabase(), m.id, 'Annulée par le propriétaire');
-            })
-          }
+          onPress={() => setMotif(true)}
         />
       ) : null}
+      <DemandeMotif
+        ouverte={motif}
+        titre="Annuler l’opération"
+        explication="Elle restera visible, marquée annulée, et ne comptera plus dans la trésorerie."
+        libelleAction="Annuler l’opération"
+        onFermer={() => setMotif(false)}
+        onValider={async (raison) => {
+          await annulerMouvement(await getDatabase(), m.id, raison);
+          setMotif(false);
+          onModifie();
+        }}
+      />
     </>
   );
 }

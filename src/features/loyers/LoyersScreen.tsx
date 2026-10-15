@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, FileText, Receipt, Wallet } from 'lucide-react-native';
 
 import { Feuille } from '../../components/ui/Feuille';
-import { confirmer, informer } from '../../components/ui/confirmer';
+import { informer } from '../../components/ui/confirmer';
+import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import {
   Badge,
   Bouton,
@@ -245,6 +246,7 @@ function DetailEcheance({
   );
   const { donnees, chargement, rafraichir } = useRessource(lire, { echeance: null, paiements: [] });
   const [occupe, setOccupe] = useState<string | null>(null);
+  const [aAnnuler, setAAnnuler] = useState<number | null>(null);
   const { echeance, paiements } = donnees;
 
   if (chargement && !echeance) return <Chargement />;
@@ -260,20 +262,6 @@ function DetailEcheance({
       setOccupe(null);
     }
   };
-
-  const annuler = (paiementId: number) =>
-    action(`annuler-${paiementId}`, async () => {
-      const ok = await confirmer(
-        'Annuler ce paiement ?',
-        'Il restera visible dans l’historique, marqué « annulé », et ne comptera plus dans les règlements. Motif enregistré : erreur de saisie.',
-        'Annuler le paiement',
-        true
-      );
-      if (!ok) return;
-      await annulerPaiement(await getDatabase(), paiementId, 'Erreur de saisie');
-      rafraichir();
-      onModifie();
-    });
 
   return (
     <>
@@ -349,12 +337,25 @@ function DetailEcheance({
                 variante="danger"
                 className="flex-1 py-2.5"
                 chargement={occupe === `annuler-${p.id}`}
-                onPress={() => annuler(p.id)}
+                onPress={() => setAAnnuler(p.id)}
               />
             ) : null}
           </View>
         </Carte>
       ))}
+      <DemandeMotif
+        ouverte={aAnnuler !== null}
+        titre="Annuler ce paiement"
+        explication="Le paiement restera visible dans l’historique, marqué « annulé », et ne comptera plus dans les règlements ni dans la trésorerie. Son reçu garde son numéro."
+        libelleAction="Annuler le paiement"
+        onFermer={() => setAAnnuler(null)}
+        onValider={async (motif) => {
+          await annulerPaiement(await getDatabase(), aAnnuler!, motif);
+          setAAnnuler(null);
+          rafraichir();
+          onModifie();
+        }}
+      />
     </>
   );
 }

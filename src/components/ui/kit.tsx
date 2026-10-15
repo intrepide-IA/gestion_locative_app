@@ -230,7 +230,7 @@ export function Choix<T extends string | number>({
 }) {
   return (
     <View>
-      <Text className="text-sm font-medium text-ink mb-1.5">{libelle}</Text>
+      {libelle ? <Text className="text-sm font-medium text-ink mb-1.5">{libelle}</Text> : null}
       <View className="flex-row flex-wrap gap-2">
         {options.map((o) => {
           const actif = o.valeur === valeur;

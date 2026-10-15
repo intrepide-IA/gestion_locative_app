@@ -5,7 +5,7 @@ import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet, Zap } from 'luc
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
 import { confirmer, informer } from '../../components/ui/confirmer';
-import { Badge, Bouton, Carte, Champ, Chargement, LigneInfo } from '../../components/ui/kit';
+import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -195,6 +195,7 @@ function Contenu({
           <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Contrat en cours</Text>
           <LigneInfo libelle="Logement" valeur={locataire.logement_reference ?? '—'} />
           <LigneInfo libelle="Depuis le" valeur={formatDate(contrat.date_debut)} />
+          {contrat.date_fin ? <LigneInfo libelle="Fin prévue" valeur={formatDate(contrat.date_fin)} /> : null}
           <LigneInfo libelle="Loyer" valeur={formatFCFA(contrat.loyer)} />
           <LigneInfo libelle="Toilettes" valeur={formatFCFA(contrat.toilettes)} />
           <LigneInfo libelle="Total mensuel" valeur={formatFCFA(contrat.loyer + contrat.toilettes)} />
@@ -316,6 +317,8 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
   const [caution, setCaution] = useState(String(contrat.caution));
   const [prixKwh, setPrixKwh] = useState(String(contrat.prix_kwh));
   const [jour, setJour] = useState(String(contrat.jour_echeance));
+  const [avecFin, setAvecFin] = useState<'non' | 'oui'>(contrat.date_fin ? 'oui' : 'non');
+  const [dateFin, setDateFin] = useState(contrat.date_fin ?? contrat.date_debut);
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
 
@@ -329,7 +332,7 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
     setErreur('');
     try {
       await modifierConditionsContrat(await getDatabase(), contrat.id, {
-        date_fin: contrat.date_fin,
+        date_fin: avecFin === 'oui' ? dateFin : null,
         loyer: v[0]!,
         toilettes: v[1]!,
         caution: v[2]!,
@@ -365,6 +368,19 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
         </View>
       </View>
       <Champ libelle="Prix du kWh (FCFA)" value={prixKwh} onChangeText={setPrixKwh} keyboardType="number-pad" />
+      <Choix
+        libelle="Fin du contrat"
+        options={[
+          { valeur: 'non', libelle: 'Sans date de fin' },
+          { valeur: 'oui', libelle: 'Date de fin prévue' },
+        ]}
+        valeur={avecFin}
+        onChange={setAvecFin}
+      />
+      {avecFin === 'oui' ? (
+        <ChampDate libelle="Date de fin" valeur={dateFin} onChange={setDateFin} minimum={contrat.date_debut} />
+      ) : null}
+      <Text className="text-muted text-xs">Un rappel est envoyé 7 jours avant la date de fin.</Text>
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
       <Bouton titre="Enregistrer les conditions" onPress={enregistrer} chargement={enCours} />
     </>

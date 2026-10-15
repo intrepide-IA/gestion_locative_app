@@ -2,6 +2,17 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 9 — Finitions et version 1.0.0 (15 octobre 2026)
+
+**Statut : prêt pour le test sur téléphone.** Branche `refonte/lot-9-finalisation`.
+
+- Annulations (paiement, vente d'électricité, opération) : motif choisi ou saisi librement.
+- Date de fin de contrat modifiable (rappel 7 jours avant).
+- Détails d'interface corrigés pendant les vérifications : onglets lisibles à 6, raccourcis sur 3 colonnes,
+  retour vers le menu Plus, légende du graphique, cartes de synthèse.
+- Version 1.0.0 (versionCode 10), README à jour.
+- Vérifié : 99 tests, TypeScript et lint sans erreur, `expo-doctor` 21/21, parcours complet dans l'aperçu.
+
 ## Lot 8 — Sauvegarde, restauration, réinitialisation (15 octobre 2026)
 
 **Statut : livré, vérifié dans l'aperçu web (export → restauration).** Branche `refonte/lot-8-sauvegarde`.

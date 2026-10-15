@@ -4,7 +4,8 @@ import { Gauge, Share2, Zap } from 'lucide-react-native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
-import { confirmer, informer } from '../../components/ui/confirmer';
+import { informer } from '../../components/ui/confirmer';
+import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
@@ -80,6 +81,7 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
   const { donnees, chargement, rafraichir } = useRessource(lire, { situation: null, achats: [], releves: [] });
   const { situation: s, achats, releves } = donnees;
   const [occupe, setOccupe] = useState<string | null>(null);
+  const [aAnnuler, setAAnnuler] = useState<number | null>(null);
 
   if (chargement && !s) return <Chargement />;
   if (!s) return <Text className="text-muted text-center py-8">Contrat introuvable.</Text>;
@@ -163,19 +165,7 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
                     variante="danger"
                     className="flex-1 py-2.5"
                     chargement={occupe === `a-${a.id}`}
-                    onPress={() =>
-                      action(`a-${a.id}`, async () => {
-                        const ok = await confirmer(
-                          'Annuler cette vente ?',
-                          'Les kWh seront retirés du stock et la facture marquée annulée (motif : erreur de saisie).',
-                          'Annuler la vente',
-                          true
-                        );
-                        if (!ok) return;
-                        await annulerAchat(await getDatabase(), a.id, 'Erreur de saisie');
-                        apres();
-                      })
-                    }
+                    onPress={() => setAAnnuler(a.id)}
                   />
                 ) : null}
               </View>
@@ -183,6 +173,19 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
           ))}
         </>
       ) : null}
+
+      <DemandeMotif
+        ouverte={aAnnuler !== null}
+        titre="Annuler cette vente"
+        explication="Les kWh seront retirés du stock, la facture marquée annulée et l’encaissement retiré de la trésorerie. La trace reste visible."
+        libelleAction="Annuler la vente"
+        onFermer={() => setAAnnuler(null)}
+        onValider={async (motif) => {
+          await annulerAchat(await getDatabase(), aAnnuler!, motif);
+          setAAnnuler(null);
+          apres();
+        }}
+      />
 
       {releves.length ? (
         <Carte>
