@@ -281,9 +281,29 @@ CREATE TABLE baux (
 );
 `;
 
+/** V3 : état des lieux d'entrée et de sortie (modèle du propriétaire), signé par les deux parties. */
+const V3 = `
+CREATE TABLE etats_des_lieux (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  contrat_id INTEGER NOT NULL REFERENCES contrats (id) ON DELETE RESTRICT,
+  type TEXT NOT NULL CHECK (type IN ('entree', 'sortie')),
+  date_etat TEXT NOT NULL,
+  -- JSON : [{ "element": "Mur", "etat": "bon" | "moyen" | "mauvais" | null }]
+  elements TEXT NOT NULL,
+  observations TEXT,
+  signature_bailleur TEXT,
+  signature_locataire TEXT,
+  signe_le TEXT,
+  cree_le TEXT NOT NULL,
+  modifie_le TEXT,
+  UNIQUE (contrat_id, type)
+);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, description: 'Schéma initial Onílé', sql: V1 },
   { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
+  { version: 3, description: 'État des lieux d’entrée et de sortie', sql: V3 },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

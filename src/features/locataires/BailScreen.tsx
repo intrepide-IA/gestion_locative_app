@@ -1,12 +1,12 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { Image, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, CheckCircle2, FileSignature, ImageIcon, PenLine, Share2 } from 'lucide-react-native';
+import { Camera, CheckCircle2, ClipboardCheck, FileSignature, ImageIcon, PenLine, Share2 } from 'lucide-react-native';
 
-import { ApercuSignature } from '../../components/ui/ApercuSignature';
 import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
 import { Badge, Bouton, BoutonRetour, Carte, Champ, Chargement, EnTete, EtatErreur, LigneInfo } from '../../components/ui/kit';
+import { BlocSignature } from '../../components/ui/BlocSignature';
 import { PadSignature } from '../../components/ui/PadSignature';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
@@ -26,7 +26,15 @@ const erreurTexte = (error: unknown) => messageErreur(error, error instanceof Er
  * Contrat de bail numérique : clauses du modèle, photo de la pièce d'identité, signatures au doigt
  * (ou signature enregistrée du bailleur), puis PDF partagé au locataire.
  */
-export function BailScreen({ contratId, onRetour }: { contratId: number; onRetour: () => void }) {
+export function BailScreen({
+  contratId,
+  onRetour,
+  onEtatDesLieux,
+}: {
+  contratId: number;
+  onRetour: () => void;
+  onEtatDesLieux: (type: 'entree' | 'sortie') => void;
+}) {
   const lire = useCallback((db: SqlDatabase) => donneesContrat(db, contratId), [contratId]);
   const { donnees: d, chargement, erreur, rafraichir } = useRessource<DonneesContrat | null>(lire, null);
   const [clauses, setClauses] = useState(false);
@@ -172,6 +180,14 @@ export function BailScreen({ contratId, onRetour }: { contratId: number; onRetou
           />
         </Etape>
 
+        <Etape numero={4} titre="État des lieux" fait={false} facultatif>
+          <Text className="text-muted text-sm">Faites le tour du logement avec le locataire : chaque élément est noté bon, moyen ou mauvais, puis signé.</Text>
+          <View className="flex-row gap-3 mt-3">
+            <Bouton titre="Entrée" className="flex-1" variante="secondaire" icone={<ClipboardCheck size={18} color={colors.primary} />} onPress={() => onEtatDesLieux('entree')} />
+            <Bouton titre="Sortie" className="flex-1" variante="secondaire" icone={<ClipboardCheck size={18} color={colors.primary} />} onPress={() => onEtatDesLieux('sortie')} />
+          </View>
+        </Etape>
+
         <Bouton
           titre={signe ? 'Partager le contrat signé (PDF)' : 'Aperçu / imprimer le contrat (PDF)'}
           variante={signe ? 'action' : 'secondaire'}
@@ -227,45 +243,6 @@ function Etape({ numero, titre, fait, facultatif, children }: { numero: number; 
       </View>
       {children}
     </Carte>
-  );
-}
-
-function BlocSignature({
-  titre,
-  nom,
-  image,
-  desactive,
-  onSigner,
-  supplement,
-}: {
-  titre: string;
-  nom: string;
-  image: string | null;
-  desactive: boolean;
-  onSigner: () => void;
-  supplement?: ReactNode;
-}) {
-  return (
-    <View className="border-t border-border pt-3 mt-1 mb-2 gap-2">
-      <View className="flex-row items-center justify-between">
-        <View>
-          <Text className="text-muted text-xs uppercase tracking-wider">{titre}</Text>
-          <Text className="font-semibold text-ink">{nom}</Text>
-        </View>
-        {image ? <Badge libelle="Signé" ton="succes" /> : null}
-      </View>
-      {image ? (
-        <Pressable onPress={onSigner} accessibilityRole="button" accessibilityLabel={`Refaire la signature : ${titre}`} className="bg-background rounded-xl p-2">
-          <ApercuSignature image={image} hauteur={70} />
-          <Text className="text-xs text-primary text-center">Toucher pour signer à nouveau</Text>
-        </Pressable>
-      ) : (
-        <>
-          {supplement}
-          <Bouton titre="Signer sur place" variante="secondaire" icone={<PenLine size={18} color={colors.primary} />} onPress={onSigner} desactive={desactive} />
-        </>
-      )}
-    </View>
   );
 }
 

@@ -23,6 +23,7 @@ import { ElectriciteScreen } from './features/electricite/ElectriciteScreen';
 import { SauvegardeScreen } from './features/plus/SauvegardeScreen';
 import { NotificationsScreen } from './features/notifications/NotificationsScreen';
 import { BailScreen } from './features/locataires/BailScreen';
+import { EtatDesLieuxScreen } from './features/locataires/EtatDesLieuxScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
@@ -192,7 +193,22 @@ export default function App() {
                 <Stack.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="Sauvegarde">{({ navigation }) => <SauvegardeScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="Bail">
-                  {({ navigation, route }) => <BailScreen contratId={(route.params as { contratId: number }).contratId} onRetour={navigation.goBack} />}
+                  {({ navigation, route }) => {
+                    const { contratId } = route.params as { contratId: number };
+                    return (
+                      <BailScreen
+                        contratId={contratId}
+                        onRetour={navigation.goBack}
+                        onEtatDesLieux={(type) => navigation.navigate('EtatDesLieux', { contratId, type })}
+                      />
+                    );
+                  }}
+                </Stack.Screen>
+                <Stack.Screen name="EtatDesLieux">
+                  {({ navigation, route }) => {
+                    const { contratId, type } = route.params as { contratId: number; type: 'entree' | 'sortie' };
+                    return <EtatDesLieuxScreen contratId={contratId} type={type} onRetour={navigation.goBack} />;
+                  }}
                 </Stack.Screen>
               </>
             )}

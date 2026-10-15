@@ -2,6 +2,7 @@ import { getDatabase } from '../db/client';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
 import { donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
 import { donneesContrat, htmlContrat } from './contrat';
+import { donneesEtatDesLieux, htmlEtatDesLieux } from './etatDesLieux';
 import { htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
 import { partagerPdf } from './partage';
 
@@ -30,4 +31,10 @@ export async function partagerFactureElectricite(achatId: number): Promise<void>
 export async function partagerContrat(contratId: number): Promise<void> {
   const d = await donneesContrat(await getDatabase(), contratId);
   await partagerPdf(htmlContrat(d), `Contrat-bail-${d.locataire.nom}`, `Contrat de bail — ${d.locataire.nom}`);
+}
+
+/** Fiche d'état des lieux PDF (entrée, et sortie si elle existe). */
+export async function partagerEtatDesLieux(contratId: number, jour: string): Promise<void> {
+  const d = await donneesEtatDesLieux(await getDatabase(), contratId, jour);
+  await partagerPdf(htmlEtatDesLieux(d), `Etat-des-lieux-${d.locataire}`, `État des lieux — ${d.locataire}`);
 }

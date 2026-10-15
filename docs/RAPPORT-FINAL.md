@@ -36,6 +36,15 @@ faire** : c'est la seule partie que je ne peux pas réaliser moi-même. L'APK 1.
 | Contrat papier | Contrat de bail numérique d’après ton modèle : clauses, photo de la pièce, signatures au doigt, PDF à partager |
 | Ta signature | Paramètres → Ma signature : importer une image ou dessiner ; apposée sur contrats, reçus et factures |
 
+## Version 1.0.3
+
+| Retour | Correction |
+| --- | --- |
+| Points du PIN toujours verticaux | Rangée sortie de la vue animée (cause réelle : la vue animée perd la mise en ligne sur Android) |
+| Barre de navigation | Barre flottante : pastille verte avec libellé pour l’onglet actif, icônes seules sinon |
+| État des lieux | Fiche d’entrée et de sortie d’après ton modèle (21 éléments + éléments libres), Bon / Moyen / Mauvais, observations, signatures, PDF ; dégradations à la sortie signalées |
+| Contacts du site | imdadadenon@gmail.com, 01 56 78 40 63, 01 99 99 70 31 |
+
 ## L'APK
 
 - Build réussi : https://expo.dev/accounts/intrepide_ia/projects/onile/builds/d08b9ba5-be47-45b1-9fd0-179dfe41e96f
