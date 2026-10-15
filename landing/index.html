@@ -3,27 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Onílé — Gestion locative simple, même sans internet</title>
-  <meta name="description" content="Onílé : l'application Android pour gérer vos logements, vos loyers, vos factures d'électricité et vos dépenses, 100 % hors ligne. Pensé pour le Bénin.">
+  <title>Onílé — Gestion locative simple, sur votre téléphone</title>
+  <meta name="description" content="Onílé : loyers, échéancier, contrats signés sur téléphone, état des lieux, électricité prépayée, factures PDF et finances. Pensé pour les propriétaires au Bénin. Fonctionne sans internet.">
   <meta name="theme-color" content="#0F6B4F">
+  <meta property="og:title" content="Onílé — Gérer aujourd’hui, habiter demain">
+  <meta property="og:description" content="L’application Android des propriétaires : loyers, contrats, électricité, factures et finances au même endroit.">
+  <meta property="og:image" content="captures/accueil.webp">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@500&display=swap" rel="stylesheet">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #0F6B4F;
-      --primary-dark: #0A5039;
+      --primary-dark: #0A4A37;
       --secondary: #2E9E7A;
       --accent: #F5B301;
-      --background: #FBF6EF;
-      --ink: #1F2937;
-      --muted: #6B7280;
-      --border: #E5E7EB;
-      --danger: #EF4444;
+      --accent-soft: #FFF3CF;
+      --cream: #FBF6EF;
+      --ink: #14211C;
+      --muted: #5B6B64;
+      --line: #E6E2DA;
       --white: #FFFFFF;
-      --radius: 16px;
-      --shadow: 0 10px 30px rgba(15, 107, 79, 0.12);
+      --mint: #DDF1E8;
+      --peach: #FFE3D3;
+      --sky: #DCEBFA;
+      --radius: 24px;
+      --shadow: 0 30px 60px -30px rgba(15, 107, 79, .35);
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -31,115 +37,218 @@
       margin: 0;
       font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       color: var(--ink);
-      background: var(--background);
+      background: var(--cream);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
-    img, svg { display: block; max-width: 100%; }
+    img { max-width: 100%; display: block; }
     a { color: inherit; }
-    .container { width: min(1120px, 100% - 32px); margin-inline: auto; }
+    h1, h2, h3 { font-family: 'Bricolage Grotesque', 'Inter', sans-serif; letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
+    .container { width: min(1180px, 100% - 32px); margin-inline: auto; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-    /* Boutons */
+    /* ---------- Boutons ---------- */
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 14px 22px; border-radius: 12px; font-weight: 600; font-size: 15px;
-      text-decoration: none; border: 2px solid transparent; cursor: pointer; transition: transform .15s, box-shadow .15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 15px 24px; border-radius: 14px; font-weight: 600; font-size: 16px;
+      text-decoration: none; border: 0; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
     }
-    .btn:hover { transform: translateY(-1px); }
-    .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-    .btn-accent { background: var(--accent); color: var(--ink); box-shadow: 0 6px 18px rgba(245, 179, 1, .35); }
-    .btn-ghost { border-color: rgba(255,255,255,.6); color: var(--white); }
-    .btn-primary { background: var(--primary); color: var(--white); }
-    .btn[aria-disabled="true"] { opacity: .75; cursor: not-allowed; transform: none; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .btn-dark { background: var(--ink); color: var(--white); box-shadow: 0 14px 30px -12px rgba(20, 33, 28, .6); }
+    .btn-accent { background: var(--accent); color: var(--ink); box-shadow: 0 14px 30px -12px rgba(245, 179, 1, .7); }
+    .btn-light { background: var(--white); color: var(--ink); border: 1px solid var(--line); }
+    .btn-white { background: var(--white); color: var(--primary); }
 
-    /* En-tête */
-    header.site {
-      position: sticky; top: 0; z-index: 10; background: rgba(251, 246, 239, .92);
-      backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+    /* ---------- Navigation flottante ---------- */
+    header.site { position: sticky; top: 12px; z-index: 50; padding: 0 16px; }
+    .nav {
+      max-width: 1100px; margin: 12px auto 0; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      background: rgba(255, 255, 255, .82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(230, 226, 218, .9); border-radius: 999px; padding: 8px 8px 8px 18px;
+      box-shadow: 0 10px 30px -18px rgba(20, 33, 28, .35);
     }
-    .nav { display: flex; align-items: center; justify-content: space-between; height: 68px; }
-    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 22px; color: var(--primary); }
-    .nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; font-size: 14px; font-weight: 500; }
-    .nav-links a { text-decoration: none; color: var(--ink); }
-    .nav-links a:hover { color: var(--primary); }
-    .nav .btn { padding: 10px 16px; font-size: 14px; }
-    @media (max-width: 760px) { .nav-links { display: none; } }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px; color: var(--primary); }
+    .nav ul { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+    .nav ul a { text-decoration: none; font-size: 14px; font-weight: 500; color: var(--muted); padding: 8px 12px; border-radius: 999px; }
+    .nav ul a:hover { color: var(--ink); background: var(--cream); }
+    .nav .btn { padding: 10px 18px; font-size: 14px; border-radius: 999px; }
 
-    /* Héros */
-    .hero {
-      background: radial-gradient(1200px 500px at 85% 20%, rgba(46,158,122,.45), transparent 60%), var(--primary);
-      color: var(--white); overflow: hidden;
+    /* ---------- Hero ---------- */
+    .hero { position: relative; padding: 70px 0 40px; overflow: hidden; }
+    .hero::before {
+      content: ''; position: absolute; inset: -20% -10% auto -10%; height: 120%; z-index: -1;
+      background:
+        radial-gradient(40% 50% at 15% 20%, rgba(46, 158, 122, .28), transparent 70%),
+        radial-gradient(35% 45% at 85% 25%, rgba(245, 179, 1, .30), transparent 70%),
+        radial-gradient(40% 40% at 60% 90%, rgba(15, 107, 79, .18), transparent 70%);
+      filter: blur(10px);
     }
-    .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding: 72px 0 80px; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 13px; font-weight: 600; }
-    .hero h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.1; margin: 18px 0 16px; letter-spacing: -0.02em; }
-    .hero p.lead { font-size: 18px; color: rgba(255,255,255,.85); max-width: 520px; margin: 0 0 28px; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-    .hero-note { margin-top: 16px; font-size: 13px; color: rgba(255,255,255,.75); }
-    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; padding: 48px 0 56px; } .phone-wrap { order: -1; } }
-
-    /* Captures réelles de l'application dans un cadre de téléphone */
-    .phone-wrap { display: flex; justify-content: center; }
-    .phone { width: 280px; border-radius: 40px; background: #0b0f0e; padding: 10px; box-shadow: 0 30px 60px rgba(0,0,0,.35); }
-    .phone img { width: 100%; height: auto; border-radius: 30px; }
-    .captures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
-    @media (max-width: 1000px) { .captures { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .captures { grid-template-columns: 1fr; justify-items: center; } }
-    .captures figure { margin: 0; text-align: center; }
-    .captures .phone { width: 100%; max-width: 250px; margin: 0 auto 12px; padding: 8px; border-radius: 34px; box-shadow: 0 18px 40px rgba(0,0,0,.18); }
-    .captures .phone img { border-radius: 26px; }
-    .captures figcaption b { display: block; }
-    .captures figcaption span { color: var(--muted); font-size: 14px; }
-    .document { max-width: 760px; margin: 48px auto 0; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
-    .document img { width: 100%; height: auto; border-radius: 8px; }
-    .document figcaption { margin: 10px 4px 0; color: var(--muted); font-size: 14px; text-align: center; }
-
-    /* Sections */
-    section { padding: 80px 0; }
-    .section-head { text-align: center; max-width: 640px; margin: 0 auto 48px; }
-    .section-head h2 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
-    .section-head p { color: var(--muted); margin: 0; }
-    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    @media (max-width: 900px) { .features { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
-    .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
-    .icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; background: rgba(15,107,79,.08); color: var(--primary); margin-bottom: 14px; }
-    .card h3 { margin: 0 0 6px; font-size: 17px; }
-    .card p { margin: 0; color: var(--muted); font-size: 15px; }
-
-    .why { background: var(--white); }
-    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
-    @media (max-width: 900px) { .why-grid { grid-template-columns: 1fr; } }
-    .checks { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 14px; }
-    .checks li { display: flex; gap: 12px; align-items: flex-start; }
-    .checks svg { flex: none; margin-top: 3px; color: var(--secondary); }
-    .quote {
-      background: var(--background); border-radius: 24px; padding: 40px; text-align: center; border: 1px solid var(--border);
+    .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 999px;
+      background: var(--white); border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--muted);
     }
-    .quote p { font-family: 'Caveat', cursive; font-size: 40px; line-height: 1.15; color: var(--primary); margin: 0; }
-    .quote .swoosh { width: 160px; height: 10px; margin: 14px auto 0; color: var(--accent); }
+    .badge .dots { display: flex; }
+    .badge .dots span { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--white); margin-left: -6px; display: grid; place-items: center; font-size: 11px; }
+    .badge .dots span:first-child { margin-left: 0; }
+    .hero h1 { font-size: clamp(42px, 6.6vw, 82px); font-weight: 800; margin: 22px 0 20px; }
+    .hero h1 .surligne { background: linear-gradient(transparent 62%, rgba(245, 179, 1, .55) 62%); padding: 0 4px; }
+    .hero h1 em { font-style: normal; color: var(--primary); }
+    .hero .lead { font-size: 19px; color: var(--muted); max-width: 540px; margin: 0 0 30px; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-note { margin-top: 18px; font-size: 13px; color: var(--muted); display: flex; gap: 18px; flex-wrap: wrap; }
+    .hero-note span { display: inline-flex; gap: 6px; align-items: center; }
 
-    .download { background: var(--background); }
-    .download-box {
-      display: grid; grid-template-columns: 1.2fr .8fr; gap: 32px; align-items: center;
-      background: var(--primary); color: var(--white); border-radius: 28px; padding: 48px; overflow: hidden;
+    .phones { position: relative; height: 640px; }
+    .phone {
+      position: absolute; width: 270px; aspect-ratio: 390 / 844; border-radius: 40px; padding: 9px;
+      background: linear-gradient(145deg, #1f2a26, #0c1411); box-shadow: 0 40px 80px -30px rgba(10, 74, 55, .55), inset 0 0 0 2px rgba(255,255,255,.08);
     }
-    @media (max-width: 900px) { .download-box { grid-template-columns: 1fr; padding: 32px 24px; } }
-    .download-box h2 { margin: 0 0 10px; font-size: clamp(26px, 3.4vw, 34px); }
-    .download-box p { color: rgba(255,255,255,.85); margin: 0 0 24px; }
-    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; }
-    .meta div { background: rgba(255,255,255,.1); border-radius: 14px; padding: 14px 16px; }
-    .meta dt { font-size: 12px; color: rgba(255,255,255,.7); }
-    .meta dd { margin: 2px 0 0; font-weight: 700; }
-    .status-note { display: inline-flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; color: rgba(255,255,255,.8); }
+    .phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 32px; background: var(--cream); }
+    .phone::after { content: ''; position: absolute; top: 18px; left: 50%; width: 70px; height: 18px; margin-left: -35px; border-radius: 999px; background: #0c1411; }
+    .phone.p1 { left: 50%; top: 10px; margin-left: -135px; z-index: 3; animation: flotte 6s ease-in-out infinite; }
+    .phone.p2 { left: 0; top: 90px; width: 220px; transform: rotate(-9deg); z-index: 2; opacity: .96; }
+    .phone.p3 { right: 0; top: 110px; width: 220px; transform: rotate(8deg); z-index: 2; opacity: .96; }
+    .chip {
+      position: absolute; z-index: 4; display: flex; align-items: center; gap: 10px; background: var(--white);
+      border-radius: 16px; padding: 10px 14px; box-shadow: 0 18px 40px -18px rgba(20, 33, 28, .45); font-size: 13px; font-weight: 600;
+    }
+    .chip small { display: block; font-weight: 500; color: var(--muted); font-size: 11.5px; }
+    .chip .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+    .chip.c1 { left: -10px; bottom: 110px; animation: flotte 5s ease-in-out infinite .6s; }
+    .chip.c2 { right: -8px; top: 40px; animation: flotte 5.5s ease-in-out infinite 1.2s; }
+    @keyframes flotte { 50% { translate: 0 -12px; } }
 
-    footer.site { background: var(--primary-dark); color: rgba(255,255,255,.85); padding: 40px 0; font-size: 14px; }
-    .foot { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: center; }
-    .foot .brand { color: var(--white); }
-    .foot nav { display: flex; gap: 20px; }
-    .foot a { text-decoration: none; }
-    .foot a:hover { text-decoration: underline; }
+    /* ---------- Bandeau chiffres ---------- */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 30px; }
+    .stat { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; }
+    .stat b { display: block; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; color: var(--primary); line-height: 1.1; }
+    .stat span { font-size: 14px; color: var(--muted); }
+
+    /* ---------- Sections ---------- */
+    section { padding: 90px 0; }
+    .tete { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 40px; flex-wrap: wrap; }
+    .tete h2 { font-size: clamp(32px, 4.4vw, 52px); font-weight: 800; max-width: 640px; }
+    .tete p { color: var(--muted); max-width: 380px; margin: 0; }
+    .tete.centre { flex-direction: column; align-items: center; text-align: center; }
+    .tete.centre p { max-width: 560px; }
+    .kicker { display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); margin-bottom: 12px; }
+
+    .cartes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .carte { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; transition: transform .2s ease, box-shadow .2s ease; }
+    .carte:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .carte .ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--mint); color: var(--primary); margin-bottom: 18px; }
+    .carte h3 { font-size: 21px; margin-bottom: 8px; }
+    .carte p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    /* Sections alternées (fonctionnalité + téléphone) */
+    .bloc { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; padding: 30px 0; }
+    .bloc + .bloc { margin-top: 40px; }
+    .bloc.inverse .visuel { order: 2; }
+    .visuel { position: relative; border-radius: 32px; padding: 48px 0 0; display: flex; justify-content: center; overflow: hidden; min-height: 470px; }
+    .visuel .phone { position: relative; width: 260px; margin-bottom: -150px; }
+    .visuel.menthe { background: var(--mint); }
+    .visuel.peche { background: var(--peach); }
+    .visuel.ciel { background: var(--sky); }
+    .visuel.creme { background: var(--accent-soft); }
+    .bloc h3 { font-size: clamp(28px, 3.4vw, 40px); font-weight: 800; margin-bottom: 14px; }
+    .bloc p { color: var(--muted); font-size: 17px; margin: 0 0 18px; }
+    .puces { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .puces li { display: flex; gap: 10px; align-items: flex-start; }
+    .puces svg { flex: none; margin-top: 3px; color: var(--primary); }
+
+    /* Coup d'œil à l'intérieur */
+    .interieur { background: var(--ink); color: var(--white); border-radius: 40px; margin: 0 16px; padding: 80px 0 90px; }
+    .interieur .tete p { color: rgba(255,255,255,.7); }
+    .interieur .kicker { color: var(--accent); }
+    .defile { display: flex; gap: 22px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 10px 16px 24px; scrollbar-width: thin; }
+    .defile figure { margin: 0; flex: none; scroll-snap-align: center; text-align: center; }
+    .defile .fond { border-radius: 30px; padding: 26px 22px 0; overflow: hidden; height: 470px; display: flex; justify-content: center; }
+    .defile .phone { position: relative; width: 230px; }
+    .defile figcaption { margin-top: 14px; font-weight: 600; }
+    .defile figcaption span { display: block; font-weight: 400; font-size: 14px; color: rgba(255,255,255,.65); }
+    .f1 { background: #2E9E7A; } .f2 { background: #F5B301; } .f3 { background: #FF8A5B; } .f4 { background: #8FB8F0; } .f5 { background: #F2C4DC; } .f6 { background: #B9E4D2; }
+
+    /* Document */
+    .document { display: grid; grid-template-columns: .9fr 1.1fr; gap: 50px; align-items: center; }
+    .document img { border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--line); background: var(--white); }
+
+    /* Étapes */
+    .etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: etape; }
+    .etape { background: var(--white); border-radius: var(--radius); padding: 28px; border: 1px solid var(--line); position: relative; }
+    .etape::before { counter-increment: etape; content: counter(etape); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 54px; color: var(--accent); line-height: 1; display: block; margin-bottom: 10px; }
+    .etape h3 { font-size: 20px; margin-bottom: 6px; }
+    .etape p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    /* Appel à l'action */
+    .cta { background: linear-gradient(135deg, var(--primary), #138a64); color: var(--white); border-radius: 36px; padding: 56px; display: grid; grid-template-columns: 1.2fr .8fr; gap: 30px; align-items: center; position: relative; overflow: hidden; }
+    .cta::after { content: ''; position: absolute; right: -80px; bottom: -120px; width: 360px; height: 360px; border-radius: 50%; background: rgba(245, 179, 1, .25); }
+    .cta h2 { font-size: clamp(34px, 4.6vw, 58px); font-weight: 800; }
+    .cta p { color: rgba(255,255,255,.85); margin: 0 0 22px; }
+    .cta dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; position: relative; z-index: 1; }
+    .cta dl div { background: rgba(255,255,255,.1); border-radius: 16px; padding: 14px 16px; }
+    .cta dt { font-size: 12px; color: rgba(255,255,255,.7); }
+    .cta dd { margin: 2px 0 0; font-weight: 700; }
+
+    /* FAQ */
+    .faq { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    details { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 0 22px; }
+    details[open] { background: var(--accent-soft); border-color: #F3DFA0; }
+    summary { cursor: pointer; list-style: none; padding: 20px 0; font-weight: 600; display: flex; justify-content: space-between; gap: 12px; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; font-size: 22px; line-height: 1; color: var(--primary); transition: transform .2s; }
+    details[open] summary::after { transform: rotate(45deg); }
+    details p { margin: 0 0 20px; color: var(--muted); }
+
+    /* Pied de page */
+    footer.site { margin: 0 16px 16px; background: var(--ink); color: rgba(255,255,255,.8); border-radius: 36px; padding: 56px 0 28px; }
+    .pied { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 30px; }
+    .pied h4 { color: var(--white); margin: 0 0 12px; font-size: 15px; }
+    .pied a { text-decoration: none; display: block; padding: 3px 0; }
+    .pied a:hover { color: var(--accent); }
+    .bas { border-top: 1px solid rgba(255,255,255,.12); margin-top: 36px; padding-top: 20px; font-size: 13px; color: rgba(255,255,255,.55); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+    /* Apparition au défilement */
+    .reveler { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+    .reveler.vu { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveler { opacity: 1; transform: none; transition: none; }
+      .phone.p1, .chip { animation: none; }
+      .btn:hover, .carte:hover { transform: none; }
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 980px) {
+      .nav ul { display: none; }
+      .hero-grid, .bloc, .document, .cta { grid-template-columns: 1fr; }
+      .bloc.inverse .visuel { order: 0; }
+      .phones { height: 560px; max-width: 520px; margin: 0 auto; width: 100%; }
+      .cartes, .etapes { grid-template-columns: 1fr 1fr; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .faq { grid-template-columns: 1fr; }
+      .pied { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      section { padding: 64px 0; }
+      .hero { padding-top: 40px; }
+      .hero .lead { font-size: 17px; }
+      .hero-actions .btn { flex: 1 1 100%; }
+      .phones { height: 470px; }
+      .phone.p1 { width: 210px; margin-left: -105px; }
+      .phone.p2, .phone.p3 { width: 160px; top: 80px; }
+      .chip.c1 { left: 0; bottom: 60px; }
+      .chip.c2 { right: 0; top: 20px; }
+      .cartes, .etapes { grid-template-columns: 1fr; }
+      .visuel { min-height: 400px; }
+      .visuel .phone { width: 220px; }
+      .interieur, footer.site { margin-inline: 8px; border-radius: 28px; }
+      .cta { padding: 34px 22px; border-radius: 28px; }
+      .pied { grid-template-columns: 1fr; }
+      .nav .btn span { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -151,192 +260,281 @@
       <path d="M89 392c86-58 210-92 346-102-26 54-120 92-224 120-44 12-82 26-104 34-18 6-26-8-18-52Z" fill="var(--logo-band, #17885A)"/>
       <path d="M152 458c112-12 214-58 286-130 6 76-42 138-118 156-62 14-122 4-168-26Z" fill="#F5B301"/>
     </symbol>
+    <symbol id="ok" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="dl" viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
 
   <header class="site">
-    <div class="container nav">
+    <nav class="nav" aria-label="Navigation principale">
       <a class="brand" href="#top" aria-label="Onílé, accueil">
         <svg width="34" height="34" style="color:var(--primary)"><use href="#logo"/></svg>
         Onílé
       </a>
-      <ul class="nav-links">
+      <ul>
+        <li><a href="#avantages">Avantages</a></li>
         <li><a href="#fonctionnalites">Fonctionnalités</a></li>
-        <li><a href="#apercu">Aperçu</a></li>
-        <li><a href="#pourquoi">Pourquoi Onílé</a></li>
-        <li><a href="#telecharger">Télécharger</a></li>
+        <li><a href="#interieur">Aperçu</a></li>
+        <li><a href="#faq">Questions</a></li>
         <li><a href="#contact">Contact</a></li>
       </ul>
-      <a class="btn btn-primary" href="#telecharger">Télécharger</a>
-    </div>
+      <a class="btn btn-dark" href="/telecharger"><svg width="16" height="16"><use href="#dl"/></svg><span>Télécharger</span></a>
+    </nav>
   </header>
 
   <main id="top">
-    <section class="hero" aria-labelledby="hero-title">
+    <!-- ================= HERO ================= -->
+    <section class="hero" aria-labelledby="titre">
       <div class="container hero-grid">
         <div>
-          <span class="eyebrow">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
-            Fonctionne sans internet
+          <span class="badge">
+            <span class="dots" aria-hidden="true"><span style="background:#2E9E7A">🏠</span><span style="background:#F5B301">💰</span><span style="background:#FF8A5B">⚡</span></span>
+            Pensé pour les propriétaires au Bénin
           </span>
-          <h1 id="hero-title">Votre maison, vos loyers, vos factures en toute simplicité.</h1>
-          <p class="lead">Onílé est une application Android pour gérer vos logements, vos locataires, vos paiements, l’électricité prépayée et vos dépenses, directement sur votre téléphone.</p>
+          <h1 id="titre">Vos loyers, <span class="surligne">sans cahier</span> ni calculs.</h1>
+          <p class="lead">Onílé gère vos logements, vos locataires, les loyers et les avances, l’électricité prépayée, les contrats signés sur le téléphone et vos finances. Tout reste sur votre téléphone, même sans internet.</p>
           <div class="hero-actions">
-            <a class="btn btn-accent" href="#telecharger">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
-              Télécharger l’application (APK)
-            </a>
-            <a class="btn btn-ghost" href="#fonctionnalites">En savoir plus</a>
+            <a class="btn btn-dark" href="/telecharger"><svg width="18" height="18"><use href="#dl"/></svg> Télécharger l’application</a>
+            <a class="btn btn-light" href="#fonctionnalites">Voir ce qu’elle fait</a>
           </div>
-          <p class="hero-note">Gérer aujourd’hui, habiter demain.</p>
-        </div>
-
-        <div class="phone-wrap">
-          <!-- Capture réelle (données de démonstration) : scripts/captures-landing.mjs -->
-          <div class="phone">
-            <img src="captures/accueil.webp" width="390" height="844" alt="Écran d’accueil d’Onílé : loyers du mois réglés, reste à percevoir, occupation et alertes">
+          <div class="hero-note">
+            <span><svg width="16" height="16" style="color:var(--primary)"><use href="#ok"/></svg>Gratuite</span>
+            <span><svg width="16" height="16" style="color:var(--primary)"><use href="#ok"/></svg>Android 8 et plus</span>
+            <span><svg width="16" height="16" style="color:var(--primary)"><use href="#ok"/></svg>Sans internet</span>
           </div>
         </div>
-      </div>
-    </section>
 
-    <section id="fonctionnalites" aria-labelledby="f-title">
+        <div class="phones" aria-hidden="true">
+          <div class="phone p2"><img src="captures/loyers.webp" width="390" height="844" alt=""></div>
+          <div class="phone p3"><img src="captures/finances.webp" width="390" height="844" alt=""></div>
+          <div class="phone p1"><img src="captures/accueil.webp" width="390" height="844" alt="" fetchpriority="high"></div>
+          <div class="chip c1"><span class="ic" style="background:var(--mint);color:var(--primary)"><svg width="18" height="18"><use href="#ok"/></svg></span><div>Loyer reçu · +26 000 FCFA<small>Payé jusqu’à février 2027</small></div></div>
+          <div class="chip c2"><span class="ic" style="background:var(--accent-soft)">⚡</span><div>Couper à l’index 828<small>Épuisement estimé le 31 oct.</small></div></div>
+        </div>
+      </div>
       <div class="container">
-        <div class="section-head">
-          <h2 id="f-title">Tout pour gérer votre maison, au même endroit</h2>
-          <p>Fini les cahiers et les calculs à la main : Onílé fait les comptes pour vous.</p>
-        </div>
-        <div class="features">
-          <article class="card">
-            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-            <h3>Locataires et contrats</h3>
-            <p>Fiches, contrats, cautions, entrées et départs, avec tout l’historique conservé.</p>
-          </article>
-          <article class="card">
-            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
-            <h3>Loyers et échéances</h3>
-            <p>Voyez d’un coup d’œil qui a payé, qui est en retard, et enregistrez les paiements partiels.</p>
-          </article>
-          <article class="card">
-            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></div>
-            <h3>Factures et reçus PDF</h3>
-            <p>Des documents professionnels en FCFA, à envoyer au locataire par WhatsApp.</p>
-          </article>
-          <article class="card">
-            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-            <h3>Électricité prépayée</h3>
-            <p>Ventes de kWh, relevés de compteur, stock restant et alertes avant épuisement.</p>
-          </article>
-          <article class="card">
-            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg></div>
-            <h3>Recettes et dépenses</h3>
-            <p>Suivez réparations, entretien et revenus ; obtenez votre solde et vos rapports par mois.</p>
-          </article>
-          <article class="card">
-            <div class="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
-            <h3>Hors ligne et protégé</h3>
-            <p>Vos données restent sur votre téléphone, protégées par un code PIN, avec sauvegarde.</p>
-          </article>
+        <div class="stats reveler">
+          <div class="stat"><b>100 %</b><span>sur votre téléphone, sans abonnement</span></div>
+          <div class="stat"><b>FCFA</b><span>espèces, Mobile Money, virement</span></div>
+          <div class="stat"><b>PDF</b><span>reçus, factures, contrats en un geste</span></div>
+          <div class="stat"><b>PIN</b><span>données chiffrées et sauvegardées</span></div>
         </div>
       </div>
     </section>
 
-    <section id="apercu" aria-labelledby="a-title">
+    <!-- ================= AVANTAGES ================= -->
+    <section id="avantages" aria-labelledby="t-av">
       <div class="container">
-        <div class="section-head">
-          <h2 id="a-title">Aperçu de l’application</h2>
-          <p>Captures réelles d’Onílé, avec des données de démonstration.</p>
+        <div class="tete">
+          <div><span class="kicker">Pourquoi Onílé</span><h2 id="t-av">Pourquoi vous allez l’adorer</h2></div>
+          <p>Pensé avec un propriétaire, pour la façon dont on loue vraiment : caution, loyer du mois suivant, compteur prépayé.</p>
         </div>
-        <div class="captures">
-          <figure>
-            <div class="phone"><img src="captures/loyers.webp" width="390" height="844" loading="lazy" alt="Écran Loyers : échéances du mois avec les statuts payée, partielle et en retard"></div>
-            <figcaption><b>Loyers du mois</b><span>Qui a payé, qui est en retard</span></figcaption>
-          </figure>
-          <figure>
-            <div class="phone"><img src="captures/fiche-locataire.webp" width="390" height="844" loading="lazy" alt="Fiche locataire : situation, encaissement et contrat"></div>
-            <figcaption><b>Fiche locataire</b><span>Situation, contrat, encaissement</span></figcaption>
-          </figure>
-          <figure>
-            <div class="phone"><img src="captures/finances.webp" width="390" height="844" loading="lazy" alt="Finances : trésorerie, entrées, sorties et impayés"></div>
-            <figcaption><b>Finances</b><span>Trésorerie, dépenses, rapports</span></figcaption>
-          </figure>
-          <figure>
-            <div class="phone"><img src="captures/locataires.webp" width="390" height="844" loading="lazy" alt="Liste des locataires actifs avec leur logement et leur loyer"></div>
-            <figcaption><b>Locataires</b><span>Tous vos contrats d’un coup d’œil</span></figcaption>
-          </figure>
+        <div class="cartes">
+          <article class="carte reveler">
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+            <h3>Rappels au bon moment</h3>
+            <p>Loyer dans 3 jours, loyer en retard, fin de contrat, compteur à vérifier : vous êtes prévenu, sans y penser.</p>
+          </article>
+          <article class="carte reveler">
+            <div class="ic" style="background:var(--accent-soft);color:#8A6500"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 15l2 2 4-4"/></svg></div>
+            <h3>Avances bien comptées</h3>
+            <p>Un locataire paie trois mois d’un coup ? Onílé sait jusqu’à quand il est en règle et ne lui réclame rien.</p>
+          </article>
+          <article class="carte reveler">
+            <div class="ic" style="background:var(--peach);color:#B4461A"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+            <h3>Contrat signé sur place</h3>
+            <p>Le locataire lit le contrat, signe au doigt ; la carte d’identité est photographiée et le PDF part par WhatsApp.</p>
+          </article>
         </div>
-        <figure class="document">
-          <img src="captures/recu.webp" width="1220" height="715" loading="lazy" alt="Exemple de reçu PDF : montant reçu, mois réglé et reste à payer">
-          <figcaption>Exemple de reçu PDF, envoyé au locataire par WhatsApp en un geste.</figcaption>
-        </figure>
       </div>
     </section>
 
-    <section id="pourquoi" class="why" aria-labelledby="w-title">
-      <div class="container why-grid">
-        <div>
-          <h2 id="w-title" style="font-size:clamp(26px,3.4vw,36px);line-height:1.2;margin:0">Pourquoi choisir Onílé&nbsp;?</h2>
-          <ul class="checks">
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Simple à utiliser</strong> — pensé pour un propriétaire, pas pour un comptable.</span></li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Sécurisé et fiable</strong> — chaque paiement est tracé, rien ne disparaît en silence.</span></li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Sans abonnement ni internet</strong> — tout fonctionne directement sur le téléphone.</span></li>
-            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span><strong>Pensé pour le Bénin</strong> — montants en FCFA, Mobile Money, partage WhatsApp.</span></li>
+    <!-- ================= FONCTIONNALITÉS ================= -->
+    <section id="fonctionnalites" aria-labelledby="t-fn" style="padding-top:20px">
+      <div class="container">
+        <div class="tete centre"><span class="kicker">Fonctionnalités</span><h2 id="t-fn">Tout pour gérer votre maison, au même endroit</h2></div>
+
+        <div class="bloc reveler">
+          <div class="visuel menthe"><div class="phone"><img src="captures/loyers.webp" width="390" height="844" loading="lazy" alt="Écran Loyers : échéances du mois avec leurs statuts"></div></div>
+          <div>
+            <span class="kicker">Loyers et échéancier</span>
+            <h3>Qui a payé, qui doit, jusqu’à quand</h3>
+            <p>Chaque mois, les échéances se créent seules. Les paiements partiels et les avances se répartissent automatiquement sur les bons mois.</p>
+            <ul class="puces">
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Premier loyer le même jour du mois suivant l’entrée</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>« Payé jusqu’à » et prochain paiement sur chaque fiche</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Loyer ou autres frais : chaque somme est bien classée</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="bloc inverse reveler">
+          <div class="visuel peche"><div class="phone"><img src="captures/contrat.webp" width="390" height="844" loading="lazy" alt="Contrat de bail : clauses, pièce d’identité et signatures"></div></div>
+          <div>
+            <span class="kicker">Contrat et état des lieux</span>
+            <h3>Votre contrat, rempli et signé en quelques minutes</h3>
+            <p>Onílé reprend votre modèle de bail et le remplit avec les bonnes informations. L’état des lieux d’entrée et de sortie est noté élément par élément.</p>
+            <ul class="puces">
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Lecture du contrat avant signature, signatures au doigt</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Photo de la carte d’identité jointe en annexe</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Caution : impayés et réparations retenus, le reste rendu</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="bloc reveler">
+          <div class="visuel creme"><div class="phone"><img src="captures/notifications.webp" width="390" height="844" loading="lazy" alt="Notifications : électricité, loyers et sauvegarde"></div></div>
+          <div>
+            <span class="kicker">Électricité prépayée</span>
+            <h3>Fini les compteurs qui dépassent</h3>
+            <p>2 000 F à 250 F le kWh, c’est 8 kWh : Onílé calcule l’index de coupure, estime le jour où le crédit sera épuisé et vous rappelle d’aller vérifier.</p>
+            <ul class="puces">
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Index de coupure affiché à chaque vente</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Rappel la veille et le jour de l’épuisement</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Facture d’électricité en PDF</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="bloc inverse reveler">
+          <div class="visuel ciel"><div class="phone"><img src="captures/finances.webp" width="390" height="844" loading="lazy" alt="Finances : trésorerie et courbe des entrées et sorties"></div></div>
+          <div>
+            <span class="kicker">Finances</span>
+            <h3>Votre trésorerie, toujours juste</h3>
+            <p>Encaissements, dépenses, cautions : chaque franc est compté une seule fois. La courbe montre l’évolution mois par mois.</p>
+            <ul class="puces">
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Dépenses prévues et payées</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Rapports par mois et par année, export CSV</li>
+              <li><svg width="18" height="18"><use href="#ok"/></svg>Impayés suivis à part de l’argent disponible</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= À L'INTÉRIEUR ================= -->
+    <section id="interieur" class="interieur" aria-labelledby="t-in">
+      <div class="container">
+        <div class="tete centre"><span class="kicker">Aperçu</span><h2 id="t-in">Un coup d’œil à l’intérieur</h2><p>Captures réelles de l’application, avec des données de démonstration.</p></div>
+      </div>
+      <div class="defile" tabindex="0" aria-label="Captures de l’application, faites défiler">
+        <figure><div class="fond f1"><div class="phone"><img src="captures/accueil.webp" width="390" height="844" loading="lazy" alt="Accueil"></div></div><figcaption>Accueil<span>L’essentiel du mois</span></figcaption></figure>
+        <figure><div class="fond f2"><div class="phone"><img src="captures/loyers.webp" width="390" height="844" loading="lazy" alt="Loyers"></div></div><figcaption>Loyers<span>Statuts et avances</span></figcaption></figure>
+        <figure><div class="fond f3"><div class="phone"><img src="captures/fiche-locataire.webp" width="390" height="844" loading="lazy" alt="Fiche locataire et échéancier"></div></div><figcaption>Échéancier<span>Payé jusqu’à…</span></figcaption></figure>
+        <figure><div class="fond f4"><div class="phone"><img src="captures/contrat.webp" width="390" height="844" loading="lazy" alt="Contrat de bail"></div></div><figcaption>Contrat de bail<span>Signé sur le téléphone</span></figcaption></figure>
+        <figure><div class="fond f5"><div class="phone"><img src="captures/notifications.webp" width="390" height="844" loading="lazy" alt="Notifications"></div></div><figcaption>Notifications<span>Rien n’est oublié</span></figcaption></figure>
+        <figure><div class="fond f6"><div class="phone"><img src="captures/finances.webp" width="390" height="844" loading="lazy" alt="Finances"></div></div><figcaption>Finances<span>Trésorerie et courbe</span></figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ================= DOCUMENT ================= -->
+    <section aria-labelledby="t-doc">
+      <div class="container document">
+        <div class="reveler">
+          <span class="kicker">Documents</span>
+          <h2 id="t-doc" style="font-size:clamp(30px,4vw,46px);font-weight:800;margin-bottom:14px">Des reçus dignes d’un professionnel</h2>
+          <p style="color:var(--muted);font-size:17px">Reçus, factures, contrats et états des lieux en PDF, avec votre nom, votre signature et les informations du locataire. Vous les voyez avant de les envoyer.</p>
+          <ul class="puces" style="margin-top:18px">
+            <li><svg width="18" height="18"><use href="#ok"/></svg>Aperçu dans l’application avant le partage</li>
+            <li><svg width="18" height="18"><use href="#ok"/></svg>Partage WhatsApp, e-mail ou impression</li>
+            <li><svg width="18" height="18"><use href="#ok"/></svg>Numérotation automatique, sans doublon</li>
           </ul>
         </div>
-        <div class="quote">
-          <p>Plus qu’une appli,<br>une tranquillité d’esprit.</p>
-          <svg class="swoosh" viewBox="0 0 160 10" aria-hidden="true"><path d="M2 8C50 1 110 1 158 6" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+        <img class="reveler" src="captures/recu.webp" width="1220" height="715" loading="lazy" alt="Exemple de reçu PDF : propriétaire, locataire, mois réglés et reste à payer">
+      </div>
+    </section>
+
+    <!-- ================= ÉTAPES ================= -->
+    <section aria-labelledby="t-et" style="padding-top:10px">
+      <div class="container">
+        <div class="tete centre"><span class="kicker">Démarrer</span><h2 id="t-et">Prêt en trois minutes</h2></div>
+        <div class="etapes">
+          <div class="etape reveler"><h3>Installez Onílé</h3><p>Téléchargez le fichier APK et installez-le (autorisez l’installation depuis cette source).</p></div>
+          <div class="etape reveler"><h3>Créez votre code PIN</h3><p>Votre profil apparaît sur vos documents ; le code protège l’accès à vos données.</p></div>
+          <div class="etape reveler"><h3>Ajoutez vos logements</h3><p>Chambres, appartements, puis vos locataires : les loyers se suivent tout seuls.</p></div>
         </div>
       </div>
     </section>
 
-    <section id="telecharger" class="download" aria-labelledby="d-title">
+    <!-- ================= TÉLÉCHARGER ================= -->
+    <section id="telecharger" aria-labelledby="t-dl" style="padding-top:20px">
       <div class="container">
-        <div class="download-box">
-          <div>
-            <h2 id="d-title">Téléchargez l’application</h2>
-            <p>Onílé est distribué en fichier APK, à installer directement sur votre téléphone ou votre tablette Android.</p>
-            <!-- Le lien sera activé quand un APK testé sera publié (lot 9 du cahier des charges). -->
-            <a class="btn btn-accent" aria-disabled="true" role="link" tabindex="0" title="Disponible prochainement">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
-              Bientôt disponible
-            </a>
-            <div class="status-note">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-              Application en cours de finalisation : le téléchargement ouvrira à la sortie de la version 1.0.
-            </div>
+        <div class="cta reveler">
+          <div style="position:relative;z-index:1">
+            <h2 id="t-dl">Prêt à gérer vos loyers sereinement&nbsp;?</h2>
+            <p style="margin-top:14px">Onílé est gratuit. Téléchargez l’application Android et commencez aujourd’hui.</p>
+            <a class="btn btn-accent" href="/telecharger"><svg width="18" height="18"><use href="#dl"/></svg> Télécharger l’APK</a>
           </div>
-          <dl class="meta">
-            <div><dt>Version</dt><dd>1.0.0</dd></div>
-            <div><dt>Android minimum</dt><dd>8.0</dd></div>
-            <div><dt>Taille</dt><dd>À confirmer</dd></div>
-            <div><dt>Mise à jour</dt><dd>À confirmer</dd></div>
+          <dl>
+            <div><dt>Prix</dt><dd>Gratuit</dd></div>
+            <div><dt>Système</dt><dd>Android 8+</dd></div>
+            <div><dt>Internet</dt><dd>Pas nécessaire</dd></div>
+            <div><dt>Données</dt><dd>Chiffrées</dd></div>
           </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section id="faq" aria-labelledby="t-faq">
+      <div class="container">
+        <div class="tete centre"><span class="kicker">Questions</span><h2 id="t-faq">Questions fréquentes</h2></div>
+        <div class="faq">
+          <details><summary>Faut-il internet pour utiliser Onílé&nbsp;?</summary><p>Non. Tout fonctionne sur le téléphone. Internet sert seulement à partager un document ou à synchroniser vos données dans votre compte.</p></details>
+          <details><summary>Mes données sont-elles en sécurité&nbsp;?</summary><p>Elles sont chiffrées sur le téléphone et protégées par votre code PIN. Les sauvegardes et la synchronisation sont chiffrées avec un mot de passe que vous seul connaissez.</p></details>
+          <details><summary>Comment installer un fichier APK&nbsp;?</summary><p>Téléchargez-le depuis ce site, ouvrez-le, puis autorisez l’installation depuis cette source quand Android le demande. Les mises à jour s’installent par-dessus, sans perdre vos données.</p></details>
+          <details><summary>Et si je change de téléphone&nbsp;?</summary><p>Synchronisez vos données dans votre compte (ou exportez une sauvegarde), puis récupérez-les sur le nouveau téléphone.</p></details>
+          <details><summary>La caution compte-t-elle comme un loyer&nbsp;?</summary><p>Non. C’est un fonds de garantie : au départ, Onílé en retire les loyers impayés et les réparations, et calcule ce qu’il faut rendre.</p></details>
+          <details><summary>Existe-t-il une version iPhone&nbsp;?</summary><p>Pas pour le moment : Onílé est disponible sur Android.</p></details>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="site" id="contact">
-    <div class="container foot">
-      <div>
-        <a class="brand" href="#top">
-          <svg width="30" height="30" style="color:var(--white);--logo-band:#fff"><use href="#logo"/></svg>
-          Onílé
-        </a>
-        <p style="margin:8px 0 0">Une solution pensée pour vous, ici au Bénin.</p>
+    <div class="container">
+      <div class="pied">
+        <div>
+          <a class="brand" href="#top" style="color:var(--white)">
+            <svg width="32" height="32" style="color:var(--white);--logo-band:#fff"><use href="#logo"/></svg>
+            Onílé
+          </a>
+          <p style="margin:12px 0 0;max-width:340px">Gérer aujourd’hui, habiter demain. Une solution pensée pour les propriétaires, ici au Bénin.</p>
+        </div>
+        <div>
+          <h4>Application</h4>
+          <a href="#fonctionnalites">Fonctionnalités</a>
+          <a href="#interieur">Aperçu</a>
+          <a href="#faq">Questions fréquentes</a>
+          <a href="/telecharger">Télécharger</a>
+        </div>
+        <div>
+          <h4>Contact</h4>
+          <address style="font-style:normal">
+            <a href="mailto:imdadadenon@gmail.com">imdadadenon@gmail.com</a>
+            <a href="tel:+2290156784063">+229 01 56 78 40 63</a>
+            <a href="tel:+2290199997031">+229 01 99 99 70 31</a>
+          </address>
+        </div>
       </div>
-      <nav aria-label="Pied de page">
-        <a href="#fonctionnalites">Fonctionnalités</a>
-        <a href="#telecharger">Télécharger</a>
-        <a href="mailto:imdadadenon@gmail.com">Contact</a>
-      </nav>
-      <address style="font-style:normal;display:flex;flex-wrap:wrap;gap:6px 18px">
-        <a href="mailto:imdadadenon@gmail.com">imdadadenon@gmail.com</a>
-        <a href="tel:+2290156784063">+229 01 56 78 40 63</a>
-        <a href="tel:+2290199997031">+229 01 99 99 70 31</a>
-      </address>
-      <p style="margin:0;width:100%;font-size:13px;color:rgba(255,255,255,.6)">Vos données restent sur votre téléphone : ce site ne collecte ni ne stocke aucune information de gestion locative.</p>
+      <div class="bas">
+        <span>© <span id="annee">2026</span> Onílé</span>
+        <span>Ce site ne collecte aucune donnée : vos informations de gestion restent sur votre téléphone.</span>
+      </div>
     </div>
   </footer>
+
+  <script>
+    document.getElementById('annee').textContent = new Date().getFullYear();
+    // Apparition douce des blocs au défilement (désactivée si l'utilisateur réduit les animations).
+    const blocs = document.querySelectorAll('.reveler');
+    if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const obs = new IntersectionObserver((entrees) => {
+        for (const e of entrees) if (e.isIntersecting) { e.target.classList.add('vu'); obs.unobserve(e.target); }
+      }, { threshold: 0.12 });
+      blocs.forEach((b) => obs.observe(b));
+    } else {
+      blocs.forEach((b) => b.classList.add('vu'));
+    }
+  </script>
 </body>
 </html>

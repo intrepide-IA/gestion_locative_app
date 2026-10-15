@@ -67,6 +67,8 @@ const evaluer = async (expression) => (await cdp('Runtime.evaluate', { expressio
 
 /** Clique au centre du dernier élément visible dont le texte (ou l'aria-label) correspond exactement. */
 async function cliquer(texte) {
+  await evaluer(`(() => { const t = ${JSON.stringify(texte)}; const el = [...document.querySelectorAll('*')].filter((e) => e.getAttribute('aria-label') === t || (e.children.length === 0 && e.textContent.trim() === t)).pop(); el?.scrollIntoView({ block: 'center' }); })()`);
+  await pause(300);
   const rect = await evaluer(`(() => {
     const t = ${JSON.stringify(texte)};
     const visible = (el) => {
@@ -114,22 +116,33 @@ try {
   for (const chiffre of ['2', '5', '8', '0']) await cliquer(chiffre);
   await pause(2500);
   await capturer('accueil');
+  await evaluer(`[...document.querySelectorAll('[aria-label^="Notifications"]')].pop().click()`);
+  await pause(1200);
+  await capturer('notifications');
+  await cliquer('Retour');
   await cliquer('Loyers');
   await capturer('loyers');
   await cliquer('Locataires');
   await capturer('locataires');
   await cliquer('Awa Houngbo');
+  await evaluer("[...document.querySelectorAll('div')].filter(e => e.children.length === 0 && e.textContent === 'Échéancier').pop()?.scrollIntoView()");
   await capturer('fiche-locataire');
-  await evaluer("document.querySelector('[aria-label=\"Fermer\"]')?.click()");
+  await cliquer('Contrat de bail (signature, PDF)');
+  await pause(1200);
+  await capturer('contrat');
+  await cliquer('Retour');
   await cliquer('Finances');
+  await pause(1500);
   await capturer('finances');
   await cliquer('Loyers');
   await cliquer('Koffi Mensah');
   await cliquer('Reçu');
+  await pause(2000);
+  await cliquer('Partager (PDF)');
   await pause(1500);
   // Le document seul, sans la barre de l'aperçu : on remplace la page par le HTML du reçu.
-  await evaluer("(() => { const html = document.querySelector('#onile-apercu-document iframe').srcdoc; document.open(); document.write(html); document.close(); })()");
-  await cdp('Emulation.setDeviceMetricsOverride', { width: 820, height: 760, deviceScaleFactor: 1.5, mobile: false });
+  await evaluer("(() => { const html = document.querySelector('#onile-apercu-document iframe').srcdoc; document.open(); document.write(html.replace('</head>', '<style>html,body{overflow:hidden}</style></head>')); document.close(); })()");
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 820, height: 1000, deviceScaleFactor: 1.5, mobile: false });
   await capturer('recu', { rogner: true });
   writeFileSync(join(SORTIE, 'LISEZMOI.txt'), `Captures générées le ${new Date().toISOString()} par scripts/captures-landing.mjs (données de démonstration).\n`);
 } finally {
