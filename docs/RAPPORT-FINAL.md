@@ -48,7 +48,7 @@ faire** : c'est la seule partie que je ne peux pas réaliser moi-même. L'APK 1.
 ## L'APK
 
 - Build réussi : https://expo.dev/accounts/intrepide_ia/projects/onile/builds/d08b9ba5-be47-45b1-9fd0-179dfe41e96f
-- Téléchargement direct de l'APK : https://expo.dev/artifacts/eas/wo9FhjUQT1xMBDLMrmbgm0EelBVYemPWwkOX6ui0rCw.apk
+- Téléchargement direct de l'APK 1.0.3 : https://expo.dev/artifacts/eas/6KFOpcZtbDWVumxdBU0FNm7ivdbdpIcY6WxaBt8f29Y.apk
 - Ouvre ce lien sur ton téléphone, télécharge l'APK, installe-le (autoriser les sources inconnues).
 - Pour en refaire un plus tard : `npx eas-cli@latest build --platform android --profile preview`.
 
