@@ -64,3 +64,102 @@ export function premierMoisFacture(dateDebutContrat: string): string {
 export function jourEcheanceParDefaut(dateDebutContrat: string): number {
   return Math.min(28, Number(dateDebutContrat.slice(8, 10)));
 }
+
+/* ---------- Échéancier (passé + mois à venir couverts par l'avance) ---------- */
+
+export type StatutLigne = StatutEcheance | 'avance' | 'a_venir';
+
+export interface LigneEcheancier {
+  annee: number;
+  mois: number;
+  date: string;
+  montant: number;
+  /** Montant réglé (échéance existante) ou couvert par l'avance (mois à venir). */
+  regle: number;
+  statut: StatutLigne;
+  /** Mois pas encore facturé : seule l'avance peut le couvrir. */
+  futur: boolean;
+}
+
+export interface Echeancier {
+  lignes: LigneEcheancier[];
+  /** Dernier mois entièrement réglé sans trou depuis le début, ou null. */
+  payeJusqua: { annee: number; mois: number } | null;
+  /** Prochaine somme attendue : première ligne pas entièrement réglée. */
+  prochain: { date: string; montant: number; enRetard: boolean } | null;
+}
+
+const moisSuivant = ({ annee, mois }: { annee: number; mois: number }) => (mois === 12 ? { annee: annee + 1, mois: 1 } : { annee, mois: mois + 1 });
+
+/**
+ * Échéancier d'un locataire : les échéances déjà créées, puis `moisFuturs` mois à venir que l'avance
+ * (trop-perçu) couvre dans l'ordre. Un locataire qui a payé trois mois d'avance apparaît « payé jusqu'à »
+ * ce mois-là, et son prochain paiement est celui du mois suivant.
+ */
+export function echeancier(p: {
+  echeances: { annee: number; mois: number; date_echeance: string; montant_du: number; paye: number; statut: StatutEcheance }[];
+  credit: number;
+  contrat: { date_debut: string; date_fin: string | null; jour_echeance: number; montant: number } | null;
+  aujourdhui: string;
+  moisFuturs: number;
+}): Echeancier {
+  const lignes: LigneEcheancier[] = p.echeances.map((e) => ({
+    annee: e.annee,
+    mois: e.mois,
+    date: e.date_echeance,
+    montant: e.montant_du,
+    regle: Math.min(e.paye, e.montant_du),
+    statut: e.statut,
+    futur: false,
+  }));
+
+  if (p.contrat && p.contrat.montant > 0) {
+    const dernier = lignes[lignes.length - 1];
+    const [a, m] = premierMoisFacture(p.contrat.date_debut).split('-').map(Number);
+    let courant = dernier ? moisSuivant(dernier) : { annee: a, mois: m };
+    let credit = Math.max(0, p.credit);
+    for (let i = 0; i < p.moisFuturs; i++) {
+      const date = dateEcheance(courant.annee, courant.mois, p.contrat.jour_echeance, p.contrat.date_debut);
+      if (p.contrat.date_fin && date > p.contrat.date_fin) break;
+      const couvert = Math.min(credit, p.contrat.montant);
+      credit -= couvert;
+      lignes.push({
+        ...courant,
+        date,
+        montant: p.contrat.montant,
+        regle: couvert,
+        statut: couvert === p.contrat.montant ? 'avance' : couvert > 0 ? 'partielle' : 'a_venir',
+        futur: true,
+      });
+      courant = moisSuivant(courant);
+    }
+  }
+
+  let payeJusqua: Echeancier['payeJusqua'] = null;
+  for (const l of lignes) {
+    if (l.regle < l.montant) break;
+    payeJusqua = { annee: l.annee, mois: l.mois };
+  }
+  const suivante = lignes.find((l) => l.regle < l.montant);
+  return {
+    lignes,
+    payeJusqua,
+    prochain: suivante ? { date: suivante.date, montant: suivante.montant - suivante.regle, enRetard: suivante.date < p.aujourdhui } : null,
+  };
+}
+
+/**
+ * Effet d'un paiement sur l'échéancier : il règle les mois dans l'ordre (les plus anciens d'abord).
+ * Renvoie le dernier mois entièrement réglé après ce paiement, ou null.
+ */
+export function payeJusquaApres(e: Echeancier, montant: number): { annee: number; mois: number } | null {
+  let reste = montant;
+  let jusqua = null as { annee: number; mois: number } | null;
+  for (const l of e.lignes) {
+    const manque = l.montant - l.regle;
+    if (manque > reste) break;
+    reste -= manque;
+    jusqua = { annee: l.annee, mois: l.mois };
+  }
+  return jusqua;
+}

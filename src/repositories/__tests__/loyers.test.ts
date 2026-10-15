@@ -1,6 +1,6 @@
 import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
 import type { SqlDatabase } from '../../db/types';
-import { dateEcheance, etatEcheance, jourEcheanceParDefaut, moisEntre, premierMoisFacture } from '../../domain/echeances';
+import { dateEcheance, etatEcheance, jourEcheanceParDefaut, moisEntre, payeJusquaApres, premierMoisFacture } from '../../domain/echeances';
 import { creerLogement } from '../logementRepository';
 import { entrerLocataire, modifierConditionsContrat, terminerContrat, type ConditionsContrat } from '../locataireRepository';
 import {
@@ -12,6 +12,7 @@ import {
   genererEcheances,
   listerEcheancesDuMois,
   paiementsDuLocataire,
+  echeancierDuLocataire,
   situationLocataire,
   syntheseDuMois,
 } from '../loyerRepository';
@@ -200,4 +201,41 @@ test('premier loyer dû le même jour du mois suivant l’entrée', async () => 
   expect(await genererEcheances(db, '2026-11-02')).toBe(1);
   const e = await db.get<{ date_echeance: string }>('SELECT date_echeance FROM echeances');
   expect(e?.date_echeance).toBe('2026-11-15');
+});
+
+describe('échéancier et paiements d’avance', () => {
+  test('4 mois payés d’un coup : payé jusqu’en janvier, prochain paiement le 5 février', async () => {
+    const db = await createMigratedDatabase();
+    const { locataireId } = await installer(db);
+    await genererEcheances(db, '2026-10-10');
+    await payer(db, locataireId, 26000 * 4, '2026-10-03');
+    const e = await echeancierDuLocataire(db, locataireId, '2026-10-10', 6);
+    expect(e.payeJusqua).toEqual({ annee: 2027, mois: 1 });
+    expect(e.prochain).toEqual({ date: '2027-02-05', montant: 26000, enRetard: false });
+    expect(e.lignes.map((l) => `${l.mois}:${l.statut}`)).toEqual(['10:payee', '11:avance', '12:avance', '1:avance', '2:a_venir', '3:a_venir', '4:a_venir']);
+
+    // Le mois suivant, l'échéance de novembre est créée et réglée par l'avance : rien à payer.
+    await genererEcheances(db, '2026-11-10');
+    expect((await situationLocataire(db, locataireId)).dette).toBe(0);
+    expect((await echeancierDuLocataire(db, locataireId, '2026-11-10', 6)).payeJusqua).toEqual({ annee: 2027, mois: 1 });
+  });
+
+  test('retard : le prochain paiement est le plus ancien mois impayé', async () => {
+    const db = await createMigratedDatabase();
+    const { locataireId } = await installer(db);
+    await genererEcheances(db, '2026-11-10');
+    await payer(db, locataireId, 10000);
+    const e = await echeancierDuLocataire(db, locataireId, '2026-11-10', 2);
+    expect(e.payeJusqua).toBeNull();
+    expect(e.prochain).toEqual({ date: '2026-10-05', montant: 16000, enRetard: true });
+  });
+});
+
+test('effet d’un paiement sur l’échéancier : jusqu’à quel mois il couvre', async () => {
+  const db = await createMigratedDatabase();
+  const { locataireId } = await installer(db);
+  await genererEcheances(db, '2026-10-10');
+  const e = await echeancierDuLocataire(db, locataireId, '2026-10-10', 6);
+  expect(payeJusquaApres(e, 20000)).toBeNull();
+  expect(payeJusquaApres(e, 26000 * 3)).toEqual({ annee: 2026, mois: 12 });
 });

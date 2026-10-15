@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -11,7 +11,8 @@ import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatDate, formatFCFA, initiales, lireMontant } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, formatMois, initiales, lireMontant } from '../../domain/format';
+import type { Echeancier, StatutLigne } from '../../domain/echeances';
 import { useRessource } from '../../hooks/useRessource';
 import {
   contratsDuLocataire,
@@ -28,6 +29,7 @@ import { colors } from '../../theme/colors';
 import { preparerRecu } from '../../documents';
 import { useApercu } from '../../components/documents/Apercu';
 import {
+  echeancierDuLocataire,
   genererEcheances,
   LIBELLES_MODE,
   paiementsDuLocataire,
@@ -94,6 +96,7 @@ interface Donnees {
   historique: Awaited<ReturnType<typeof contratsDuLocataire>>;
   situation: SituationLocataire;
   paiements: PaiementDetaille[];
+  echeancier: Echeancier;
 }
 
 function Contenu({
@@ -114,15 +117,17 @@ function Contenu({
   const lire = useCallback(
     async (db: SqlDatabase): Promise<Donnees> => {
       await genererEcheances(db, aujourdhui());
-      const [locataire, contrat, historique, situation, paiements] = await Promise.all([
+      const jour = aujourdhui();
+      const [locataire, contrat, historique, situation, paiements, echeancier] = await Promise.all([
         getLocataire(db, locataireId),
         getContratActif(db, locataireId),
         contratsDuLocataire(db, locataireId),
         situationLocataire(db, locataireId),
         paiementsDuLocataire(db, locataireId),
+        echeancierDuLocataire(db, locataireId, jour, 6),
       ]);
       void synchroniserNotifications();
-      return { locataire, contrat, historique, situation, paiements };
+      return { locataire, contrat, historique, situation, paiements, echeancier };
     },
     [locataireId]
   );
@@ -132,8 +137,9 @@ function Contenu({
     historique: [],
     situation: { du: 0, regle: 0, dette: 0, credit: 0 },
     paiements: [],
+    echeancier: { lignes: [], payeJusqua: null, prochain: null },
   });
-  const { locataire, contrat, historique, situation, paiements } = donnees;
+  const { locataire, contrat, historique, situation, paiements, echeancier } = donnees;
   const [encaisser, setEncaisser] = useState(false);
   const ouvrirApercu = useApercu();
   const [electricite, setElectricite] = useState(false);
@@ -196,6 +202,8 @@ function Contenu({
         <LigneInfo libelle="Total réglé" valeur={formatFCFA(situation.regle)} />
       </Carte>
       <Bouton titre="Encaisser un paiement" icone={<Wallet size={18} color={colors.white} />} onPress={() => setEncaisser(true)} />
+
+      {echeancier.lignes.length ? <CarteEcheancier echeancier={echeancier} /> : null}
 
       {contrat ? (
         <Bouton
@@ -449,5 +457,61 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
       <Bouton titre="Enregistrer le départ" variante="danger" onPress={enregistrer} chargement={enCours} />
     </>
+  );
+}
+
+const STATUTS_LIGNE: Record<StatutLigne, { libelle: string; ton: 'succes' | 'attention' | 'erreur' | 'neutre' }> = {
+  payee: { libelle: 'Payé', ton: 'succes' },
+  avance: { libelle: 'Payé d’avance', ton: 'succes' },
+  partielle: { libelle: 'Partiel', ton: 'attention' },
+  en_attente: { libelle: 'À payer', ton: 'attention' },
+  en_retard: { libelle: 'En retard', ton: 'erreur' },
+  a_venir: { libelle: 'À venir', ton: 'neutre' },
+};
+
+/** Échéancier : où en est le locataire (payé jusqu'à…), prochain paiement, mois passés et à venir. */
+function CarteEcheancier({ echeancier: e }: { echeancier: Echeancier }) {
+  const [tout, setTout] = useState(false);
+  // Par défaut : les 3 derniers mois facturés et les 4 suivants.
+  const premierFutur = e.lignes.findIndex((l) => l.futur);
+  const pivot = premierFutur === -1 ? e.lignes.length : premierFutur;
+  const visibles = tout ? e.lignes : e.lignes.slice(Math.max(0, pivot - 3), pivot + 4);
+  const enRetard = e.prochain?.enRetard ?? false;
+  return (
+    <Carte>
+      <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Échéancier</Text>
+      <View className="flex-row gap-3 mb-2">
+        <View className="flex-1 rounded-xl bg-primary/10 p-3">
+          <Text className="text-xs text-muted">Payé jusqu’à</Text>
+          <Text className="font-bold text-primary mt-0.5">{e.payeJusqua ? formatMois(e.payeJusqua.mois, e.payeJusqua.annee) : 'Aucun mois'}</Text>
+        </View>
+        <View className={`flex-1 rounded-xl p-3 ${enRetard ? 'bg-danger/10' : 'bg-accent/15'}`}>
+          <Text className="text-xs text-muted">{enRetard ? 'En retard depuis le' : 'Prochain paiement'}</Text>
+          <Text className={`font-bold mt-0.5 ${enRetard ? 'text-danger' : 'text-ink'}`}>
+            {e.prochain ? `${formatDate(e.prochain.date)}` : '—'}
+          </Text>
+          {e.prochain ? <Text className="text-xs text-muted">{formatFCFA(e.prochain.montant)}</Text> : null}
+        </View>
+      </View>
+      {visibles.map((l) => {
+        const st = STATUTS_LIGNE[l.statut];
+        return (
+          <View key={`${l.annee}-${l.mois}`} className="flex-row items-center py-2 border-b border-border">
+            <View className="flex-1">
+              <Text className={`font-medium ${l.futur ? 'text-muted' : 'text-ink'}`}>{formatMois(l.mois, l.annee)}</Text>
+              <Text className="text-xs text-muted">
+                Échéance {formatDate(l.date)} · {formatFCFA(l.montant)}
+              </Text>
+            </View>
+            <Badge libelle={st.libelle} ton={st.ton} />
+          </View>
+        );
+      })}
+      {e.lignes.length > visibles.length || tout ? (
+        <Pressable onPress={() => setTout((t) => !t)} accessibilityRole="button" className="pt-2">
+          <Text className="text-primary text-sm font-medium text-center">{tout ? 'Réduire' : `Tout afficher (${e.lignes.length} mois)`}</Text>
+        </Pressable>
+      ) : null}
+    </Carte>
   );
 }

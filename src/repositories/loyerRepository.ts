@@ -4,7 +4,7 @@
  * la part non affectée d'un paiement forme un crédit, affecté ensuite aux échéances suivantes.
  */
 import type { SqlDatabase } from '../db/types';
-import { dateEcheance, etatEcheance, moisEntre, premierMoisFacture, type EtatEcheance } from '../domain/echeances';
+import { dateEcheance, echeancier, etatEcheance, moisEntre, premierMoisFacture, type Echeancier, type EtatEcheance } from '../domain/echeances';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
 import { prochainNumero } from './numerotation';
 
@@ -354,4 +354,24 @@ export async function annulerFacture(db: SqlDatabase, numero: string, motif: str
     numero,
   ]);
   if (changes === 0) throw new ErreurMetier('Facture introuvable ou déjà annulée.');
+}
+
+/** Échéancier du locataire : échéances créées + 12 mois à venir (couverts ou non par son avance). */
+export async function echeancierDuLocataire(db: SqlDatabase, locataireId: number, aujourdhui: string, moisFuturs = 12): Promise<Echeancier> {
+  const [echeances, situation, contrat] = await Promise.all([
+    echeancesDuLocataire(db, locataireId, aujourdhui),
+    situationLocataire(db, locataireId),
+    db.get<{ date_debut: string; date_fin: string | null; jour_echeance: number; loyer: number; toilettes: number }>(
+      "SELECT date_debut, date_fin, jour_echeance, loyer, toilettes FROM contrats WHERE locataire_id = ? AND statut = 'actif'",
+      [locataireId]
+    ),
+  ]);
+  const triees = [...echeances].sort((a, b) => a.annee - b.annee || a.mois - b.mois);
+  return echeancier({
+    echeances: triees,
+    credit: situation.credit,
+    contrat: contrat ? { ...contrat, montant: contrat.loyer + contrat.toilettes } : null,
+    aujourdhui,
+    moisFuturs: contrat ? moisFuturs : 0,
+  });
 }
