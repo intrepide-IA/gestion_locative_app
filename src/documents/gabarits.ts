@@ -121,13 +121,9 @@ ${filigrane ? `<div class="filigrane">${echapper(filigrane)}</div>` : ''}
 </div>
 <div class="blocs details">${corps.split('<!--blocs-->')[0]}</div>
 ${corps.split('<!--blocs-->')[1] ?? ''}
-${
-  e.signature
-    ? `<div style="display:flex;justify-content:flex-end;margin-top:28px"><div style="text-align:center"><div class="muted">Le bailleur</div>${imageSignature(
-        e.signature
-      )}<div><b>${echapper(e.nom)}</b></div></div></div>`
-    : ''
-}
+<div style="display:flex;justify-content:flex-end;margin-top:28px"><div style="text-align:center;min-width:220px"><div class="muted">Le bailleur</div>
+  <div style="height:76px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px dotted #9CA3AF">${imageSignature(e.signature)}</div>
+  <div style="margin-top:4px"><b>${echapper(e.nom)}</b></div></div></div>
 <div class="pied">Document établi avec Onílé — Gérer aujourd’hui, habiter demain.</div>
 </body></html>`;
 }

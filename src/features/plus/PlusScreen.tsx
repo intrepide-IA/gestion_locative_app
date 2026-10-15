@@ -16,7 +16,7 @@ import { messageErreur } from '../../domain/erreurs';
 import { initiales } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import { definirSignature, enregistrerProprietaire, getProprietaire, type Proprietaire } from '../../repositories/proprietaireRepository';
-import { choisirImage } from '../../services/images';
+import { importerImage } from '../../services/images';
 import { formatDelay } from '../../security/format';
 import { definirNotificationsActives, notificationsActives } from '../../repositories/rappelsRepository';
 import { demanderPermissionNotifications, synchroniserNotifications } from '../../services/notifications';
@@ -285,7 +285,7 @@ function FormSignature({ actuelle, nom, onModifiee }: { actuelle: string | null;
 
   const importer = async () => {
     try {
-      const image = await choisirImage('galerie', { largeur: 700, format: 'png' });
+      const image = await importerImage({ largeur: 700, format: 'png' });
       if (image) await enregistrer(image);
     } catch (error) {
       informer('Import impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));

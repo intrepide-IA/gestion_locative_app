@@ -52,12 +52,20 @@ function signatures(titre: string, e: EtatDesLieux, d: DonneesEtatDesLieux): str
 }
 
 export function htmlEtatDesLieux(d: DonneesEtatDesLieux): string {
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>État des lieux — ${echapper(d.locataire)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Georgia, serif; color: #111; margin: 0; padding: 30px 36px; font-size: 12.5px; }
+</style></head><body>${sectionEtatDesLieux(d)}</body></html>`;
+}
+
+/** Fiche seule (styles limités à .edl), pour l'annexer à un autre document comme le contrat de bail. */
+export function sectionEtatDesLieux(d: DonneesEtatDesLieux): string {
   const noms: string[] = [];
   for (const l of [...(d.entree?.elements ?? []), ...(d.sortie?.elements ?? [])]) if (!noms.includes(l.element)) noms.push(l.element);
   const note = (e: EtatDesLieux | null, element: string) => e?.elements.find((l) => l.element === element)?.etat ?? null;
   const pertes = d.entree && d.sortie ? degradations(d.entree.elements, d.sortie.elements) : [];
   const abime = new Set(pertes.map((p) => p.element));
-
   const lignes = noms
     .map((n) => {
       const a = note(d.entree, n);
@@ -67,30 +75,26 @@ export function htmlEtatDesLieux(d: DonneesEtatDesLieux): string {
       ).join('')}</tr>`;
     })
     .join('');
-
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>État des lieux — ${echapper(d.locataire)}</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Georgia, serif; color: #111; margin: 0; padding: 30px 36px; font-size: 12.5px; }
-  h1 { text-align: center; font-size: 17px; text-decoration: underline; margin: 6px 0 16px; }
-  .entete { display: flex; align-items: center; gap: 8px; color: ${colors.muted}; font-family: Arial, sans-serif; font-size: 10px; }
-  .infos p { margin: 3px 0; }
-  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-  th, td { border: 1px solid #999; padding: 3px 4px; text-align: center; }
-  th { background: #f2f2f2; font-style: italic; font-weight: normal; font-size: 11.5px; }
-  td.el { text-align: right; font-style: italic; padding-right: 8px; }
-  tbody tr:nth-child(even) td { background: #fafafa; }
-  tr.abime td { background: #fde8e8 !important; }
-  .case { display: inline-block; width: 13px; height: 13px; border: 1px solid #333; line-height: 12px; font-size: 11px; }
-  .case.cochee { background: ${colors.primary}; color: #fff; border-color: ${colors.primary}; }
-  .sig-bloc { margin-top: 16px; page-break-inside: avoid; }
-  .sig-bloc h3 { font-size: 13px; margin: 0 0 4px; }
-  .signatures { display: flex; gap: 30px; text-align: center; }
-  .signatures > div { flex: 1; }
-  .cadre { height: 66px; border-bottom: 1px dotted #888; display: flex; align-items: flex-end; justify-content: center; margin: 4px 0; }
-  .degradations { margin-top: 14px; padding: 8px 12px; border: 1px solid #f5b5b5; background: #fff6f6; border-radius: 6px; }
-  .pied { margin-top: 20px; font-family: Arial, sans-serif; font-size: 10px; color: ${colors.muted}; text-align: center; }
-</style></head><body>
+  return `<style>
+  .edl h1 { text-align: center; font-size: 17px; text-decoration: underline; margin: 6px 0 16px; }
+  .edl .entete { display: flex; align-items: center; gap: 8px; color: ${colors.muted}; font-family: Arial, sans-serif; font-size: 10px; }
+  .edl .infos p { margin: 3px 0; }
+  .edl table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  .edl th, .edl td { border: 1px solid #999; padding: 3px 4px; text-align: center; }
+  .edl th { background: #f2f2f2; font-style: italic; font-weight: normal; font-size: 11.5px; }
+  .edl td.el { text-align: right; font-style: italic; padding-right: 8px; }
+  .edl tbody tr:nth-child(even) td { background: #fafafa; }
+  .edl tr.abime td { background: #fde8e8 !important; }
+  .edl .case { display: inline-block; width: 13px; height: 13px; border: 1px solid #333; line-height: 12px; font-size: 11px; }
+  .edl .case.cochee { background: ${colors.primary}; color: #fff; border-color: ${colors.primary}; }
+  .edl .sig-bloc { margin-top: 16px; page-break-inside: avoid; }
+  .edl .sig-bloc h3 { font-size: 13px; margin: 0 0 4px; }
+  .edl .signatures { display: flex; gap: 30px; text-align: center; }
+  .edl .signatures > div { flex: 1; }
+  .edl .cadre { height: 66px; border-bottom: 1px dotted #888; display: flex; align-items: flex-end; justify-content: center; margin: 4px 0; }
+  .edl .degradations { margin-top: 14px; padding: 8px 12px; border: 1px solid #f5b5b5; background: #fff6f6; border-radius: 6px; }
+  .edl .pied { margin-top: 20px; font-family: Arial, sans-serif; font-size: 10px; color: ${colors.muted}; text-align: center; }
+</style><div class="edl">
 <div class="entete">${SYMBOLE.replace(/width="44" height="44"/, 'width="22" height="22"')} Établi avec Onílé</div>
 <h1>FICHE D’ÉTAT DES LIEUX (ENTRÉE / SORTIE)</h1>
 <div class="infos">
@@ -115,5 +119,5 @@ ${
 ${d.entree ? signatures('État des lieux d’entrée', d.entree, d) : ''}
 ${d.sortie ? signatures('État des lieux de sortie', d.sortie, d) : ''}
 <div class="pied">État des lieux établi avec Onílé — Gérer aujourd’hui, habiter demain.</div>
-</body></html>`;
+</div>`;
 }

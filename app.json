@@ -74,11 +74,11 @@
       ],
       "expo-asset",
       [
-        "expo-image-picker",
+        "expo-camera",
         {
-          "photosPermission": "Onílé utilise vos photos pour importer votre signature.",
           "cameraPermission": "Onílé utilise l’appareil photo pour photographier la pièce d’identité du locataire.",
-          "microphonePermission": false
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ]
     ],

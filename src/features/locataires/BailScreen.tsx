@@ -8,16 +8,19 @@ import { informer } from '../../components/ui/confirmer';
 import { Badge, Bouton, BoutonRetour, Carte, Champ, Chargement, EnTete, EtatErreur, LigneInfo } from '../../components/ui/kit';
 import { BlocSignature } from '../../components/ui/BlocSignature';
 import { PadSignature } from '../../components/ui/PadSignature';
+import { PrisePhoto } from '../../components/ui/PrisePhoto';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
-import { partagerContrat } from '../../documents';
+import { preparerContrat } from '../../documents';
+import { useApercu } from '../../components/documents/Apercu';
 import { donneesContrat, type DonneesContrat } from '../../documents/contrat';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatDate, formatFCFA } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import { definirPhotoPiece, enregistrerClauses, signerBail, type ClausesBail, type Signataire } from '../../repositories/bauxRepository';
-import { choisirImage, type SourceImage } from '../../services/images';
+import { definirSignature } from '../../repositories/proprietaireRepository';
+import { importerImage } from '../../services/images';
 import { colors } from '../../theme/colors';
 
 const erreurTexte = (error: unknown) => messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.');
@@ -53,21 +56,43 @@ export function BailScreen({
     }
   };
 
-  const photo = (source: SourceImage) =>
+  const [camera, setCamera] = useState(false);
+  const ouvrirApercu = useApercu();
+
+  /** Les clauses proposées par défaut sont enregistrées si besoin : la photo et les signatures s'y rattachent. */
+  const assurerClauses = async () => {
+    if (d && !d.bail.enregistre) await enregistrerClauses(await getDatabase(), contratId, d.bail);
+  };
+
+  const enregistrerPhoto = (image: string | null) =>
     action(
       'photo',
       async () => {
-        const image = await choisirImage(source, { largeur: 1200, format: 'jpeg' });
-        if (image) await definirPhotoPiece(await getDatabase(), contratId, image);
+        if (!image) return;
+        await assurerClauses();
+        await definirPhotoPiece(await getDatabase(), contratId, image);
+        setCamera(false);
       },
       'Photo impossible'
     );
+
+  const importerPhoto = async () => {
+    try {
+      await enregistrerPhoto(await importerImage({ largeur: 1200, format: 'jpeg' }));
+    } catch (error) {
+      informer('Import impossible', erreurTexte(error));
+    }
+  };
 
   const signer = (qui: Signataire, image: string) =>
     action(
       `signer-${qui}`,
       async () => {
-        await signerBail(await getDatabase(), contratId, qui, image, aujourdhui());
+        await assurerClauses();
+        const db = await getDatabase();
+        await signerBail(db, contratId, qui, image, aujourdhui());
+        // Première signature du bailleur : elle devient sa signature pour les reçus et factures.
+        if (qui === 'bailleur' && !d?.bailleur.signatureProfil) await definirSignature(db, image);
         setSignataire(null);
       },
       'Signature impossible'
@@ -137,8 +162,7 @@ export function BailScreen({
               className="flex-1"
               variante="secondaire"
               icone={<Camera size={18} color={colors.primary} />}
-              onPress={() => photo('camera')}
-              desactive={!b.enregistre}
+              onPress={() => setCamera(true)}
               chargement={enCours === 'photo'}
             />
             <Bouton
@@ -146,8 +170,7 @@ export function BailScreen({
               className="flex-1"
               variante="secondaire"
               icone={<ImageIcon size={18} color={colors.primary} />}
-              onPress={() => photo('galerie')}
-              desactive={!b.enregistre}
+              onPress={importerPhoto}
             />
           </View>
         </Etape>
@@ -157,23 +180,23 @@ export function BailScreen({
             titre="Le locataire"
             nom={d.locataire.nom}
             image={b.signature_locataire}
-            desactive={!b.enregistre}
-            onSigner={() => setSignataire('locataire')}
+                        // Le locataire lit d'abord le contrat complet, puis signe depuis l'aperçu.
+            onSigner={() =>
+              ouvrirApercu(() => preparerContrat(contratId), { titre: 'Lu et approuvé : signer', onPress: () => setSignataire('locataire') })
+            }
           />
           <BlocSignature
             titre="Le bailleur"
             nom={d.bailleur.nom}
             image={b.signature_bailleur}
-            desactive={!b.enregistre}
-            onSigner={() => setSignataire('bailleur')}
+                        onSigner={() => setSignataire('bailleur')}
             supplement={
               d.bailleur.signatureProfil && !b.signature_bailleur ? (
                 <Bouton
                   titre="Apposer ma signature enregistrée"
                   icone={<PenLine size={18} color={colors.white} />}
                   onPress={() => signer('bailleur', d.bailleur.signatureProfil!)}
-                  desactive={!b.enregistre}
-                  chargement={enCours === 'signer-bailleur'}
+                                    chargement={enCours === 'signer-bailleur'}
                 />
               ) : null
             }
@@ -189,14 +212,19 @@ export function BailScreen({
         </Etape>
 
         <Bouton
-          titre={signe ? 'Partager le contrat signé (PDF)' : 'Aperçu / imprimer le contrat (PDF)'}
+          titre={signe ? 'Voir et partager le contrat signé' : 'Lire le contrat'}
           variante={signe ? 'action' : 'secondaire'}
           icone={<Share2 size={18} color={signe ? colors.ink : colors.primary} />}
-          chargement={enCours === 'pdf'}
-          onPress={() => action('pdf', () => partagerContrat(contratId), 'Partage impossible')}
+          onPress={() => ouvrirApercu(() => preparerContrat(contratId))}
         />
       </ScrollView>
 
+      <PrisePhoto
+        ouverte={camera}
+        onFermer={() => setCamera(false)}
+        onPhoto={(image) => void enregistrerPhoto(image)}
+        consigne="Placez la carte d’identité dans le cadre, bien éclairée, puis appuyez sur le bouton."
+      />
       <Feuille ouverte={clauses} onFermer={() => setClauses(false)} titre="Clauses du contrat">
         <FormClauses
           contratId={contratId}
@@ -216,7 +244,7 @@ export function BailScreen({
           <>
             <Text className="text-muted">
               {signataire === 'locataire'
-                ? `${d.locataire.nom} signe après avoir lu le contrat (bouton « Aperçu » pour le relire).`
+                ? `${d.locataire.nom} a lu le contrat : il signe ci-dessous, au doigt.`
                 : 'Signez sur place, au doigt.'}
             </Text>
             <PadSignature

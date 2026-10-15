@@ -8,8 +8,10 @@ import * as Sharing from 'expo-sharing';
 
 export async function partagerPdf(html: string, nomFichier: string, titre: string): Promise<void> {
   const { uri } = await Print.printToFileAsync({ html });
-  const destination = `${FileSystem.cacheDirectory}${nomFichier.replace(/[^\w.-]+/g, '-')}.pdf`;
-  await FileSystem.deleteAsync(destination, { idempotent: true });
+  // Un dossier neuf à chaque partage : l'application qui reçoit ne peut pas resservir un ancien fichier.
+  const dossier = `${FileSystem.cacheDirectory}partage-${Date.now()}/`;
+  await FileSystem.makeDirectoryAsync(dossier, { intermediates: true });
+  const destination = `${dossier}${nomFichier.normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\w.-]+/g, '-')}.pdf`;
   await FileSystem.moveAsync({ from: uri, to: destination });
   if (!(await Sharing.isAvailableAsync())) throw new Error('Le partage n’est pas disponible sur cet appareil.');
   await Sharing.shareAsync(destination, { mimeType: 'application/pdf', dialogTitle: titre, UTI: 'com.adobe.pdf' });

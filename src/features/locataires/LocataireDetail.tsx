@@ -25,7 +25,8 @@ import {
   type LocataireAvecContrat,
 } from '../../repositories/locataireRepository';
 import { colors } from '../../theme/colors';
-import { partagerRecu } from '../../documents';
+import { preparerRecu } from '../../documents';
+import { useApercu } from '../../components/documents/Apercu';
 import {
   genererEcheances,
   LIBELLES_MODE,
@@ -134,6 +135,7 @@ function Contenu({
   });
   const { locataire, contrat, historique, situation, paiements } = donnees;
   const [encaisser, setEncaisser] = useState(false);
+  const ouvrirApercu = useApercu();
   const [electricite, setElectricite] = useState(false);
 
   if (chargement && !locataire) return <Chargement />;
@@ -254,10 +256,10 @@ function Contenu({
               libelle={`${formatDate(p.date_paiement)} · ${LIBELLES_MODE[p.mode]}`}
               valeur={
                 <Text
-                  onPress={() => partagerRecu(p.id).catch((e: unknown) => informer('Partage impossible', messageErreur(e, String(e))))}
+                  onPress={() => ouvrirApercu(() => preparerRecu(p.id))}
                   className={`font-semibold ${p.annule_le ? 'text-muted line-through' : 'text-primary'}`}
                   accessibilityRole="button"
-                  accessibilityHint="Partager le reçu"
+                  accessibilityHint="Voir le reçu"
                 >
                   {formatFCFA(p.montant)}
                 </Text>

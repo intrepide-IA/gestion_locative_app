@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BarreOnglets } from './components/navigation/BarreOnglets';
+import { FournisseurApercu } from './components/documents/Apercu';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
@@ -176,6 +177,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <FournisseurApercu>
         <NavigationContainer theme={navigationTheme}>
           <StatusBar style={access === 'unlocked' ? 'dark' : 'light'} />
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -214,6 +216,7 @@ export default function App() {
             )}
           </Stack.Navigator>
         </NavigationContainer>
+      </FournisseurApercu>
     </SafeAreaProvider>
   );
 }

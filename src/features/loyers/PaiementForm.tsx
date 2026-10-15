@@ -4,11 +4,11 @@ import { CheckCircle2, Share2 } from 'lucide-react-native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
-import { informer } from '../../components/ui/confirmer';
 import { Bouton, Carte, Champ, Choix, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
-import { partagerRecu } from '../../documents';
+import { preparerRecu } from '../../documents';
+import { useApercu } from '../../components/documents/Apercu';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatFCFA, lireMontant } from '../../domain/format';
 import { enregistrerPaiement, LIBELLES_MODE, type ModePaiement, type ResultatPaiement } from '../../repositories/loyerRepository';
@@ -54,7 +54,7 @@ function Formulaire({
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [resultat, setResultat] = useState<ResultatPaiement | null>(null);
-  const [partage, setPartage] = useState(false);
+  const ouvrirApercu = useApercu();
 
   const enregistrer = async () => {
     const m = lireMontant(montant);
@@ -81,17 +81,7 @@ function Formulaire({
     }
   };
 
-  const partager = async () => {
-    if (!resultat) return;
-    setPartage(true);
-    try {
-      await partagerRecu(resultat.paiementId);
-    } catch (error) {
-      informer('Partage impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
-    } finally {
-      setPartage(false);
-    }
-  };
+  const partager = () => resultat && ouvrirApercu(() => preparerRecu(resultat.paiementId));
 
   if (resultat) {
     return (
@@ -107,7 +97,7 @@ function Formulaire({
           <LigneInfo libelle="Reste à payer" valeur={formatFCFA(resultat.dette)} />
           {resultat.credit > 0 ? <LigneInfo libelle="Avance (crédit)" valeur={formatFCFA(resultat.credit)} /> : null}
         </Carte>
-        <Bouton titre="Partager le reçu (PDF)" variante="action" icone={<Share2 size={18} color={colors.ink} />} onPress={partager} chargement={partage} />
+        <Bouton titre="Voir et partager le reçu" variante="action" icone={<Share2 size={18} color={colors.ink} />} onPress={partager} />
         <Bouton titre="Terminer" variante="secondaire" onPress={onTerminer} />
       </>
     );

@@ -19,7 +19,7 @@ export function BlocSignature({
   titre: string;
   nom: string;
   image: string | null;
-  desactive: boolean;
+  desactive?: boolean;
   onSigner: () => void;
   supplement?: ReactNode;
 }) {

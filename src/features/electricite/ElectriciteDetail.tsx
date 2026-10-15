@@ -4,13 +4,13 @@ import { Gauge, Share2, Zap } from 'lucide-react-native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
-import { informer } from '../../components/ui/confirmer';
 import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
-import { partagerFactureElectricite } from '../../documents';
+import { preparerFactureElectricite } from '../../documents';
+import { useApercu } from '../../components/documents/Apercu';
 import { calculerAchat, LIBELLES_STOCK, type EtatStock } from '../../domain/electricite';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatDate, formatFCFA, lireMontant } from '../../domain/format';
@@ -80,7 +80,7 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
   );
   const { donnees, chargement, rafraichir } = useRessource(lire, { situation: null, achats: [], releves: [] });
   const { situation: s, achats, releves } = donnees;
-  const [occupe, setOccupe] = useState<string | null>(null);
+  const ouvrirApercu = useApercu();
   const [aAnnuler, setAAnnuler] = useState<number | null>(null);
 
   if (chargement && !s) return <Chargement />;
@@ -93,17 +93,6 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
 
   if (vue === 'vente') return <FormVente situation={s} onEnregistre={apres} onTerminer={() => setVue('detail')} />;
   if (vue === 'releve') return <FormReleve situation={s} onEnregistre={() => { apres(); setVue('detail'); }} />;
-
-  const action = async (cle: string, travail: () => Promise<unknown>) => {
-    setOccupe(cle);
-    try {
-      await travail();
-    } catch (error) {
-      informer('Action impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
-    } finally {
-      setOccupe(null);
-    }
-  };
 
   return (
     <>
@@ -173,15 +162,13 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
                   titre="Facture"
                   variante="secondaire"
                   className="flex-1 py-2.5"
-                  chargement={occupe === `f-${a.id}`}
-                  onPress={() => action(`f-${a.id}`, () => partagerFactureElectricite(a.id))}
+                  onPress={() => ouvrirApercu(() => preparerFactureElectricite(a.id))}
                 />
                 {!a.annule_le ? (
                   <Bouton
                     titre="Annuler"
                     variante="danger"
                     className="flex-1 py-2.5"
-                    chargement={occupe === `a-${a.id}`}
                     onPress={() => setAAnnuler(a.id)}
                   />
                 ) : null}
@@ -233,7 +220,7 @@ function FormVente({ situation, onEnregistre, onTerminer }: { situation: Situati
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [resultat, setResultat] = useState<ResultatAchat | null>(null);
-  const [partage, setPartage] = useState(false);
+  const ouvrirApercu = useApercu();
 
   const m = lireMontant(montant);
   const apercu = m ? calculerAchat(m, situation.prix_kwh) : null;
@@ -279,20 +266,10 @@ function FormVente({ situation, onEnregistre, onTerminer }: { situation: Situati
           ) : null}
         </Carte>
         <Bouton
-          titre="Partager la facture (PDF)"
+          titre="Voir et partager la facture"
           variante="action"
           icone={<Share2 size={18} color={colors.ink} />}
-          chargement={partage}
-          onPress={async () => {
-            setPartage(true);
-            try {
-              await partagerFactureElectricite(resultat.achatId);
-            } catch (error) {
-              informer('Partage impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
-            } finally {
-              setPartage(false);
-            }
-          }}
+          onPress={() => ouvrirApercu(() => preparerFactureElectricite(resultat.achatId))}
         />
         <Bouton titre="Terminer" variante="secondaire" onPress={onTerminer} />
       </>

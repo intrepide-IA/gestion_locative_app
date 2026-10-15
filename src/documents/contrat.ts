@@ -62,7 +62,8 @@ const vide = '<span class="vide">………………</span>';
 const v = (valeur: string | number | null | undefined) => (valeur === null || valeur === undefined || valeur === '' ? vide : `<b>${echapper(valeur)}</b>`);
 const mois = (n: number) => `${n} mois`;
 
-export function htmlContrat(d: DonneesContrat): string {
+/** `annexe` : fragment HTML ajouté sur une nouvelle page (fiche d'état des lieux). */
+export function htmlContrat(d: DonneesContrat, annexe = ''): string {
   const b = d.bail;
   const [annee, m] = premierMoisFacture(d.dateDebut).split('-').map(Number);
   const premierLoyer = dateEcheance(annee, m, d.jourEcheance, d.dateDebut);
@@ -162,6 +163,7 @@ ${
       }</p><img src="${echapper(piece)}" alt="Pièce d’identité"></div>`
     : ''
 }
+${annexe ? `<div class="annexe">${annexe}</div>` : ''}
 <div class="pied">Contrat établi avec Onílé — Gérer aujourd’hui, habiter demain.</div>
 </body></html>`;
 }

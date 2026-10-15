@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, FileText, Receipt, Wallet } from 'lucide-react-native';
 
 import { Feuille } from '../../components/ui/Feuille';
-import { informer } from '../../components/ui/confirmer';
 import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import {
   Badge,
@@ -20,7 +19,8 @@ import {
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
-import { partagerFactureEcheance, partagerRecu } from '../../documents';
+import { preparerFactureEcheance, preparerRecu } from '../../documents';
+import { useApercu } from '../../components/documents/Apercu';
 import { LIBELLES_STATUT } from '../../domain/echeances';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatDate, formatFCFA, formatMois } from '../../domain/format';
@@ -245,23 +245,12 @@ function DetailEcheance({
     [echeanceId]
   );
   const { donnees, chargement, rafraichir } = useRessource(lire, { echeance: null, paiements: [] });
-  const [occupe, setOccupe] = useState<string | null>(null);
+  const ouvrirApercu = useApercu();
   const [aAnnuler, setAAnnuler] = useState<number | null>(null);
   const { echeance, paiements } = donnees;
 
   if (chargement && !echeance) return <Chargement />;
   if (!echeance) return <Text className="text-muted text-center py-8">Échéance introuvable.</Text>;
-
-  const action = async (cle: string, travail: () => Promise<unknown>) => {
-    setOccupe(cle);
-    try {
-      await travail();
-    } catch (error) {
-      informer('Action impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
-    } finally {
-      setOccupe(null);
-    }
-  };
 
   return (
     <>
@@ -293,15 +282,15 @@ function DetailEcheance({
         />
       ) : null}
       <Bouton
-        titre={echeance.facture_numero ? 'Partager la facture (PDF)' : 'Émettre et partager la facture (PDF)'}
+        titre={echeance.facture_numero ? 'Voir la facture' : 'Émettre la facture'}
         variante="secondaire"
         icone={<FileText size={18} color={colors.primary} />}
-        chargement={occupe === 'facture'}
         onPress={() =>
-          action('facture', async () => {
-            await partagerFactureEcheance(echeance.id);
+          ouvrirApercu(async () => {
+            const doc = await preparerFactureEcheance(echeance.id);
             rafraichir();
             onModifie();
+            return doc;
           })
         }
       />
@@ -328,15 +317,13 @@ function DetailEcheance({
               titre="Reçu"
               variante="secondaire"
               className="flex-1 py-2.5"
-              chargement={occupe === `recu-${p.id}`}
-              onPress={() => action(`recu-${p.id}`, () => partagerRecu(p.id))}
+              onPress={() => ouvrirApercu(() => preparerRecu(p.id))}
             />
             {!p.annule_le ? (
               <Bouton
                 titre="Annuler"
                 variante="danger"
                 className="flex-1 py-2.5"
-                chargement={occupe === `annuler-${p.id}`}
                 onPress={() => setAAnnuler(p.id)}
               />
             ) : null}

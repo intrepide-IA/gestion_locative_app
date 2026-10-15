@@ -12,7 +12,8 @@ import { PadSignature } from '../../components/ui/PadSignature';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
-import { partagerEtatDesLieux } from '../../documents';
+import { preparerEtatDesLieux } from '../../documents';
+import { useApercu } from '../../components/documents/Apercu';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatDate } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
@@ -90,6 +91,7 @@ function Contenu({ d, contratId, type, onModifie }: { d: Donnees; contratId: num
   const [nouvel, setNouvel] = useState('');
   const [modifie, setModifie] = useState(!d.etat.enregistre);
   const [signataire, setSignataire] = useState<'bailleur' | 'locataire' | null>(null);
+  const ouvrirApercu = useApercu();
   const [enCours, setEnCours] = useState<string | null>(null);
 
   const noter = (i: number, note: Note) => {
@@ -260,7 +262,9 @@ function Contenu({ d, contratId, type, onModifie }: { d: Donnees; contratId: num
               nom={d.locataire}
               image={d.etat.signature_locataire}
               desactive={false}
-              onSigner={() => setSignataire('locataire')}
+              onSigner={() =>
+                ouvrirApercu(() => preparerEtatDesLieux(contratId), { titre: 'Lu et approuvé : signer', onPress: () => setSignataire('locataire') })
+              }
             />
             <BlocSignature
               titre="Le propriétaire"
@@ -286,11 +290,10 @@ function Contenu({ d, contratId, type, onModifie }: { d: Donnees; contratId: num
 
         {d.etat.enregistre && !modifie ? (
           <Bouton
-            titre="Partager la fiche (PDF)"
+            titre="Voir et partager la fiche"
             variante={signe ? 'action' : 'secondaire'}
             icone={<Share2 size={18} color={signe ? colors.ink : colors.primary} />}
-            chargement={enCours === 'pdf'}
-            onPress={() => action('pdf', () => partagerEtatDesLieux(contratId, aujourdhui()), 'Partage impossible')}
+            onPress={() => ouvrirApercu(() => preparerEtatDesLieux(contratId))}
           />
         ) : null}
       </ScrollView>
