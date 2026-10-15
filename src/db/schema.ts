@@ -251,6 +251,39 @@ INSERT INTO categories_financieres (nom, sens, code) VALUES
   ('Autres charges', 'sortie', NULL);
 `;
 
-export const MIGRATIONS: readonly Migration[] = [{ version: 1, description: 'Schéma initial Onílé', sql: V1 }];
+/**
+ * V2 : contrat de bail numérique (modèle du propriétaire, articles 1 à 12) et signatures.
+ * Les signatures et la photo de la pièce d'identité sont des images « data: » (base chiffrée, sauvegardées).
+ */
+const V2 = `
+ALTER TABLE proprietaire ADD COLUMN signature TEXT;
+
+CREATE TABLE baux (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  contrat_id INTEGER NOT NULL UNIQUE REFERENCES contrats (id) ON DELETE RESTRICT,
+  adresse_logement TEXT,
+  chambres INTEGER CHECK (chambres IS NULL OR chambres >= 0),
+  salon INTEGER CHECK (salon IS NULL OR salon >= 0),
+  cuisine INTEGER CHECK (cuisine IS NULL OR cuisine >= 0),
+  salle_de_bain INTEGER CHECK (salle_de_bain IS NULL OR salle_de_bain >= 0),
+  autres TEXT,
+  locataire_adresse TEXT,
+  duree_annees INTEGER NOT NULL DEFAULT 1 CHECK (duree_annees > 0),
+  preavis_mois INTEGER NOT NULL DEFAULT 1 CHECK (preavis_mois >= 0),
+  mois_impayes INTEGER NOT NULL DEFAULT 3 CHECK (mois_impayes > 0),
+  fait_a TEXT,
+  signature_bailleur TEXT,
+  signature_locataire TEXT,
+  photo_piece TEXT,
+  signe_le TEXT,
+  cree_le TEXT NOT NULL,
+  modifie_le TEXT
+);
+`;
+
+export const MIGRATIONS: readonly Migration[] = [
+  { version: 1, description: 'Schéma initial Onílé', sql: V1 },
+  { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
+];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

@@ -1,6 +1,7 @@
 import { getDatabase } from '../db/client';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
 import { donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
+import { donneesContrat, htmlContrat } from './contrat';
 import { htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
 import { partagerPdf } from './partage';
 
@@ -23,4 +24,10 @@ export async function partagerFactureEcheance(echeanceId: number): Promise<strin
 export async function partagerFactureElectricite(achatId: number): Promise<void> {
   const d = await donneesFactureElectricite(await getDatabase(), achatId);
   await partagerPdf(htmlFactureElectricite(d), `Facture-${d.numero}`, `Facture ${d.numero}`);
+}
+
+/** Contrat de bail PDF (signé ou à imprimer), à partager au locataire. */
+export async function partagerContrat(contratId: number): Promise<void> {
+  const d = await donneesContrat(await getDatabase(), contratId);
+  await partagerPdf(htmlContrat(d), `Contrat-bail-${d.locataire.nom}`, `Contrat de bail — ${d.locataire.nom}`);
 }

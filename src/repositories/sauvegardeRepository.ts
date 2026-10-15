@@ -18,6 +18,7 @@ export const TABLES_SAUVEGARDEES = [
   'logements',
   'locataires',
   'contrats',
+  'baux',
   'echeances',
   'paiements',
   'affectations',
@@ -69,7 +70,8 @@ const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 export async function validerSauvegarde(db: SqlDatabase, brut: unknown): Promise<{ sauvegarde: Sauvegarde; resume: ResumeSauvegarde }> {
   if (!estObjet(brut) || brut.format !== FORMAT_SAUVEGARDE) throw new ErreurMetier('Ce fichier n’est pas une sauvegarde Onílé.');
   if (brut.version !== VERSION_FORMAT) throw new ErreurMetier('Version de sauvegarde non prise en charge.');
-  if (brut.schema !== SCHEMA_VERSION) {
+  // Une sauvegarde d'une version antérieure reste restaurable : les tables apparues depuis sont vides.
+  if (typeof brut.schema !== 'number' || brut.schema < 1 || brut.schema > SCHEMA_VERSION) {
     throw new ErreurMetier(`Sauvegarde créée avec une autre version de l’application (données v${String(brut.schema)}, application v${SCHEMA_VERSION}).`);
   }
   if (typeof brut.exportee_le !== 'string' || !estObjet(brut.tables)) throw new ErreurMetier('Sauvegarde incomplète.');
@@ -77,6 +79,7 @@ export async function validerSauvegarde(db: SqlDatabase, brut: unknown): Promise
     if (!(TABLES_SAUVEGARDEES as readonly string[]).includes(nom)) throw new ErreurMetier(`Table inconnue dans la sauvegarde : ${nom}.`);
   }
   for (const t of TABLES_SAUVEGARDEES) {
+    if (brut.tables[t] === undefined && (brut.schema as number) < SCHEMA_VERSION) brut.tables[t] = [];
     const lignes = brut.tables[t];
     if (!Array.isArray(lignes)) throw new ErreurMetier(`Table manquante dans la sauvegarde : ${t}.`);
     const autorisees = new Set(await colonnes(db, t));
@@ -150,6 +153,7 @@ export async function reinitialiserDonnees(db: SqlDatabase): Promise<void> {
       'echeances',
       'releves',
       'achats_electricite',
+      'baux',
       'contrats',
       'locataires',
       'logements',

@@ -18,6 +18,14 @@ export interface Emetteur {
   nom: string;
   telephone: string | null;
   adresse: string | null;
+  /** Image « data: » de la signature du bailleur, apposée en bas des documents. */
+  signature?: string | null;
+}
+
+/** Image de signature : seules les images « data: » enregistrées par l'application sont acceptées. */
+export function imageSignature(src: string | null | undefined, hauteur = 70): string {
+  if (!src || !/^data:image\/(png|jpeg|svg\+xml);/.test(src)) return '';
+  return `<img src="${echapper(src)}" alt="Signature" style="height:${hauteur}px;max-width:240px;object-fit:contain">`;
 }
 
 export interface Destinataire {
@@ -58,7 +66,7 @@ export interface DonneesFacture {
   destinataire: Destinataire;
 }
 
-const SYMBOLE = `<svg width="44" height="44" viewBox="0 0 512 512" aria-hidden="true">
+export const SYMBOLE = `<svg width="44" height="44" viewBox="0 0 512 512" aria-hidden="true">
   <path d="M118 392V214L252 96l134 116v26" fill="none" stroke="${colors.primary}" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
   <g fill="${colors.accent}"><rect x="207" y="194" width="35" height="35" rx="8"/><rect x="250" y="194" width="35" height="35" rx="8"/><rect x="207" y="237" width="35" height="35" rx="8"/><rect x="250" y="237" width="35" height="35" rx="8"/></g>
   <path d="M89 392c86-58 210-92 346-102-26 54-120 92-224 120-44 12-82 26-104 34-18 6-26-8-18-52Z" fill="#17885A"/>
@@ -113,6 +121,13 @@ ${filigrane ? `<div class="filigrane">${echapper(filigrane)}</div>` : ''}
 </div>
 <div class="blocs details">${corps.split('<!--blocs-->')[0]}</div>
 ${corps.split('<!--blocs-->')[1] ?? ''}
+${
+  e.signature
+    ? `<div style="display:flex;justify-content:flex-end;margin-top:28px"><div style="text-align:center"><div class="muted">Le bailleur</div>${imageSignature(
+        e.signature
+      )}<div><b>${echapper(e.nom)}</b></div></div></div>`
+    : ''
+}
 <div class="pied">Document établi avec Onílé — Gérer aujourd’hui, habiter demain.</div>
 </body></html>`;
 }

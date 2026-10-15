@@ -5,8 +5,8 @@ import { LIBELLES_MODE, type ModePaiement } from '../repositories/loyerRepositor
 import type { DonneesFacture, DonneesFactureElectricite, DonneesRecu, Emetteur } from './gabarits';
 
 async function emetteur(db: SqlDatabase): Promise<Emetteur> {
-  const p = await db.get<Emetteur>('SELECT nom, telephone, adresse FROM proprietaire WHERE id = 1');
-  return p ?? { nom: 'Propriétaire', telephone: null, adresse: null };
+  const p = await db.get<Emetteur>('SELECT nom, telephone, adresse, signature FROM proprietaire WHERE id = 1');
+  return p ?? { nom: 'Propriétaire', telephone: null, adresse: null, signature: null };
 }
 
 export async function donneesRecu(db: SqlDatabase, paiementId: number): Promise<DonneesRecu> {

@@ -1,3 +1,5 @@
+import { donneesContrat, htmlContrat } from '../contrat';
+import { enregistrerClauses, getBail, signerBail } from '../../repositories/bauxRepository';
 import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
 import { creerLogement } from '../../repositories/logementRepository';
 import { entrerLocataire } from '../../repositories/locataireRepository';
@@ -58,4 +60,22 @@ test('facture : montant dû (pas le montant versé), déjà réglé et reste', a
   const html = htmlFacture(d);
   expect(html).toContain('26 000 FCFA');
   expect(html).toContain('Partiellement réglée');
+});
+
+test('contrat de bail : clauses remplies, premier loyer le mois suivant, textes échappés', async () => {
+  const db = await createMigratedDatabase();
+  await enregistrerProprietaire(db, { nom: 'Moussa <b>', telephone: '+229 01', adresse: 'Akpakpa, Cotonou' });
+  const logementId = await creerLogement(db, { reference: 'Chambre 1', type: 'chambre_salon', loyer_indicatif: 25000, toilettes: 1000 });
+  const { contratId } = await entrerLocataire(db, { nom_complet: 'Awa' }, logementId, {
+    date_debut: '2026-10-15', loyer: 25000, toilettes: 1000, caution: 75000, prix_kwh: 250, releve_initial: 0, jour_echeance: 15,
+  });
+  await enregistrerClauses(db, contratId, { ...(await getBail(db, contratId)), duree_annees: 2 });
+  await signerBail(db, contratId, 'locataire', 'data:image/svg+xml;base64,PHN2Zy8+', '2026-10-15');
+  const html = htmlContrat(await donneesContrat(db, contratId));
+  expect(html).toContain('Moussa &lt;b&gt;');
+  expect(html).toContain('<b>2</b> année(s)');
+  expect(html).toContain('premier loyer étant dû le <b>15 nov. 2026</b>');
+  expect(html).toContain('soit 3 mois de loyer');
+  expect(html).toContain('<b>3 mois</b> de loyer constitue');
+  expect(html).toContain('src="data:image/svg+xml;base64,PHN2Zy8+"');
 });

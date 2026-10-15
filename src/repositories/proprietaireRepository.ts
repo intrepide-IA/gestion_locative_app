@@ -9,6 +9,8 @@ export interface ProfilProprietaire {
 export interface Proprietaire extends ProfilProprietaire {
   id: 1;
   logo_uri: string | null;
+  /** Signature du bailleur (image « data: »), apposée sur les contrats, reçus et factures. */
+  signature: string | null;
   solde_initial: number;
   cree_le: string;
 }
@@ -36,4 +38,10 @@ export async function enregistrerProprietaire(
     [nom, nettoyer(profil.telephone), nettoyer(profil.adresse), maintenant()]
   );
   return (await getProprietaire(db))!;
+}
+
+/** Enregistre (image « data: » PNG, JPEG ou SVG) ou retire (null) la signature du propriétaire. */
+export async function definirSignature(db: SqlDatabase, image: string | null): Promise<void> {
+  if (image !== null && !/^data:image\/(png|jpeg|svg\+xml);/.test(image)) throw new Error('Signature invalide.');
+  await db.run('UPDATE proprietaire SET signature = ? WHERE id = 1', [image]);
 }
