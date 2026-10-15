@@ -9,7 +9,7 @@ import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
-import { getDatabase } from '../db/client';
+import { getDatabase, maisons } from '../db/client';
 import { SCHEMA_VERSION } from '../db/schema';
 import { APP_VERSION } from '../constants';
 import { ErreurMetier } from '../domain/erreurs';
@@ -101,7 +101,7 @@ export async function synchroniserMaintenant(motDePasseChiffrement: string): Pro
   verifier(
     await supabase()
       .from('sauvegardes')
-      .insert({ donnees: fichier, taille: fichier.length, appareil: `${Platform.OS} ${Platform.Version}`, version_app: APP_VERSION, schema: SCHEMA_VERSION })
+      .insert({ donnees: fichier, taille: fichier.length, appareil: `${(await maisons.active()).nom} · ${Platform.OS} ${Platform.Version}`, version_app: APP_VERSION, schema: SCHEMA_VERSION })
   );
   await db.run('INSERT INTO parametres (cle, valeur) VALUES (?, ?) ON CONFLICT (cle) DO UPDATE SET valeur = excluded.valeur', [
     'derniere_synchronisation',

@@ -7,6 +7,8 @@ export async function synchroniserNotifications(): Promise<void> {}
 
 export async function reinitialiserNotifications(): Promise<void> {}
 
+export async function annulerRappelsDeLaMaison(): Promise<void> {}
+
 export async function envoyerNotificationTest(): Promise<'programmee' | 'refusee'> {
   return 'refusee';
 }

@@ -9,6 +9,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BarreOnglets } from './components/navigation/BarreOnglets';
 import { FournisseurApercu } from './components/documents/Apercu';
+import { FournisseurMaisons } from './components/maisons/Maisons';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
@@ -180,7 +181,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <FournisseurApercu>
-        <NavigationContainer theme={navigationTheme}>
+        <FournisseurMaisons>
+          {(maison) => (
+        <NavigationContainer key={maison?.id ?? 'aucune'} theme={navigationTheme}>
           <StatusBar style={access === 'unlocked' ? 'dark' : 'light'} />
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             {access === 'onboarding' ? (
@@ -220,6 +223,8 @@ export default function App() {
             )}
           </Stack.Navigator>
         </NavigationContainer>
+          )}
+        </FournisseurMaisons>
       </FournisseurApercu>
     </SafeAreaProvider>
   );

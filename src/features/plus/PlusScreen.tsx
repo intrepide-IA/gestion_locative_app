@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, FileText, History, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
 import { ApercuSignature } from '../../components/ui/ApercuSignature';
+import { ListeMaisons, useMaisons } from '../../components/maisons/Maisons';
 import { Feuille } from '../../components/ui/Feuille';
 import { PadSignature } from '../../components/ui/PadSignature';
 import { informer } from '../../components/ui/confirmer';
@@ -35,6 +36,8 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const [pin, setPin] = useState(false);
   const [signature, setSignature] = useState(false);
   const [journal, setJournal] = useState(false);
+  const [maisons, setMaisons] = useState(false);
+  const { active: maisonActive } = useMaisons();
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
   const notifs = useRessource(notificationsActives, true);
   const rappels = useRessource(lireEtatRappels, null);
@@ -105,6 +108,10 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             </View>
           </Pressable>
         ) : null}
+
+        <Groupe titre="Maisons">
+          <Ligne icone={<Home size={18} color={colors.primary} />} libelle="Mes maisons" detail={maisonActive?.nom} onPress={() => setMaisons(true)} dernier />
+        </Groupe>
 
         <Groupe titre="Documents">
           <Ligne
@@ -206,6 +213,9 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             rafraichir();
           }}
         />
+      </Feuille>
+      <Feuille ouverte={maisons} onFermer={() => setMaisons(false)} titre="Mes maisons">
+        <ListeMaisons onChange={() => setMaisons(false)} />
       </Feuille>
       <Feuille ouverte={journal} onFermer={() => setJournal(false)} titre="Journal des modifications">
         <Journal />

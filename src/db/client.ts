@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 
 import { getOrCreateDatabaseKey } from '../security/native';
 import { migrate } from './migrate';
+import { creerGestionMaisons } from './maisons';
 import { serialize } from './serialized';
 import type { SqlDatabase, SqlValue } from './types';
 
@@ -63,32 +64,44 @@ async function encryptPlaintextDatabaseOnce(key: string): Promise<void> {
   }
 }
 
-let opening: Promise<SqlDatabase> | null = null;
+const natives = new Map<string, SQLite.SQLiteDatabase>();
 
 /**
- * Ouvre la base chiffrée (une seule fois), active les clés étrangères et applique les migrations.
+ * Ouvre une base chiffrée, active les clés étrangères et applique les migrations.
  * `PRAGMA key` est la toute première instruction après l'ouverture (exigence SQLCipher).
+ * La même clé (coffre du téléphone) chiffre toutes les maisons.
  */
+async function ouvrirBase(fichier: string): Promise<SqlDatabase> {
+  const key = await getOrCreateDatabaseKey();
+  assertKey(key);
+  if (fichier === DATABASE_NAME) await encryptPlaintextDatabaseOnce(key);
+
+  const native = await SQLite.openDatabaseAsync(fichier);
+  await native.execAsync(`PRAGMA key = "x'${key}'";`);
+  // Échoue ici (« file is not a database ») si la clé ne correspond pas au fichier.
+  await native.getFirstAsync('SELECT count(*) FROM sqlite_master');
+  await native.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  natives.set(fichier, native);
+
+  const db = fromExpoDatabase(native);
+  await migrate(db);
+  return db;
+}
+
+/** Les maisons du propriétaire (une base par maison) ; la liste est gardée dans le coffre du téléphone. */
+export const maisons = creerGestionMaisons({
+  fichierPrincipal: DATABASE_NAME,
+  ouvrir: ouvrirBase,
+  fermer: async (fichier) => {
+    await natives.get(fichier)?.closeAsync();
+    natives.delete(fichier);
+  },
+  supprimerFichier: (fichier) => SQLite.deleteDatabaseAsync(fichier),
+  lire: (cle) => SecureStore.getItemAsync(cle),
+  ecrire: (cle, valeur) => SecureStore.setItemAsync(cle, valeur),
+});
+
+/** Base de la maison active. */
 export function getDatabase(): Promise<SqlDatabase> {
-  if (!opening) {
-    opening = (async () => {
-      const key = await getOrCreateDatabaseKey();
-      assertKey(key);
-      await encryptPlaintextDatabaseOnce(key);
-
-      const native = await SQLite.openDatabaseAsync(DATABASE_NAME);
-      await native.execAsync(`PRAGMA key = "x'${key}'";`);
-      // Échoue ici (« file is not a database ») si la clé ne correspond pas au fichier.
-      await native.getFirstAsync('SELECT count(*) FROM sqlite_master');
-      await native.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-
-      const db = fromExpoDatabase(native);
-      await migrate(db);
-      return db;
-    })().catch((error: unknown) => {
-      opening = null;
-      throw error;
-    });
-  }
-  return opening;
+  return maisons.base();
 }

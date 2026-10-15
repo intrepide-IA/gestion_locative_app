@@ -4,7 +4,7 @@
  */
 import * as Crypto from 'expo-crypto';
 
-import { getDatabase } from '../db/client';
+import { getDatabase, maisons } from '../db/client';
 import { partagerFichierTexte } from '../documents/partage';
 import {
   chiffrerSauvegarde,
@@ -22,7 +22,7 @@ import {
   type ResumeSauvegarde,
 } from '../repositories/sauvegardeRepository';
 import { choisirFichierTexte } from './fichiers';
-import { reinitialiserNotifications } from './notifications';
+import { annulerRappelsDeLaMaison, synchroniserNotifications } from './notifications';
 
 const aesExpo: Aes = {
   async chiffrer(cle, clair) {
@@ -49,7 +49,7 @@ export async function exporterEtPartager(motDePasse: string): Promise<void> {
   const db = await getDatabase();
   const json = JSON.stringify(await exporterSauvegarde(db));
   const fichier = await chiffrerSauvegarde(json, motDePasse, aesExpo);
-  await partagerFichierTexte(JSON.stringify(fichier), `Onile-sauvegarde-${aujourdhui()}.json`, 'application/json', 'Enregistrer la sauvegarde');
+  await partagerFichierTexte(JSON.stringify(fichier), `Onile-${(await maisons.active()).nom}-${aujourdhui()}.json`, 'application/json', 'Enregistrer la sauvegarde');
   await db.run('INSERT INTO parametres (cle, valeur) VALUES (?, ?) ON CONFLICT (cle) DO UPDATE SET valeur = excluded.valeur', [
     CLE_DERNIERE,
     aujourdhui(),
@@ -82,14 +82,17 @@ export async function preparerRestauration(brut: unknown, motDePasse: string | n
 
 /** Étape 3 : remplacement atomique des données, puis rappels recalculés. */
 export async function restaurer(contenu: unknown): Promise<ResumeSauvegarde> {
+  // Les rappels de l'ancienne version des données sont annulés avant d'être recalculés.
+  await annulerRappelsDeLaMaison();
   const resume = await restaurerSauvegarde(await getDatabase(), contenu);
-  await reinitialiserNotifications();
+  await synchroniserNotifications();
   return resume;
 }
 
 export async function reinitialiser(): Promise<void> {
+  await annulerRappelsDeLaMaison();
   await reinitialiserDonnees(await getDatabase());
-  await reinitialiserNotifications();
+  await synchroniserNotifications();
 }
 
 /** Chiffre un export (JSON) avec le mot de passe : utilisé aussi par la synchronisation cloud. */

@@ -1,7 +1,7 @@
 /** Notifications locales Android : canal, permission et synchronisation des rappels. */
 import * as Notifications from 'expo-notifications';
 
-import { getDatabase } from '../db/client';
+import { getDatabase, maisons } from '../db/client';
 import { aujourdhui } from '../domain/format';
 import { synchroniserRappels, type Planificateur } from '../repositories/rappelsRepository';
 
@@ -54,7 +54,13 @@ export function synchroniserNotifications(): Promise<void> {
     try {
       const permission = await Notifications.getPermissionsAsync();
       if (!permission.granted) return;
-      await synchroniserRappels(await getDatabase(), planificateur, new Date(), aujourdhui());
+      // Toutes les maisons : leurs rappels restent programmés même quand une autre maison est ouverte.
+      const liste = await maisons.lister();
+      for (const maison of liste) {
+        const plan: Planificateur =
+          liste.length > 1 ? { ...planificateur, planifier: (r) => planificateur.planifier({ ...r, corps: `${r.corps} · ${maison.nom}` }) } : planificateur;
+        await synchroniserRappels(await maisons.basePour(maison), plan, new Date(), aujourdhui());
+      }
     } catch (error) {
       console.warn('Synchronisation des rappels impossible', error);
     } finally {
@@ -66,8 +72,18 @@ export function synchroniserNotifications(): Promise<void> {
 
 /** Après une restauration ou une réinitialisation : annule tout ce qui était programmé, puis recalcule. */
 export async function reinitialiserNotifications(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+  await annulerRappelsDeLaMaison();
   await synchroniserNotifications();
+}
+
+/** Annule les rappels programmés de la maison active seulement (ceux des autres maisons restent). */
+export async function annulerRappelsDeLaMaison(): Promise<void> {
+  const db = await getDatabase();
+  const programmes = await db.all<{ identifiant_systeme: string | null }>('SELECT identifiant_systeme FROM notifications_programmees');
+  for (const p of programmes) {
+    if (p.identifiant_systeme) await Notifications.cancelScheduledNotificationAsync(p.identifiant_systeme).catch(() => undefined);
+  }
+  await db.run('DELETE FROM notifications_programmees');
 }
 
 /** Test : une notification dans 10 secondes (l'application peut être fermée entre-temps). */

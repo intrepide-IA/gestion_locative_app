@@ -20,6 +20,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 import { LogoSymbole } from '../../components/brand/Logo';
+import { BoutonMaison } from '../../components/maisons/Maisons';
 import { Carte, EtatErreur } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import type { SqlDatabase } from '../../db/types';
@@ -92,11 +93,6 @@ function salutation(): string {
   return h < 18 ? 'Bonjour' : 'Bonsoir';
 }
 
-function dateDuJour(): string {
-  const t = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}
-
 export function AccueilScreen() {
   const { donnees: s, erreur, rafraichir } = useRessource(lireSynthese, VIDE);
   const [nouveauLogement, setNouveauLogement] = useState(false);
@@ -117,7 +113,7 @@ export function AccueilScreen() {
               {salutation()}
               {s.prenom ? `, ${s.prenom}` : ''}
             </Text>
-            <Text className="text-muted text-sm">{dateDuJour()}</Text>
+            <BoutonMaison />
           </View>
           <BoutonRond
             libelle={aTraiter ? `Notifications, ${aTraiter} à traiter` : 'Notifications'}
