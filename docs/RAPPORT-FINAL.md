@@ -7,8 +7,7 @@
 Les 10 lots du cahier des charges sont codés, testés, commités et poussés sur GitHub. L'application Onílé 1.0.0
 fonctionne de bout en bout dans l'aperçu web : premier lancement, logements, locataires, loyers, reçus et
 factures PDF, électricité, finances, rappels, sauvegarde chiffrée. **Le test sur un vrai téléphone reste à
-faire** : c'est la seule partie que je ne peux pas réaliser moi-même. Un APK 1.0.0 a été lancé en
-construction sur ton compte Expo (lien plus bas).
+faire** : c'est la seule partie que je ne peux pas réaliser moi-même. L'APK 1.0.0 est construit (lien plus bas).
 
 ## Ce dont j'ai besoin de toi
 
@@ -23,7 +22,8 @@ construction sur ton compte Expo (lien plus bas).
 
 ## L'APK
 
-- Build lancé : https://expo.dev/accounts/intrepide_ia/projects/onile/builds/d08b9ba5-be47-45b1-9fd0-179dfe41e96f
+- Build réussi : https://expo.dev/accounts/intrepide_ia/projects/onile/builds/d08b9ba5-be47-45b1-9fd0-179dfe41e96f
+- Téléchargement direct de l'APK : https://expo.dev/artifacts/eas/wo9FhjUQT1xMBDLMrmbgm0EelBVYemPWwkOX6ui0rCw.apk
 - Ouvre ce lien sur ton téléphone, télécharge l'APK, installe-le (autoriser les sources inconnues).
 - Pour en refaire un plus tard : `npx eas-cli@latest build --platform android --profile preview`.
 
