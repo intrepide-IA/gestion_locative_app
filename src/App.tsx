@@ -9,13 +9,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
-import { LayoutDashboard, Users, Building2, FileText, Settings } from 'lucide-react-native';
+import { LayoutDashboard, Users, Building2, Receipt, Menu } from 'lucide-react-native';
 
 import { AccueilScreen } from './features/accueil/AccueilScreen';
 import { LocatairesScreen } from './features/locataires/LocatairesScreen';
 import { LogementsScreen } from './features/logements/LogementsScreen';
-import { InvoicesScreen } from './screens/InvoicesScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
+import { LoyersScreen } from './features/loyers/LoyersScreen';
+import { PlusScreen } from './features/plus/PlusScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
@@ -84,20 +84,20 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
       />
       <Tab.Screen
         name="Invoices"
-        component={InvoicesScreen}
+        component={LoyersScreen}
         options={{
-          title: 'Factures',
-          tabBarIcon: ({ color, size }) => <FileText size={size} color={color} />,
+          title: 'Loyers',
+          tabBarIcon: ({ color, size }) => <Receipt size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Settings"
         options={{
           title: 'Plus',
-          tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Menu size={size} color={color} />,
         }}
       >
-        {(props) => <SettingsScreen {...props} onLogout={onLogout} />}
+        {() => <PlusScreen onVerrouiller={onLogout} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

@@ -12,6 +12,8 @@ import { useRessource } from '../../hooks/useRessource';
 import { listerLogements } from '../../repositories/logementRepository';
 import { listerLocataires } from '../../repositories/locataireRepository';
 import { getProprietaire } from '../../repositories/proprietaireRepository';
+import { genererEcheances, syntheseDuMois, type SyntheseMois } from '../../repositories/loyerRepository';
+import { aujourdhui, formatFCFA, formatMois } from '../../domain/format';
 import { colors } from '../../theme/colors';
 import { EntreeLocataireForm } from '../locataires/EntreeLocataireForm';
 import { LogementForm } from '../logements/LogementForm';
@@ -21,19 +23,38 @@ interface Synthese {
   logements: number;
   occupes: number;
   locatairesActifs: number;
+  loyers: SyntheseMois;
+  periode: { annee: number; mois: number };
 }
 
 const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
-  const [proprietaire, logements, locataires] = await Promise.all([getProprietaire(db), listerLogements(db), listerLocataires(db)]);
+  const jour = aujourdhui();
+  await genererEcheances(db, jour);
+  const periode = { annee: Number(jour.slice(0, 4)), mois: Number(jour.slice(5, 7)) };
+  const [proprietaire, logements, locataires, loyers] = await Promise.all([
+    getProprietaire(db),
+    listerLogements(db),
+    listerLocataires(db),
+    syntheseDuMois(db, periode.annee, periode.mois, jour),
+  ]);
   return {
     prenom: proprietaire?.nom.split(/\s+/)[0] ?? '',
     logements: logements.length,
     occupes: logements.filter((l) => l.contrat_id !== null).length,
     locatairesActifs: locataires.filter((l) => l.contrat_statut === 'actif').length,
+    loyers,
+    periode,
   };
 };
 
-const VIDE: Synthese = { prenom: '', logements: 0, occupes: 0, locatairesActifs: 0 };
+const VIDE: Synthese = {
+  prenom: '',
+  logements: 0,
+  occupes: 0,
+  locatairesActifs: 0,
+  loyers: { attendu: 0, regle: 0, reste: 0, encaisse: 0, enRetard: 0 },
+  periode: { annee: 2026, mois: 1 },
+};
 
 export function AccueilScreen() {
   const { donnees: s, erreur, rafraichir } = useRessource(lireSynthese, VIDE);
@@ -56,18 +77,26 @@ export function AccueilScreen() {
         {erreur ? <EtatErreur message={messageErreur(erreur, erreur.message)} onReessayer={rafraichir} /> : null}
 
         <View className="bg-primary rounded-3xl p-5">
-          <Text className="text-white/80">Taux d’occupation</Text>
-          <Text className="text-white text-4xl font-bold mt-1">{taux} %</Text>
+          <Text className="text-white/80">Loyers · {formatMois(s.periode.mois, s.periode.annee)}</Text>
+          <Text className="text-white text-3xl font-bold mt-1">{formatFCFA(s.loyers.regle)}</Text>
+          <Text className="text-white/80">réglés sur {formatFCFA(s.loyers.attendu)} attendus</Text>
           <View className="h-2 rounded-full bg-white/20 mt-3 overflow-hidden">
-            <View className="h-full bg-accent rounded-full" style={{ width: `${taux}%` }} />
+            <View
+              className="h-full bg-accent rounded-full"
+              style={{ width: `${s.loyers.attendu ? Math.round((s.loyers.regle / s.loyers.attendu) * 100) : 0}%` }}
+            />
           </View>
-          <Text className="text-white/80 mt-2">
-            {s.occupes} logement(s) occupé(s) sur {s.logements}
-          </Text>
+          <View className="flex-row justify-between mt-3">
+            <Text className="text-white/90">Reste à percevoir</Text>
+            <Text className="text-accent font-bold">{formatFCFA(s.loyers.reste)}</Text>
+          </View>
+          {s.loyers.enRetard ? (
+            <Text className="text-white mt-2 font-semibold">⚠ {s.loyers.enRetard} échéance(s) en retard — voir l’onglet Loyers</Text>
+          ) : null}
         </View>
 
         <View className="flex-row gap-3">
-          <Statistique icone={<House size={20} color={colors.white} />} valeur={s.logements - s.occupes} libelle="Logement(s) libre(s)" />
+          <Statistique icone={<House size={20} color={colors.white} />} valeur={taux} suffixe=" %" libelle={`Occupation (${s.occupes}/${s.logements})`} />
           <Statistique icone={<Users size={20} color={colors.white} />} valeur={s.locatairesActifs} libelle="Locataire(s) actif(s)" />
         </View>
 
@@ -77,12 +106,6 @@ export function AccueilScreen() {
           <Raccourci icone={<UserPlus size={22} color={colors.primary} />} libelle="Nouveau locataire" onPress={() => setNouveauLocataire(true)} />
         </View>
 
-        <Carte>
-          <Text className="font-semibold text-ink">Loyers, factures et finances</Text>
-          <Text className="text-muted mt-1">
-            Les échéances, paiements, reçus et le suivi financier arrivent avec les prochaines étapes de la refonte.
-          </Text>
-        </Carte>
       </ScrollView>
 
       <LogementForm
@@ -105,11 +128,14 @@ export function AccueilScreen() {
   );
 }
 
-function Statistique({ icone, valeur, libelle }: { icone: React.ReactNode; valeur: number; libelle: string }) {
+function Statistique({ icone, valeur, suffixe = '', libelle }: { icone: React.ReactNode; valeur: number; suffixe?: string; libelle: string }) {
   return (
     <Carte className="flex-1">
       <PastilleIcone>{icone}</PastilleIcone>
-      <Text className="text-2xl font-bold text-ink mt-3">{valeur}</Text>
+      <Text className="text-2xl font-bold text-ink mt-3">
+        {valeur}
+        {suffixe}
+      </Text>
       <Text className="text-muted text-sm">{libelle}</Text>
     </Carte>
   );

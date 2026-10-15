@@ -1,0 +1,40 @@
+/**
+ * Aperçu web : affiche le document en surimpression (les navigateurs bloquent l'ouverture d'un onglet
+ * après un traitement asynchrone). Le bouton « Imprimer » permet d'en faire un PDF.
+ */
+export async function partagerPdf(html: string): Promise<void> {
+  document.getElementById('onile-apercu-document')?.remove();
+  const calque = document.createElement('div');
+  calque.id = 'onile-apercu-document';
+  calque.setAttribute('role', 'dialog');
+  calque.setAttribute('aria-label', 'Aperçu du document');
+  Object.assign(calque.style, {
+    position: 'fixed',
+    inset: '0',
+    background: 'rgba(0,0,0,.55)',
+    zIndex: '9999',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '12px',
+    gap: '8px',
+  });
+  const barre = document.createElement('div');
+  Object.assign(barre.style, { display: 'flex', gap: '8px', justifyContent: 'flex-end' });
+  const bouton = (libelle: string, action: () => void) => {
+    const b = document.createElement('button');
+    b.textContent = libelle;
+    Object.assign(b.style, { padding: '8px 14px', borderRadius: '10px', border: '0', fontWeight: '600', cursor: 'pointer', background: '#fff', color: '#1F2937' });
+    b.onclick = action;
+    return b;
+  };
+  const cadre = document.createElement('iframe');
+  cadre.title = 'Document';
+  cadre.srcdoc = html;
+  Object.assign(cadre.style, { flex: '1', border: '0', borderRadius: '12px', background: '#fff' });
+  barre.append(
+    bouton('Imprimer / PDF', () => cadre.contentWindow?.print()),
+    bouton('Fermer', () => calque.remove())
+  );
+  calque.append(barre, cadre);
+  document.body.appendChild(calque);
+}

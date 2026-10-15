@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Linking, View } from 'react-native';
-import { DoorOpen, Pencil, Phone, Trash2, FileSignature } from 'lucide-react-native';
+import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet } from 'lucide-react-native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
@@ -24,6 +24,16 @@ import {
   type LocataireAvecContrat,
 } from '../../repositories/locataireRepository';
 import { colors } from '../../theme/colors';
+import { partagerRecu } from '../../documents';
+import {
+  genererEcheances,
+  LIBELLES_MODE,
+  paiementsDuLocataire,
+  situationLocataire,
+  type PaiementDetaille,
+  type SituationLocataire,
+} from '../../repositories/loyerRepository';
+import { PaiementForm } from '../loyers/PaiementForm';
 
 type Vue = 'fiche' | 'modifier' | 'conditions' | 'depart';
 
@@ -72,6 +82,8 @@ interface Donnees {
   locataire: LocataireAvecContrat | null;
   contrat: Contrat | null;
   historique: Awaited<ReturnType<typeof contratsDuLocataire>>;
+  situation: SituationLocataire;
+  paiements: PaiementDetaille[];
 }
 
 function Contenu({
@@ -89,17 +101,27 @@ function Contenu({
 }) {
   const lire = useCallback(
     async (db: SqlDatabase): Promise<Donnees> => {
-      const [locataire, contrat, historique] = await Promise.all([
+      await genererEcheances(db, aujourdhui());
+      const [locataire, contrat, historique, situation, paiements] = await Promise.all([
         getLocataire(db, locataireId),
         getContratActif(db, locataireId),
         contratsDuLocataire(db, locataireId),
+        situationLocataire(db, locataireId),
+        paiementsDuLocataire(db, locataireId),
       ]);
-      return { locataire, contrat, historique };
+      return { locataire, contrat, historique, situation, paiements };
     },
     [locataireId]
   );
-  const { donnees, chargement, rafraichir } = useRessource<Donnees>(lire, { locataire: null, contrat: null, historique: [] });
-  const { locataire, contrat, historique } = donnees;
+  const { donnees, chargement, rafraichir } = useRessource<Donnees>(lire, {
+    locataire: null,
+    contrat: null,
+    historique: [],
+    situation: { du: 0, regle: 0, dette: 0, credit: 0 },
+    paiements: [],
+  });
+  const { locataire, contrat, historique, situation, paiements } = donnees;
+  const [encaisser, setEncaisser] = useState(false);
 
   if (chargement && !locataire) return <Chargement />;
   if (!locataire) return <Text className="text-muted text-center py-8">Locataire introuvable.</Text>;
@@ -149,6 +171,17 @@ function Contenu({
         ) : null}
       </View>
 
+      <Carte>
+        <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Situation</Text>
+        <LigneInfo
+          libelle="Reste à payer"
+          valeur={<Text className={`font-bold ${situation.dette > 0 ? 'text-danger' : 'text-primary'}`}>{formatFCFA(situation.dette)}</Text>}
+        />
+        {situation.credit > 0 ? <LigneInfo libelle="Avance (crédit)" valeur={formatFCFA(situation.credit)} /> : null}
+        <LigneInfo libelle="Total réglé" valeur={formatFCFA(situation.regle)} />
+      </Carte>
+      <Bouton titre="Encaisser un paiement" icone={<Wallet size={18} color={colors.white} />} onPress={() => setEncaisser(true)} />
+
       {contrat ? (
         <Carte>
           <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Contrat en cours</Text>
@@ -185,6 +218,37 @@ function Contenu({
             ))}
         </Carte>
       ) : null}
+
+      {paiements.length ? (
+        <Carte>
+          <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Paiements</Text>
+          {paiements.slice(0, 10).map((p) => (
+            <LigneInfo
+              key={p.id}
+              libelle={`${formatDate(p.date_paiement)} · ${LIBELLES_MODE[p.mode]}`}
+              valeur={
+                <Text
+                  onPress={() => partagerRecu(p.id).catch((e: unknown) => informer('Partage impossible', messageErreur(e, String(e))))}
+                  className={`font-semibold ${p.annule_le ? 'text-muted line-through' : 'text-primary'}`}
+                  accessibilityRole="button"
+                  accessibilityHint="Partager le reçu"
+                >
+                  {formatFCFA(p.montant)}
+                </Text>
+              }
+            />
+          ))}
+          <Text className="text-muted text-xs pt-2">Touchez un montant pour partager son reçu.</Text>
+        </Carte>
+      ) : null}
+
+      <PaiementForm
+        ouverte={encaisser}
+        locataire={{ id: locataire.id, nom: locataire.nom_complet }}
+        montantSuggere={situation.dette}
+        onFermer={() => setEncaisser(false)}
+        onEnregistre={apres}
+      />
 
       <Bouton titre="Modifier la fiche" variante="secondaire" icone={<Pencil size={18} color={colors.primary} />} onPress={() => setVue('modifier')} />
       {contrat ? (
@@ -323,8 +387,8 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
   return (
     <>
       <Text className="text-muted">
-        Le solde final et l’utilisation de la caution seront calculés avec le module Finances (lot 4). Pour l’instant, le
-        départ termine le contrat et libère le logement.
+        Le contrat est terminé à cette date et le logement redevient libre. Les échéances jusqu’au mois de sortie restent dues ;
+        l’utilisation de la caution sera gérée avec le module Finances.
       </Text>
       <ChampDate libelle="Date de sortie" valeur={date} onChange={setDate} minimum={contrat.date_debut} />
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}

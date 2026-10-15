@@ -2,7 +2,7 @@
  * Composants d'interface Onílé (d'après le guide de marque) : boutons, badges, cartes, champs, filtres, états.
  */
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View, type TextInputProps } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View, type TextInputProps } from 'react-native';
 import { AlertCircle, CheckCircle2, Plus, Search, TriangleAlert } from 'lucide-react-native';
 
 import { Text } from './Text';
@@ -190,7 +190,12 @@ export function Filtres<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <View className="flex-row flex-wrap px-5 mb-3 gap-2">
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      className="mb-3 flex-grow-0"
+      contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+    >
       {options.map((o) => {
         const actif = o.valeur === valeur;
         return (
@@ -205,7 +210,7 @@ export function Filtres<T extends string>({
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 

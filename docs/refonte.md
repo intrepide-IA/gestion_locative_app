@@ -2,6 +2,50 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 4 — Loyers, paiements, factures et reçus (15 octobre 2026)
+
+**Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-4-loyers`.
+
+### Fait
+
+- `repositories/loyerRepository.ts` (testé) :
+  - échéances mensuelles générées automatiquement (à l'ouverture des écrans), sans doublon, montant dû
+    figé à la création, date d'échéance jamais avant l'entrée du locataire, arrêt au mois de sortie ;
+  - statuts Payée / Partielle / En attente / En retard (dès le lendemain de l'échéance), « Partielle · en
+    retard » quand les deux s'appliquent ;
+  - paiements (espèces, Mobile Money, virement, autre) affectés aux mois les plus anciens d'abord ;
+    trop-perçu conservé en avance puis affecté automatiquement au mois suivant ;
+  - annulation d'un paiement avec motif : visible dans l'historique, retiré des règlements et de la
+    trésorerie, reçu conservé ;
+  - un mouvement de trésorerie par encaissement (préparation du lot 6) ;
+  - numérotation FAC-AAAA-NNNNN / REC-AAAA-NNNNN tenue en base, jamais réutilisée.
+- Documents PDF (`src/documents`) : reçu (montant reçu, mois réglés, avance, reste à payer) et facture
+  (montant dû, déjà réglé, reste, statut), aux couleurs Onílé, textes échappés ; partage par la feuille
+  Android (WhatsApp…). Un document annulé porte la mention « ANNULÉ ».
+- Écran Loyers (remplace l'ancien onglet Factures) : mois précédent / suivant, synthèse (attendus, réglés,
+  reste, encaissé), filtres par statut, détail d'une échéance, encaissement, facture, reçus, annulation.
+- Fiche locataire : reste à payer, avance, bouton « Encaisser », historique des paiements (reçu au toucher).
+- Accueil : loyers du mois et nombre d'échéances en retard.
+- Onglet Plus refait (profil, PIN, verrouillage) ; notifications et sauvegarde annoncées « Lot 7 / Lot 8 ».
+- Tout l'ancien code (services, écrans, types, AsyncStorage) est supprimé : il n'en reste plus.
+
+### Vérifications
+
+| Contrôle | Résultat |
+| --- | --- |
+| `tsc --noEmit` | 0 erreur |
+| `jest` | 65 tests sur 65 (dont scénario 15 000 sur 26 000 → partielle, reste 11 000) |
+| `expo lint` | 0 problème |
+| `expo-doctor` | 21/21 |
+| Aperçu web | paiement partiel, reçu et facture affichés et contrôlés visuellement |
+
+### Limites connues
+
+- Le motif d'annulation d'un paiement est fixé à « Erreur de saisie » depuis l'écran (saisie libre à venir).
+- Les échéances sont créées à l'ouverture de l'app : un mois non ouvert est créé au montant du contrat
+  en vigueur au moment de l'ouverture.
+- Partage PDF vérifié dans l'aperçu web (affichage) ; la feuille de partage Android reste à tester sur l'APK.
+
 ## Lot 3 — Logements, locataires et contrats (15 octobre 2026)
 
 **Statut : livré, vérifié dans l'aperçu web.** Branche `refonte/lot-3-logements-locataires`.

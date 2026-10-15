@@ -1,0 +1,210 @@
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Bell, ChevronRight, Database, Lock, Shield } from 'lucide-react-native';
+
+import { Feuille } from '../../components/ui/Feuille';
+import { informer } from '../../components/ui/confirmer';
+import { Bouton, Champ, EnTete } from '../../components/ui/kit';
+import { Text } from '../../components/ui/Text';
+import { APP_VERSION } from '../../constants';
+import { getDatabase } from '../../db/client';
+import { messageErreur } from '../../domain/erreurs';
+import { initiales } from '../../domain/format';
+import { useRessource } from '../../hooks/useRessource';
+import { enregistrerProprietaire, getProprietaire, type Proprietaire } from '../../repositories/proprietaireRepository';
+import { formatDelay } from '../../security/format';
+import { pinService } from '../../security/native';
+import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../../security/pin';
+import { colors } from '../../theme/colors';
+
+export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
+  const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
+  const [profil, setProfil] = useState(false);
+  const [pin, setPin] = useState(false);
+
+  const bientot = (fonction: string, lot: string) => informer('Bientôt disponible', `${fonction} arrive avec le ${lot} de la refonte.`);
+
+  return (
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+      <EnTete titre="Plus" />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 20 }}>
+        <Pressable
+          onPress={() => setProfil(true)}
+          accessibilityRole="button"
+          className="bg-white rounded-2xl border border-border p-4 flex-row items-center active:bg-background"
+        >
+          <View className="w-14 h-14 rounded-full bg-primary items-center justify-center">
+            <Text className="text-white text-lg font-bold">{proprietaire ? initiales(proprietaire.nom) : '—'}</Text>
+          </View>
+          <View className="flex-1 ml-3">
+            <Text className="text-lg font-semibold text-ink">{proprietaire?.nom ?? 'Propriétaire'}</Text>
+            <Text className="text-muted">{proprietaire?.telephone ?? 'Téléphone non renseigné'}</Text>
+            <Text className="text-primary text-sm font-medium mt-0.5">Modifier le profil</Text>
+          </View>
+          <ChevronRight size={18} color={colors.muted} />
+        </Pressable>
+
+        <Groupe titre="Sécurité">
+          <Ligne icone={<Shield size={18} color={colors.primary} />} libelle="Modifier le code PIN" onPress={() => setPin(true)} />
+          <Ligne icone={<Lock size={18} color={colors.primary} />} libelle="Verrouiller maintenant" onPress={onVerrouiller} dernier />
+        </Groupe>
+
+        <Groupe titre="Bientôt">
+          <Ligne
+            icone={<Bell size={18} color={colors.muted} />}
+            libelle="Notifications et rappels"
+            detail="Lot 7"
+            onPress={() => bientot('La programmation des rappels', 'lot 7')}
+          />
+          <Ligne
+            icone={<Database size={18} color={colors.muted} />}
+            libelle="Sauvegarde et restauration"
+            detail="Lot 8"
+            onPress={() => bientot('La sauvegarde complète (export et restauration)', 'lot 8')}
+            dernier
+          />
+        </Groupe>
+
+        <Text className="text-center text-xs text-muted">Onílé v{APP_VERSION} · données stockées et chiffrées sur ce téléphone</Text>
+      </ScrollView>
+
+      <Feuille ouverte={profil} onFermer={() => setProfil(false)} titre="Profil du propriétaire">
+        <FormProfil
+          proprietaire={proprietaire}
+          onEnregistre={() => {
+            setProfil(false);
+            rafraichir();
+          }}
+        />
+      </Feuille>
+      <Feuille ouverte={pin} onFermer={() => setPin(false)} titre="Changer le code PIN">
+        <FormPin onTermine={() => setPin(false)} />
+      </Feuille>
+    </SafeAreaView>
+  );
+}
+
+function Groupe({ titre, children }: { titre: string; children: ReactNode }) {
+  return (
+    <View>
+      <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-2 px-1">{titre}</Text>
+      <View className="bg-white rounded-2xl border border-border overflow-hidden">{children}</View>
+    </View>
+  );
+}
+
+function Ligne({
+  icone,
+  libelle,
+  detail,
+  onPress,
+  dernier,
+}: {
+  icone: ReactNode;
+  libelle: string;
+  detail?: string;
+  onPress: () => void;
+  dernier?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className={`flex-row items-center px-4 py-4 active:bg-background ${dernier ? '' : 'border-b border-border'}`}
+    >
+      <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3">{icone}</View>
+      <Text className="flex-1 text-base text-ink">{libelle}</Text>
+      {detail ? <Text className="text-muted text-sm mr-2">{detail}</Text> : null}
+      <ChevronRight size={18} color={colors.muted} />
+    </Pressable>
+  );
+}
+
+function FormProfil({ proprietaire, onEnregistre }: { proprietaire: Proprietaire | null; onEnregistre: () => void }) {
+  const [nom, setNom] = useState(proprietaire?.nom ?? '');
+  const [telephone, setTelephone] = useState(proprietaire?.telephone ?? '');
+  const [adresse, setAdresse] = useState(proprietaire?.adresse ?? '');
+  const [erreur, setErreur] = useState('');
+  const [enCours, setEnCours] = useState(false);
+
+  const enregistrer = async () => {
+    setEnCours(true);
+    setErreur('');
+    try {
+      await enregistrerProprietaire(await getDatabase(), { nom, telephone, adresse });
+      onEnregistre();
+    } catch (error) {
+      setErreur(messageErreur(error, 'Enregistrement impossible.'));
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <>
+      <Text className="text-muted">Ces informations apparaissent sur vos factures et reçus.</Text>
+      <Champ libelle="Nom" obligatoire value={nom} onChangeText={setNom} />
+      <Champ libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" />
+      <Champ libelle="Adresse" value={adresse} onChangeText={setAdresse} />
+      {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
+      <Bouton titre="Enregistrer" onPress={enregistrer} chargement={enCours} />
+    </>
+  );
+}
+
+function FormPin({ onTermine }: { onTermine: () => void }) {
+  const [actuel, setActuel] = useState('');
+  const [nouveau, setNouveau] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [erreur, setErreur] = useState('');
+  const [enCours, setEnCours] = useState(false);
+
+  const valider = async () => {
+    const format = validateNewPin(nouveau);
+    if (format) return setErreur(PIN_FORMAT_MESSAGES[format]);
+    if (nouveau !== confirmation) return setErreur('La confirmation ne correspond pas au nouveau code.');
+    if (nouveau === actuel) return setErreur('Le nouveau code doit être différent de l’actuel.');
+    setEnCours(true);
+    setErreur('');
+    try {
+      const r = await pinService.changePin(actuel, nouveau);
+      if (r.status === 'ok') {
+        informer('Code PIN modifié', 'Utilisez désormais votre nouveau code.');
+        onTermine();
+      } else if (r.status === 'locked') {
+        setErreur(`Trop d’essais. Réessayez dans ${formatDelay(r.lockedUntil)}.`);
+      } else if (r.status === 'wrong') {
+        setErreur(
+          r.lockedUntil
+            ? `Code actuel incorrect. Saisie bloquée ${formatDelay(r.lockedUntil)}.`
+            : `Code actuel incorrect (${r.remainingBeforeLock} essai(s) avant blocage).`
+        );
+      } else {
+        setErreur('Aucun code PIN enregistré.');
+      }
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  const chiffres = (v: string) => v.replace(/\D/g, '');
+  return (
+    <>
+      <Text className="text-muted">
+        {PIN_MIN_LENGTH} à {PIN_MAX_LENGTH} chiffres, sans suite évidente (1234, 0000…).
+      </Text>
+      <Champ libelle="Code actuel" value={actuel} onChangeText={(v) => setActuel(chiffres(v))} secureTextEntry keyboardType="number-pad" maxLength={PIN_MAX_LENGTH} />
+      <Champ libelle="Nouveau code" value={nouveau} onChangeText={(v) => setNouveau(chiffres(v))} secureTextEntry keyboardType="number-pad" maxLength={PIN_MAX_LENGTH} />
+      <Champ
+        libelle="Confirmer le nouveau code"
+        value={confirmation}
+        onChangeText={(v) => setConfirmation(chiffres(v))}
+        secureTextEntry
+        keyboardType="number-pad"
+        maxLength={PIN_MAX_LENGTH}
+      />
+      {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
+      <Bouton titre="Valider" onPress={valider} chargement={enCours} />
+    </>
+  );
+}
