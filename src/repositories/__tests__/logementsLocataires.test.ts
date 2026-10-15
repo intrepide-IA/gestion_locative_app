@@ -14,7 +14,7 @@ import {
 } from '../locataireRepository';
 
 const conditions: ConditionsContrat = {
-  date_debut: '2026-10-01',
+  date_debut: '2026-09-05',
   loyer: 25000,
   toilettes: 1000,
   caution: 50000,

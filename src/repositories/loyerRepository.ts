@@ -4,7 +4,7 @@
  * la part non affectée d'un paiement forme un crédit, affecté ensuite aux échéances suivantes.
  */
 import type { SqlDatabase } from '../db/types';
-import { dateEcheance, etatEcheance, moisEntre, type EtatEcheance } from '../domain/echeances';
+import { dateEcheance, etatEcheance, moisEntre, premierMoisFacture, type EtatEcheance } from '../domain/echeances';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
 import { prochainNumero } from './numerotation';
 
@@ -107,7 +107,7 @@ export async function genererEcheances(db: SqlDatabase, aujourdhui: string, main
     for (const c of contrats) {
       const fin = c.statut === 'termine' && c.date_sortie ? (c.date_sortie < aujourdhui ? c.date_sortie : aujourdhui) : aujourdhui;
       if (fin < c.date_debut) continue;
-      for (const { annee, mois } of moisEntre(c.date_debut, fin)) {
+      for (const { annee, mois } of moisEntre(premierMoisFacture(c.date_debut), fin)) {
         const { changes } = await tx.run(
           `INSERT OR IGNORE INTO echeances (contrat_id, annee, mois, loyer, toilettes, montant_du, date_echeance, cree_le)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

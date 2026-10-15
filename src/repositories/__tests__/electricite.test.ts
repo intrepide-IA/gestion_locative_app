@@ -16,7 +16,7 @@ import { entrerLocataire, terminerContrat } from '../locataireRepository';
 async function installer(db: SqlDatabase, releveInitial = 1000) {
   const logementId = await creerLogement(db, { reference: 'Chambre 1', type: 'chambre_salon', loyer_indicatif: 25000, toilettes: 0 });
   return entrerLocataire(db, { nom_complet: 'Awa' }, logementId, {
-    date_debut: '2026-10-01',
+    date_debut: '2026-09-05',
     loyer: 25000,
     toilettes: 0,
     caution: 0,

@@ -50,3 +50,17 @@ export function dateEcheance(annee: number, mois: number, jour: number, dateDebu
   const date = `${annee}-${p(mois)}-${p(jour)}`;
   return date < dateDebutContrat ? dateDebutContrat : date;
 }
+
+/**
+ * Premier mois facturé : celui qui suit l'entrée. À l'entrée, le locataire verse la caution et reçoit
+ * les clés ; il paie son premier loyer le même jour du mois suivant (entré le 15 octobre → dû le 15 novembre).
+ */
+export function premierMoisFacture(dateDebutContrat: string): string {
+  const [annee, mois] = dateDebutContrat.split('-').map(Number);
+  return mois === 12 ? `${annee + 1}-01` : `${annee}-${String(mois + 1).padStart(2, '0')}`;
+}
+
+/** Jour d'échéance proposé pour une entrée : le jour de l'entrée (28 au plus, pour exister chaque mois). */
+export function jourEcheanceParDefaut(dateDebutContrat: string): number {
+  return Math.min(28, Number(dateDebutContrat.slice(8, 10)));
+}

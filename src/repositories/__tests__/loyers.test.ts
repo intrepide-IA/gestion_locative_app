@@ -1,6 +1,6 @@
 import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
 import type { SqlDatabase } from '../../db/types';
-import { dateEcheance, etatEcheance, moisEntre } from '../../domain/echeances';
+import { dateEcheance, etatEcheance, jourEcheanceParDefaut, moisEntre, premierMoisFacture } from '../../domain/echeances';
 import { creerLogement } from '../logementRepository';
 import { entrerLocataire, modifierConditionsContrat, terminerContrat, type ConditionsContrat } from '../locataireRepository';
 import {
@@ -17,7 +17,7 @@ import {
 } from '../loyerRepository';
 
 const conditions: ConditionsContrat = {
-  date_debut: '2026-10-01',
+  date_debut: '2026-09-05',
   loyer: 25000,
   toilettes: 1000,
   caution: 0,
@@ -186,4 +186,18 @@ describe('factures et synthèse', () => {
       enRetard: 1,
     });
   });
+});
+
+test('premier loyer dû le même jour du mois suivant l’entrée', async () => {
+  expect(premierMoisFacture('2026-10-15')).toBe('2026-11');
+  expect(premierMoisFacture('2026-12-31')).toBe('2027-01');
+  expect(jourEcheanceParDefaut('2026-10-15')).toBe(15);
+  expect(jourEcheanceParDefaut('2026-10-31')).toBe(28);
+  const db = await createMigratedDatabase();
+  const logementId = await creerLogement(db, { reference: 'Ch 9', type: 'chambre_salon', loyer_indicatif: 20000, toilettes: 0 });
+  await entrerLocataire(db, { nom_complet: 'Bio' }, logementId, { ...conditions, date_debut: '2026-10-15', jour_echeance: 15 });
+  expect(await genererEcheances(db, '2026-10-31')).toBe(0);
+  expect(await genererEcheances(db, '2026-11-02')).toBe(1);
+  const e = await db.get<{ date_echeance: string }>('SELECT date_echeance FROM echeances');
+  expect(e?.date_echeance).toBe('2026-11-15');
 });

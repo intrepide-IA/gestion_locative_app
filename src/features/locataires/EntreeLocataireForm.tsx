@@ -8,7 +8,8 @@ import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
 import { messageErreur } from '../../domain/erreurs';
-import { aujourdhui, formatFCFA, lireMontant } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, lireMontant } from '../../domain/format';
+import { dateEcheance, jourEcheanceParDefaut, premierMoisFacture } from '../../domain/echeances';
 import { useRessource } from '../../hooks/useRessource';
 import { listerLogements, type LogementAvecOccupant } from '../../repositories/logementRepository';
 import { entrerLocataire } from '../../repositories/locataireRepository';
@@ -76,7 +77,7 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
   const [toilettes, setToilettes] = useState(initial ? String(initial.toilettes) : '');
   const [caution, setCaution] = useState('');
   const [prixKwh, setPrixKwh] = useState(String(ctx.prixKwh));
-  const [jour, setJour] = useState(String(ctx.jourEcheance));
+  const [jour, setJour] = useState(String(jourEcheanceParDefaut(aujourdhui())));
   const [releve, setReleve] = useState('');
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [erreurGenerale, setErreurGenerale] = useState('');
@@ -157,7 +158,14 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
       />
 
       <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-2">Contrat</Text>
-      <ChampDate libelle="Date d’entrée" valeur={dateEntree} onChange={setDateEntree} />
+      <ChampDate
+        libelle="Date d’entrée (remise des clés)"
+        valeur={dateEntree}
+        onChange={(d) => {
+          setDateEntree(d);
+          setJour(String(jourEcheanceParDefaut(d)));
+        }}
+      />
       <View className="flex-row gap-3">
         <View className="flex-1">
           <Champ libelle="Loyer (FCFA)" obligatoire value={loyer} onChangeText={setLoyer} keyboardType="number-pad" erreur={erreurs.loyer} />
@@ -189,8 +197,24 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
           />
         </View>
       </View>
+      <PremierLoyer dateEntree={dateEntree} jour={jour} />
       {erreurGenerale ? <Text className="text-danger text-center">{erreurGenerale}</Text> : null}
       <Bouton titre="Enregistrer l’entrée" onPress={enregistrer} chargement={enCours} />
     </>
+  );
+}
+
+/** Rappel de la règle : caution à l'entrée, premier loyer le mois suivant. */
+function PremierLoyer({ dateEntree, jour }: { dateEntree: string; jour: string }) {
+  const j = Number(jour);
+  if (!Number.isInteger(j) || j < 1 || j > 28) return null;
+  const [annee, mois] = premierMoisFacture(dateEntree).split('-').map(Number);
+  return (
+    <View className="bg-primary/10 rounded-xl px-4 py-3">
+      <Text className="text-ink text-sm">
+        La caution est versée à l’entrée. Premier loyer dû le{' '}
+        <Text className="font-bold text-primary">{formatDate(dateEcheance(annee, mois, j, dateEntree))}</Text>, puis le {j} de chaque mois.
+      </Text>
+    </View>
   );
 }

@@ -11,7 +11,7 @@ async function scenario() {
   await enregistrerProprietaire(db, { nom: 'Moussa Adé', telephone: '+229 01 00 00 00', adresse: 'Cotonou' });
   const logementId = await creerLogement(db, { reference: 'Chambre 1', type: 'chambre_salon', loyer_indicatif: 25000, toilettes: 1000 });
   const { locataireId } = await entrerLocataire(db, { nom_complet: 'Awa <script>alert(1)</script>' }, logementId, {
-    date_debut: '2026-10-01',
+    date_debut: '2026-09-05',
     loyer: 25000,
     toilettes: 1000,
     caution: 0,

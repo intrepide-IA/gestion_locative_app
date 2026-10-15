@@ -22,7 +22,7 @@ async function maison(caution = 50000) {
   await enregistrerProprietaire(db, { nom: 'Moussa', telephone: null, adresse: null });
   const logementId = await creerLogement(db, { reference: 'Chambre 1', type: 'chambre_salon', loyer_indicatif: 25000, toilettes: 1000 });
   const ids = await entrerLocataire(db, { nom_complet: 'Awa' }, logementId, {
-    date_debut: '2026-10-01',
+    date_debut: '2026-09-05',
     loyer: 25000,
     toilettes: 1000,
     caution,
@@ -41,8 +41,7 @@ const OCTOBRE = { debut: '2026-10-01', fin: '2026-10-31' };
 
 test('la caution reçue est une entrée distincte des loyers', async () => {
   const { db } = await maison(50000);
-  const r = await rapport(db, OCTOBRE);
-  expect(r).toMatchObject({ entrees: 50000, cautions: 50000, loyersEncaisses: 0 });
+  expect(await rapport(db, { debut: '2026-09-01', fin: '2026-09-30' })).toMatchObject({ entrees: 50000, cautions: 50000, loyersEncaisses: 0 });
 });
 
 test('solde exact après plusieurs entrées et sorties, chaque encaissement compté une fois', async () => {
