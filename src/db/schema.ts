@@ -311,11 +311,18 @@ ALTER TABLE contrats ADD COLUMN motif_retenue TEXT;
 ALTER TABLE contrats ADD COLUMN caution_rendue INTEGER NOT NULL DEFAULT 0 CHECK (caution_rendue >= 0);
 `;
 
+/** V5 : index du compteur au moment de la vente et index de coupure, imprimés sur la facture d'électricité. */
+const V5 = `
+ALTER TABLE achats_electricite ADD COLUMN index_achat REAL;
+ALTER TABLE achats_electricite ADD COLUMN index_coupure REAL;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, description: 'Schéma initial Onílé', sql: V1 },
   { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
   { version: 3, description: 'État des lieux d’entrée et de sortie', sql: V3 },
   { version: 4, description: 'Décompte de la caution au départ', sql: V4 },
+  { version: 5, description: 'Index du compteur sur les ventes d’électricité', sql: V5 },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

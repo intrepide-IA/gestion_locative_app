@@ -6,7 +6,7 @@ import { X } from 'lucide-react-native';
 
 import { Text } from './Text';
 import { Bouton } from './kit';
-import { reduireImage } from '../../services/images';
+import { recadrerImage, zonePhoto, type Zone } from '../../services/images';
 import { colors } from '../../theme/colors';
 
 /**
@@ -19,15 +19,19 @@ export function PrisePhoto({ ouverte, onFermer, onPhoto, consigne }: { ouverte: 
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState('');
   const insets = useSafeAreaInsets();
+  // Positions mesurées à l'écran : la photo est recadrée sur le rectangle jaune.
+  const [ecran, setEcran] = useState({ largeur: 0, hauteur: 0 });
+  const [cadre, setCadre] = useState<Zone | null>(null);
 
   const prendre = async () => {
     if (!camera.current || enCours) return;
     setEnCours(true);
     setErreur('');
     try {
-      const photo = await camera.current.takePictureAsync({ quality: 0.8, skipProcessing: false });
-      if (!photo?.uri) throw new Error('Photo non prise.');
-      onPhoto(await reduireImage(photo.uri, { largeur: 1200, format: 'jpeg' }));
+      const photo = await camera.current.takePictureAsync({ quality: 0.9, skipProcessing: false });
+      if (!photo?.uri || !cadre) throw new Error('Photo non prise.');
+      const zone = zonePhoto(ecran, cadre, { largeur: photo.width, hauteur: photo.height });
+      onPhoto(await recadrerImage(photo.uri, zone, { largeur: 1400, format: 'jpeg' }));
     } catch (error) {
       setErreur(error instanceof Error ? error.message : 'Photo impossible.');
     } finally {
@@ -38,7 +42,7 @@ export function PrisePhoto({ ouverte, onFermer, onPhoto, consigne }: { ouverte: 
   return (
     <Modal visible={ouverte} animationType="slide" onRequestClose={onFermer} statusBarTranslucent navigationBarTranslucent>
       {ouverte ? (
-        <View style={styles.fond}>
+        <View style={styles.fond} onLayout={(e) => setEcran({ largeur: e.nativeEvent.layout.width, hauteur: e.nativeEvent.layout.height })}>
           {!permission ? (
             <ActivityIndicator color={colors.white} />
           ) : !permission.granted ? (
@@ -51,7 +55,13 @@ export function PrisePhoto({ ouverte, onFermer, onPhoto, consigne }: { ouverte: 
             <>
               <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" />
               <View pointerEvents="none" style={styles.calque}>
-                <View style={styles.cadre} />
+                <View
+                  style={styles.cadre}
+                  onLayout={(e) => {
+                    const { x, y, width, height } = e.nativeEvent.layout;
+                    setCadre({ x, y, largeur: width, hauteur: height });
+                  }}
+                />
                 <Text style={[styles.texte, { marginTop: 16 }]}>{consigne}</Text>
                 {erreur ? <Text style={[styles.texte, { color: colors.accent, marginTop: 8 }]}>{erreur}</Text> : null}
               </View>

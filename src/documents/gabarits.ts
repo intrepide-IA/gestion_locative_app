@@ -106,6 +106,7 @@ function page(titre: string, numero: string, corps: string, d: { emetteur: Emett
   .totaux td { border: none; padding: 5px 10px; }
   .grand td { font-size: 16px; font-weight: 700; color: ${colors.primary}; border-top: 2px solid ${colors.primary}; }
   .pied { margin-top: 36px; padding-top: 12px; border-top: 1px solid ${colors.border}; font-size: 11px; color: ${colors.muted}; text-align: center; }
+  tr.coupure td { background: #FFF3CF; }
   .filigrane { position: fixed; top: 40%; left: 10%; font-size: 72px; color: rgba(239,68,68,.18); transform: rotate(-25deg); font-weight: 800; }
 </style></head><body>
 ${filigrane ? `<div class="filigrane">${echapper(filigrane)}</div>` : ''}
@@ -177,6 +178,10 @@ export interface DonneesFactureElectricite {
   montantFacture: number;
   montantRecu: number;
   ecart: number;
+  /** Index du compteur lu au moment de l'achat (null pour les ventes antérieures à cette information). */
+  indexAchat: number | null;
+  /** Index auquel le crédit est épuisé : le compteur est coupé à cet index. */
+  indexCoupure: number | null;
   mode: string;
   annulee: boolean;
   emetteur: Emetteur;
@@ -184,6 +189,7 @@ export interface DonneesFactureElectricite {
 }
 
 const formatKwh = (kwh: number) => `${String(kwh).replace('.', ',')} kWh`;
+const formatIndex = (index: number) => String(index).replace('.', ',');
 
 export function htmlFactureElectricite(d: DonneesFactureElectricite): string {
   const corps = `<div class="bloc"><h2>Électricité prépayée</h2>Date : <b>${formatDate(d.date)}</b><br>Mode : ${echapper(d.mode)}<br>Statut : ${
@@ -198,6 +204,23 @@ export function htmlFactureElectricite(d: DonneesFactureElectricite): string {
   <tr class="grand"><td>Total facturé</td><td class="num">${formatFCFA(d.montantFacture)}</td></tr>
   <tr><td>Montant reçu</td><td class="num">${formatFCFA(d.montantRecu)}</td></tr>
   ${d.ecart > 0 ? `<tr><td>Rendu (arrondi à 0,1 kWh)</td><td class="num">${formatFCFA(d.ecart)}</td></tr>` : ''}
-</table>`;
+</table>
+${
+  d.indexAchat !== null && d.indexCoupure !== null
+    ? `<table style="margin-top:22px"><thead><tr><th>Compteur</th><th class="num">Index</th></tr></thead><tbody>
+  <tr><td>Index lu au moment de l’achat</td><td class="num">${formatIndex(d.indexAchat)}</td></tr>
+  ${
+    Math.round((d.indexCoupure - d.indexAchat - d.kwh) * 10) / 10 !== 0
+      ? `<tr><td>Crédit restant avant cet achat</td><td class="num">${
+          d.indexCoupure - d.indexAchat - d.kwh > 0 ? '+' : '−'
+        } ${formatKwh(Math.abs(Math.round((d.indexCoupure - d.indexAchat - d.kwh) * 10) / 10))}</td></tr>`
+      : ''
+  }
+  <tr><td>kWh achetés</td><td class="num">+ ${formatKwh(d.kwh)}</td></tr>
+  <tr class="coupure"><td><b>Le crédit expire à l’index</b> (coupure du compteur)</td><td class="num"><b>${formatIndex(d.indexCoupure)}</b></td></tr>
+</tbody></table>
+<p class="muted" style="margin-top:8px">L’index de coupure tient compte du crédit qui restait avant cet achat.</p>`
+    : ''
+}`;
   return page('FACTURE', d.numero, corps, d, d.annulee ? 'ANNULÉE' : undefined);
 }

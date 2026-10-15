@@ -153,6 +153,11 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
                     {formatDate(a.date_achat)} · {LIBELLES_MODE[a.mode]}
                     {a.facture_numero ? ` · ${a.facture_numero}` : ''}
                   </Text>
+                  {a.index_achat !== null && a.index_coupure !== null ? (
+                    <Text className="text-muted text-sm">
+                      Index {indexTexte(a.index_achat)} → coupure à {indexTexte(a.index_coupure)}
+                    </Text>
+                  ) : null}
                   {a.annule_le ? <Text className="text-danger text-xs mt-1">Annulée : {a.motif_annulation}</Text> : null}
                 </View>
                 {a.annule_le ? <Badge libelle="Annulée" ton="neutre" /> : null}

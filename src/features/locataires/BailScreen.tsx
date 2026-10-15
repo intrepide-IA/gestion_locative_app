@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, CheckCircle2, ClipboardCheck, FileSignature, ImageIcon, PenLine, Share2 } from 'lucide-react-native';
+import { Camera, CheckCircle2, ClipboardCheck, Download, FileSignature, ImageIcon, PenLine, Share2 } from 'lucide-react-native';
 
 import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
@@ -20,7 +20,7 @@ import { aujourdhui, formatDate, formatFCFA } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import { definirPhotoPiece, enregistrerClauses, signerBail, type ClausesBail, type Signataire } from '../../repositories/bauxRepository';
 import { definirSignature } from '../../repositories/proprietaireRepository';
-import { importerImage } from '../../services/images';
+import { importerImage, partagerImage } from '../../services/images';
 import { colors } from '../../theme/colors';
 
 const erreurTexte = (error: unknown) => messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.');
@@ -152,7 +152,22 @@ export function BailScreen({
 
         <Etape numero={2} titre="Pièce d’identité du locataire" fait={Boolean(b.photo_piece)} facultatif>
           {b.photo_piece ? (
-            <Image source={{ uri: b.photo_piece }} style={{ width: '100%', height: 180, borderRadius: 12 }} resizeMode="cover" accessibilityLabel="Pièce d’identité" />
+            <>
+              <Image
+                source={{ uri: b.photo_piece }}
+                style={{ width: '100%', aspectRatio: 1.586, borderRadius: 12, backgroundColor: colors.background }}
+                resizeMode="contain"
+                accessibilityLabel="Pièce d’identité"
+              />
+              <Bouton
+                titre="Enregistrer / partager la photo"
+                variante="discret"
+                icone={<Download size={18} color={colors.primary} />}
+                onPress={() =>
+                  partagerImage(b.photo_piece!, `Piece-identite-${d.locataire.nom}`).catch((error: unknown) => informer('Partage impossible', erreurTexte(error)))
+                }
+              />
+            </>
           ) : (
             <Text className="text-muted text-sm">Photographiez la carte d’identité (ou le passeport) : elle est jointe au contrat en annexe.</Text>
           )}

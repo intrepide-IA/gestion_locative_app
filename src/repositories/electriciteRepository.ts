@@ -32,6 +32,8 @@ export interface SituationElectricite {
 
 export interface Achat {
   id: number;
+  index_achat: number | null;
+  index_coupure: number | null;
   date_achat: string;
   montant_recu: number;
   prix_kwh: number;
@@ -115,6 +117,10 @@ export async function relevesDuContrat(db: SqlDatabase, contratId: number): Prom
 export interface ResultatAchat {
   achatId: number;
   kwh: number;
+  /** Index du compteur au moment de la vente (dernier relevé). */
+  indexAchat: number;
+  /** Index auquel le crédit (reste + kWh achetés) sera épuisé. */
+  indexCoupure: number;
   montantFacture: number;
   ecart: number;
   factureNumero: string;
@@ -145,10 +151,16 @@ export async function acheterElectricite(
       throw new ErreurMetier(`Montant insuffisant : il faut au moins ${Math.ceil(contrat.prix_kwh / 10)} FCFA pour 0,1 kWh.`);
     }
 
+    // Index lu au dernier relevé (enregistré juste avant la vente s'il a été saisi) et crédit restant.
+    const avant = await tx.get<Ligne>(`${SELECT_SITUATION} WHERE c.id = ?`, [achat.contratId]);
+    const indexAchat = arrondiKwh(avant?.dernier_index ?? 0);
+    const reste = arrondiKwh((avant?.achetes ?? 0) - (avant?.consommes ?? 0));
+    const indexCoupure = arrondiKwh(indexAchat + reste + calcul.kwh);
+
     const { lastInsertRowId: achatId } = await tx.run(
-      `INSERT INTO achats_electricite (contrat_id, date_achat, montant_recu, prix_kwh, kwh, montant_facture, ecart_arrondi, mode, cree_le)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [achat.contratId, date, montant, contrat.prix_kwh, calcul.kwh, calcul.montantFacture, calcul.ecart, achat.mode, maintenant]
+      `INSERT INTO achats_electricite (contrat_id, date_achat, montant_recu, prix_kwh, kwh, montant_facture, ecart_arrondi, mode, index_achat, index_coupure, cree_le)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [achat.contratId, date, montant, contrat.prix_kwh, calcul.kwh, calcul.montantFacture, calcul.ecart, achat.mode, indexAchat, indexCoupure, maintenant]
     );
     const factureNumero = await prochainNumero(tx, 'FAC', Number(date.slice(0, 4)));
     await tx.run(
@@ -161,7 +173,7 @@ export async function acheterElectricite(
        VALUES (?, 'entree', ?, ?, ?, ?, 'achat_electricite', ?, 'valide', ?)`,
       [date, calcul.montantFacture, categorie!.id, achat.mode, `Vente de ${calcul.kwh} kWh`, achatId, maintenant]
     );
-    return { achatId, ...calcul, factureNumero };
+    return { achatId, ...calcul, indexAchat, indexCoupure, factureNumero };
   });
 }
 

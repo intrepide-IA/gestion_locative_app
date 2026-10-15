@@ -31,3 +31,4 @@ ios/
 coverage/
 *.apk
 *.aab
+.env.publication

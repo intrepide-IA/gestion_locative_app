@@ -70,13 +70,27 @@ Sans ces variables, l'application fonctionne normalement ; seul l'écran Synchro
 
 ## 5. Publier une version
 
-Après chaque build EAS terminé (lien `https://expo.dev/artifacts/...apk`) :
+Après chaque build EAS terminé (lien `https://expo.dev/artifacts/...apk`), dans le terminal **PowerShell**
+de VS Code (attention : `set X=...` ne marche pas dans PowerShell) :
 
-```bash
-set ONILE_API_URL=https://onile-api.onrender.com
-set ADMIN_TOKEN=le-jeton-de-render
+```powershell
+$env:ONILE_API_URL = "https://onile-api.onrender.com"
+$env:ADMIN_TOKEN = "le-jeton-de-render"
 node scripts/publier-version.mjs "https://expo.dev/artifacts/eas/....apk" "Nouveautés de la version"
 ```
+
+Pour ne pas retaper les variables, crée un fichier `.env.publication` à la racine (ignoré par Git) :
+
+```
+ONILE_API_URL=https://onile-api.onrender.com
+ADMIN_TOKEN=le-jeton-de-render
+```
+
+Hébergement de l'APK (au choix) :
+- **GitHub Releases** (conseillé, lien permanent) : installer GitHub CLI une fois
+  (`winget install GitHub.cli` puis `gh auth login`), ou ajouter `GITHUB_TOKEN=...` dans `.env.publication`.
+- **Lien Expo direct** (immédiat, sans GitHub) : ajouter `--lien-direct` à la commande. Expo peut faire
+  expirer ses liens : republier alors via GitHub.
 
 Le script crée la release GitHub `vX.Y.Z` avec l'APK, puis l'enregistre dans Supabase via l'API.
 Effets : le lien `/telecharger` du site sert la nouvelle APK, et les téléphones qui ont une version plus

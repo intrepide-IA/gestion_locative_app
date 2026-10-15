@@ -112,12 +112,14 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     montant_recu: number;
     ecart_arrondi: number;
     mode: ModePaiement;
+    index_achat: number | null;
+    index_coupure: number | null;
     nom_complet: string;
     telephone: string | null;
     piece_identite: string | null;
     reference: string;
   }>(
-    `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode,
+    `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode, a.index_achat, a.index_coupure,
             t.nom_complet, t.telephone, t.piece_identite, l.reference
      FROM achats_electricite a JOIN factures f ON f.achat_electricite_id = a.id
      JOIN contrats c ON c.id = a.contrat_id JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
@@ -133,6 +135,8 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     montantFacture: a.montant_facture,
     montantRecu: a.montant_recu,
     ecart: a.ecart_arrondi,
+    indexAchat: a.index_achat,
+    indexCoupure: a.index_coupure,
     mode: LIBELLES_MODE[a.mode],
     annulee: a.statut === 'annulee',
     emetteur: await emetteur(db),
