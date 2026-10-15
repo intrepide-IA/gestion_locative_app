@@ -10,7 +10,8 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.
 
 createServer(async (req, res) => {
   const chemin = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
-  const fichier = join(RACINE, chemin || 'index.html');
+  // Comme Vercel (cleanUrls) : /telecharger sert telecharger.html.
+  const fichier = join(RACINE, chemin ? (extname(chemin) ? chemin : `${chemin}.html`) : 'index.html');
   if (!fichier.startsWith(RACINE)) return res.writeHead(403).end();
   try {
     const contenu = await readFile(fichier);

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, BellRing, ChevronRight, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
-import { nouvelleVersion } from '../../services/miseAJour';
+import { nouvelleVersion, telechargerEtInstaller, type VersionPubliee } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
 import { ApercuSignature } from '../../components/ui/ApercuSignature';
@@ -95,19 +95,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
           <ChevronRight size={18} color={colors.muted} />
         </Pressable>
 
-        {maj.donnees ? (
-          <Pressable
-            onPress={() => Linking.openURL(maj.donnees!.lien)}
-            accessibilityRole="button"
-            className="bg-accent rounded-2xl p-4 flex-row items-center active:opacity-80"
-          >
-            <Download size={20} color={colors.ink} />
-            <View className="flex-1 ml-3">
-              <Text className="font-bold text-ink">Nouvelle version {maj.donnees.version} disponible</Text>
-              <Text className="text-ink/80 text-sm">{maj.donnees.notes ?? 'Touchez pour la télécharger, puis installez-la par-dessus.'}</Text>
-            </View>
-          </Pressable>
-        ) : null}
+        {maj.donnees ? <BandeauMiseAJour version={maj.donnees} /> : null}
 
         <Groupe titre="Maisons">
           <Ligne icone={<Home size={18} color={colors.primary} />} libelle="Mes maisons" detail={maisonActive?.nom} onPress={() => setMaisons(true)} dernier />
@@ -430,5 +418,53 @@ function Journal() {
         );
       })}
     </>
+  );
+}
+
+/** Nouvelle version : téléchargée dans l'application (progression), puis fenêtre « Installer » d'Android. */
+function BandeauMiseAJour({ version }: { version: VersionPubliee }) {
+  const [part, setPart] = useState<number | null>(null);
+  const [termine, setTermine] = useState(false);
+
+  const lancer = async () => {
+    if (part !== null) return;
+    setPart(0);
+    setTermine(false);
+    try {
+      await telechargerEtInstaller(version, setPart);
+      setTermine(true);
+    } catch {
+      // Dernier recours : le navigateur télécharge le fichier.
+      informer('Téléchargement dans l’application impossible', 'Le navigateur va s’ouvrir pour télécharger la nouvelle version.');
+      void Linking.openURL(version.lien);
+    } finally {
+      setPart(null);
+    }
+  };
+
+  const enCours = part !== null;
+  return (
+    <Pressable onPress={lancer} accessibilityRole="button" className="bg-accent rounded-2xl p-4 active:opacity-80">
+      <View className="flex-row items-center">
+        <Download size={20} color={colors.ink} />
+        <View className="flex-1 ml-3">
+          <Text className="font-bold text-ink">
+            {enCours ? `Téléchargement de la version ${version.version}… ${Math.round(part * 100)} %` : `Nouvelle version ${version.version} disponible`}
+          </Text>
+          <Text className="text-ink/80 text-sm">
+            {enCours
+              ? 'Ne quittez pas cet écran : l’installation s’ouvrira à la fin.'
+              : termine
+                ? 'Touchez « Installer » dans la fenêtre d’Android. Vos données sont conservées. Touchez ici pour relancer.'
+                : (version.notes ?? 'Touchez pour la télécharger et l’installer par-dessus.')}
+          </Text>
+        </View>
+      </View>
+      {enCours ? (
+        <View className="h-2 rounded-full bg-white/50 mt-3 overflow-hidden">
+          <View className="h-full rounded-full bg-primary" style={{ width: `${Math.round(part * 100)}%` }} />
+        </View>
+      ) : null}
+    </Pressable>
   );
 }

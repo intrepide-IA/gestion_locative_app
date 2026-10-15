@@ -4,6 +4,7 @@
  *   GET  /api/sante        → état du service
  *   GET  /api/version      → dernière version publiée (l'application et le site l'affichent)
  *   GET  /telecharger      → redirige vers l'APK de la dernière version
+ *   GET  /apk              → transmet l'APK (avec sa taille) : la page du site affiche la progression
  *   POST /api/versions     → publie une version (en-tête Authorization: Bearer ADMIN_TOKEN)
  *
  * Variables d'environnement : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_TOKEN,
@@ -12,6 +13,7 @@
  * Supabase, chaque utilisateur limité à ses propres sauvegardes (RLS).
  */
 import { createServer } from 'node:http';
+import { Readable } from 'node:stream';
 import { timingSafeEqual } from 'node:crypto';
 
 const env = (nom, obligatoire = true) => {
@@ -62,6 +64,12 @@ function repondre(res, statut, donnees, entetes = {}) {
   res.end(JSON.stringify(donnees));
 }
 
+/** Données publiques (version, fichier APK) : lisibles depuis n'importe quel site. */
+const PUBLIC = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Disposition, X-Onile-Version',
+};
+
 function cors(req) {
   const origine = req.headers.origin;
   if (origine && ORIGINES.includes(origine)) {
@@ -82,7 +90,27 @@ const serveur = createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/api/version') {
       const v = await derniereVersion();
-      return v ? repondre(res, 200, v, { ...entetes, 'Cache-Control': 'public, max-age=300' }) : repondre(res, 404, { erreur: 'Aucune version publiée' }, entetes);
+      return v ? repondre(res, 200, v, { ...PUBLIC, 'Cache-Control': 'public, max-age=60' }) : repondre(res, 404, { erreur: 'Aucune version publiée' }, PUBLIC);
+    }
+
+    if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/apk') {
+      const v = await derniereVersion();
+      if (!v) return repondre(res, 404, { erreur: 'Aucune version publiée' }, PUBLIC);
+      const source = await fetch(v.url_apk, { method: req.method, redirect: 'follow' });
+      if (!source.ok) return repondre(res, 502, { erreur: `APK indisponible (${source.status})` }, PUBLIC);
+      const taille = source.headers.get('content-length');
+      res.writeHead(200, {
+        ...PUBLIC,
+        'Content-Type': 'application/vnd.android.package-archive',
+        'Content-Disposition': `attachment; filename="onile-${v.version}.apk"`,
+        'Cache-Control': 'no-store',
+        'X-Onile-Version': v.version,
+        ...(taille ? { 'Content-Length': taille } : {}),
+      });
+      if (req.method === 'HEAD' || !source.body) return res.end();
+      // Transmis au fur et à mesure, sans tout garder en mémoire.
+      Readable.fromWeb(source.body).on('error', () => res.destroy()).pipe(res);
+      return;
     }
 
     if (req.method === 'GET' && url.pathname === '/telecharger') {
