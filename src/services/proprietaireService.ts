@@ -1,39 +1,27 @@
-import { nativeDb as db } from '../database/db.native';
+/**
+ * Adaptateur entre l'ancien type `Proprietaire` (écrans, PDF) et le nouveau dépôt.
+ * À supprimer quand les écrans utiliseront directement `repositories/proprietaireRepository`.
+ */
+import { getDatabase } from '../db/client';
+import * as repo from '../repositories/proprietaireRepository';
 import type { Proprietaire } from '../types';
 
-export async function getProprietaire(id: number): Promise<Proprietaire | undefined> {
-  const result = await db.getOne<Proprietaire>('SELECT * FROM proprietaires WHERE id = ?', [id]);
-  return result || undefined;
+function versAncienFormat(p: repo.Proprietaire): Proprietaire {
+  return {
+    id: p.id,
+    nom: p.nom,
+    telephone: p.telephone ?? '',
+    adresse: p.adresse ?? '',
+    logo_uri: p.logo_uri ?? undefined,
+    created_at: p.cree_le,
+  };
 }
 
 export async function getFirstProprietaire(): Promise<Proprietaire | undefined> {
-  const result = await db.getOne<Proprietaire>('SELECT * FROM proprietaires LIMIT 1');
-  return result || undefined;
+  const p = await repo.getProprietaire(await getDatabase());
+  return p ? versAncienFormat(p) : undefined;
 }
 
-export async function getAllProprietaires(): Promise<Proprietaire[]> {
-  return db.query<Proprietaire>('SELECT * FROM proprietaires');
-}
-
-export async function createProprietaire(data: Omit<Proprietaire, 'id' | 'created_at'>): Promise<number> {
-  const created_at = new Date().toISOString();
-  const keys = Object.keys(data);
-  const values = Object.values(data);
-  const placeholders = keys.map(() => '?').join(', ');
-
-  await db.exec(
-    `INSERT INTO proprietaires (${keys.join(', ')}, created_at) VALUES (${placeholders}, ?)`,
-    [...values, created_at]
-  );
-
-  const lastId = await db.getOne<{ id: number }>('SELECT last_insert_rowid() as id');
-  return lastId?.id || 0;
-}
-
-export async function updateProprietaire(id: number, data: Partial<Proprietaire>): Promise<void> {
-  const keys = Object.keys(data);
-  const values = Object.values(data);
-  const setClause = keys.map(k => `${k} = ?`).join(', ');
-
-  await db.exec(`UPDATE proprietaires SET ${setClause} WHERE id = ?`, [...values, id]);
+export async function updateProprietaire(data: { nom: string; telephone: string; adresse: string }): Promise<void> {
+  await repo.enregistrerProprietaire(await getDatabase(), data);
 }

@@ -150,4 +150,26 @@ describe('transactions', () => {
     const n = await db.get<{ n: number }>('SELECT count(*) AS n FROM logements');
     expect(n?.n).toBe(0);
   });
+
+  test('une requête lancée pendant une transaction attend sa fin et n’est pas annulée avec elle', async () => {
+    const db = await createMigratedDatabase();
+    let outside: Promise<number> | undefined;
+    await expect(
+      db.transaction(async (tx) => {
+        await insertLogement(tx, 'A1');
+        // Requête concurrente, hors transaction : elle ne doit ni s'y mêler ni être annulée.
+        outside = insertLogement(db, 'B1');
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        throw new Error('échec volontaire');
+      })
+    ).rejects.toThrow('échec volontaire');
+    await outside;
+    const refs = await db.all<{ reference: string }>('SELECT reference FROM logements');
+    expect(refs).toEqual([{ reference: 'B1' }]);
+  });
+
+  test('les clés étrangères restent actives dans une transaction', async () => {
+    const db = await createMigratedDatabase();
+    await expect(db.transaction((tx) => insertContrat(tx, 999, 999))).rejects.toThrow(/FOREIGN KEY/);
+  });
 });

@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { Trash2, Bell, Shield, ChevronRight, LogOut, Download, Upload, FileJson } from 'lucide-react-native';
-import { nativeDb as db } from '../database/db.native';
 import { useProprietaire } from '../hooks/useDatabase';
 import { updateProprietaire } from '../services/proprietaireService';
 import { exportJSON } from '../services/exportImportService';
@@ -11,6 +10,10 @@ import {
 } from '../services/notificationService';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { STORAGE_KEYS, APP_VERSION } from '../constants';
+import { pinService } from '../security/native';
+import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../security/pin';
+import { formatDelay } from '../security/format';
+import type { Proprietaire } from '../types';
 
 interface SettingsScreenProps {
   onLogout: () => void;
@@ -161,7 +164,7 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
           className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex-row items-center justify-center mb-8"
         >
           <LogOut size={20} color="#EF4444" className="mr-2" />
-          <Text className="font-bold text-red-500">Déconnexion</Text>
+          <Text className="font-bold text-red-500">Verrouiller l’application</Text>
         </TouchableOpacity>
 
         <Text className="text-center text-xs text-gray-400 mb-8">GestiLoc v{APP_VERSION}</Text>
@@ -215,129 +218,150 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
   );
 }
 
-function ProfilModal({ isOpen, onClose, proprietaire, onSuccess }: any) {
-  const [nom, setNom] = useState('');
-  const [telephone, setTelephone] = useState('');
-  const [adresse, setAdresse] = useState('');
-  const [saving, setSaving] = useState(false);
+interface ProfilModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  proprietaire: Proprietaire | null;
+  onSuccess: () => void;
+}
 
-  useEffect(() => {
-    if (proprietaire && isOpen) {
-      setNom(proprietaire.nom);
-      setTelephone(proprietaire.telephone);
-      setAdresse(proprietaire.adresse);
-    }
-  }, [proprietaire, isOpen]);
+function ProfilModal({ isOpen, onClose, proprietaire, onSuccess }: ProfilModalProps) {
+  return (
+    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
+      {isOpen ? <ProfilForm proprietaire={proprietaire} onClose={onClose} onSuccess={onSuccess} /> : null}
+    </Modal>
+  );
+}
+
+/** Monté à chaque ouverture : les champs partent des valeurs enregistrées, sans effet de synchronisation. */
+function ProfilForm({ proprietaire, onClose, onSuccess }: Omit<ProfilModalProps, 'isOpen'>) {
+  const [nom, setNom] = useState(proprietaire?.nom ?? '');
+  const [telephone, setTelephone] = useState(proprietaire?.telephone ?? '');
+  const [adresse, setAdresse] = useState(proprietaire?.adresse ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    if (!proprietaire?.id) return;
     setSaving(true);
+    setError('');
     try {
-      await updateProprietaire(proprietaire.id, { nom, telephone, adresse });
+      await updateProprietaire({ nom, telephone, adresse });
       onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Enregistrement impossible.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide">
-      <TouchableOpacity className="flex-1 bg-black/40 justify-end" activeOpacity={1} onPress={onClose}>
-        <View className="bg-white rounded-t-[32px] p-6">
-          <Text className="text-xl font-bold mb-6">Modifier le profil</Text>
-          <View className="space-y-4">
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-1">Nom</Text>
-              <TextInput value={nom} onChangeText={setNom} className="bg-gray-50 rounded-xl px-4 py-3" />
-            </View>
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-1">Téléphone</Text>
-              <TextInput value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" className="bg-gray-50 rounded-xl px-4 py-3" />
-            </View>
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-1">Adresse</Text>
-              <TextInput value={adresse} onChangeText={setAdresse} className="bg-gray-50 rounded-xl px-4 py-3" />
-            </View>
-            <TouchableOpacity onPress={handleSubmit} className="bg-primary py-4 rounded-xl mt-4">
-              <Text className="text-white text-center font-bold text-lg">{saving ? '...' : 'Enregistrer'}</Text>
-            </TouchableOpacity>
+    <TouchableOpacity className="flex-1 bg-black/40 justify-end" activeOpacity={1} onPress={onClose}>
+      <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-[32px] p-6">
+        <Text className="text-xl font-bold text-ink mb-6">Modifier le profil</Text>
+        <View className="gap-4">
+          <View>
+            <Text className="text-sm font-medium text-ink mb-1">Nom</Text>
+            <TextInput value={nom} onChangeText={setNom} className="bg-background rounded-xl px-4 py-3" />
           </View>
-          <View className="h-10" />
+          <View>
+            <Text className="text-sm font-medium text-ink mb-1">Téléphone</Text>
+            <TextInput
+              value={telephone}
+              onChangeText={setTelephone}
+              keyboardType="phone-pad"
+              className="bg-background rounded-xl px-4 py-3"
+            />
+          </View>
+          <View>
+            <Text className="text-sm font-medium text-ink mb-1">Adresse</Text>
+            <TextInput value={adresse} onChangeText={setAdresse} className="bg-background rounded-xl px-4 py-3" />
+          </View>
+          {error ? <Text className="text-danger text-center">{error}</Text> : null}
+          <TouchableOpacity onPress={handleSubmit} disabled={saving} className="bg-primary py-4 rounded-xl mt-2">
+            <Text className="text-white text-center font-bold text-lg">{saving ? 'Enregistrement…' : 'Enregistrer'}</Text>
+          </TouchableOpacity>
         </View>
+        <View className="h-10" />
       </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+
+function PinModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  return (
+    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
+      {isOpen ? <PinForm onClose={onClose} /> : null}
     </Modal>
   );
 }
 
-function PinModal({ isOpen, onClose }: any) {
+function PinForm({ onClose }: { onClose: () => void }) {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleSubmit = async () => {
-    const savedPin = (await db.getOne<any>('SELECT value FROM settings WHERE key = ?', [STORAGE_KEYS.PIN]))?.value || '1234';
-    if (currentPin !== savedPin) {
-      setError('Code actuel incorrect');
-      return;
+    const formatError = validateNewPin(newPin);
+    if (formatError) return setError(PIN_FORMAT_MESSAGES[formatError]);
+    if (newPin !== confirmPin) return setError('La confirmation ne correspond pas au nouveau code.');
+    if (newPin === currentPin) return setError('Le nouveau code doit être différent de l’actuel.');
+
+    setSaving(true);
+    try {
+      const result = await pinService.changePin(currentPin, newPin);
+      if (result.status === 'ok') {
+        Alert.alert('Code PIN modifié', 'Utilisez désormais votre nouveau code.');
+        onClose();
+      } else if (result.status === 'locked') {
+        setError(`Trop d’essais. Réessayez dans ${formatDelay(result.lockedUntil)}.`);
+      } else if (result.status === 'wrong') {
+        setError(
+          result.lockedUntil
+            ? `Code actuel incorrect. Saisie bloquée ${formatDelay(result.lockedUntil)}.`
+            : `Code actuel incorrect (${result.remainingBeforeLock} essai(s) avant blocage).`
+        );
+      } else {
+        setError('Aucun code PIN enregistré.');
+      }
+    } finally {
+      setSaving(false);
     }
-    if (newPin.length !== 4) {
-      setError('4 chiffres requis');
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setError('Codes différents');
-      return;
-    }
-    // Update PIN in DB or AsyncStorage
-    // For now assuming it matches PinScreen logic
-    // ...
-    onClose();
   };
 
+  const pinInput = (placeholder: string, value: string, onChange: (v: string) => void) => (
+    <TextInput
+      placeholder={placeholder}
+      secureTextEntry
+      keyboardType="number-pad"
+      maxLength={PIN_MAX_LENGTH}
+      value={value}
+      onChangeText={(v) => onChange(v.replace(/\D/g, ''))}
+      className="bg-background rounded-xl p-4 text-center text-xl mb-4"
+    />
+  );
+
   return (
-    <Modal visible={isOpen} transparent animationType="fade">
-      <View className="flex-1 bg-black/60 items-center justify-center p-6">
-        <View className="bg-white w-full rounded-3xl p-6">
-          <Text className="text-xl font-bold mb-6 text-center">Changer le PIN</Text>
-          <TextInput
-            placeholder="Code actuel"
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={4}
-            value={currentPin}
-            onChangeText={setCurrentPin}
-            className="bg-gray-50 rounded-xl p-4 text-center text-xl mb-4"
-          />
-          <TextInput
-            placeholder="Nouveau code"
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={4}
-            value={newPin}
-            onChangeText={setNewPin}
-            className="bg-gray-50 rounded-xl p-4 text-center text-xl mb-4"
-          />
-          <TextInput
-            placeholder="Confirmer"
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={4}
-            value={confirmPin}
-            onChangeText={setConfirmPin}
-            className="bg-gray-50 rounded-xl p-4 text-center text-xl mb-4"
-          />
-          {error ? <Text className="text-red-500 text-center mb-4">{error}</Text> : null}
-          <View className="flex-row gap-2">
-            <TouchableOpacity onPress={onClose} className="flex-1 bg-gray-100 py-4 rounded-xl">
-              <Text className="text-center font-bold">Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSubmit} className="flex-1 bg-primary py-4 rounded-xl">
-              <Text className="text-white text-center font-bold">OK</Text>
-            </TouchableOpacity>
-          </View>
+    <View className="flex-1 bg-black/60 items-center justify-center p-6">
+      <View className="bg-white w-full rounded-3xl p-6">
+        <Text className="text-xl font-bold text-ink mb-2 text-center">Changer le code PIN</Text>
+        <Text className="text-muted text-center mb-6">
+          {PIN_MIN_LENGTH} à {PIN_MAX_LENGTH} chiffres
+        </Text>
+        {pinInput('Code actuel', currentPin, setCurrentPin)}
+        {pinInput('Nouveau code', newPin, setNewPin)}
+        {pinInput('Confirmer le nouveau code', confirmPin, setConfirmPin)}
+        {error ? <Text className="text-danger text-center mb-4">{error}</Text> : null}
+        <View className="flex-row gap-2">
+          <TouchableOpacity onPress={onClose} className="flex-1 bg-background py-4 rounded-xl">
+            <Text className="text-center font-bold text-ink">Annuler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSubmit} disabled={saving} className="flex-1 bg-primary py-4 rounded-xl">
+            <Text className="text-white text-center font-bold">{saving ? '…' : 'Valider'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }

@@ -3,14 +3,14 @@
     "name": "Onílé",
     "slug": "onile",
     "scheme": "onile",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#FBF6EF",
     "android": {
       "package": "com.onile.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0F6B4F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,7 +25,12 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
       "expo-secure-store",
       "expo-sharing",
       "expo-font",

@@ -1,47 +1,87 @@
+import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 
+import { getOrCreateDatabaseKey } from '../security/native';
 import { migrate } from './migrate';
-import type { RunResult, SqlDatabase, SqlValue } from './types';
+import { serialize } from './serialized';
+import type { SqlDatabase, SqlValue } from './types';
 
-/** Nouveau fichier : l'ancienne base « GestiLocDB » n'est ni lue ni effacée. */
-export const DATABASE_NAME = 'onile.db';
+/** Base chiffrée (SQLCipher). L'ancienne base « GestiLocDB » de la première application n'est ni lue ni effacée. */
+export const DATABASE_NAME = 'onile-securise.db';
+/** Base non chiffrée créée par les APK de test du lot 1, convertie une fois puis supprimée. */
+const PLAINTEXT_DATABASE_NAME = 'onile.db';
+const PLAINTEXT_CHECKED_KEY = 'onile.db.plaintext-checked.v1';
 
-type Executor = Pick<SQLite.SQLiteDatabase, 'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'>;
+const assertKey = (key: string) => {
+  if (!/^[0-9a-f]{64}$/.test(key)) throw new Error('Clé de chiffrement invalide.');
+};
 
-function wrap(executor: Executor, transaction: SqlDatabase['transaction']): SqlDatabase {
-  return {
-    exec: (sql) => executor.execAsync(sql),
-    run: async (sql, params: SqlValue[] = []): Promise<RunResult> => {
-      const result = await executor.runAsync(sql, params);
+const databasePath = (name: string) =>
+  `${String(SQLite.defaultDatabaseDirectory).replace(/^file:\/\//, '').replace(/\/$/, '')}/${name}`;
+
+function fromExpoDatabase(native: SQLite.SQLiteDatabase): SqlDatabase {
+  return serialize({
+    exec: (sql) => native.execAsync(sql),
+    run: async (sql, params: SqlValue[] = []) => {
+      const result = await native.runAsync(sql, params);
       return { changes: result.changes, lastInsertRowId: result.lastInsertRowId };
     },
-    all: (sql, params: SqlValue[] = []) => executor.getAllAsync(sql, params),
-    get: (sql, params: SqlValue[] = []) => executor.getFirstAsync(sql, params),
-    transaction,
-  };
+    all: (sql, params: SqlValue[] = []) => native.getAllAsync(sql, params),
+    get: (sql, params: SqlValue[] = []) => native.getFirstAsync(sql, params),
+  });
 }
 
-export function fromExpoDatabase(native: SQLite.SQLiteDatabase): SqlDatabase {
-  const transaction: SqlDatabase['transaction'] = async (task) => {
-    let result: Awaited<ReturnType<typeof task>> | undefined;
-    await native.withExclusiveTransactionAsync(async (txn) => {
-      // Une transaction imbriquée réutilise simplement la transaction en cours.
-      const tx: SqlDatabase = wrap(txn, (inner) => inner(tx));
-      result = await task(tx);
-    });
-    return result as Awaited<ReturnType<typeof task>>;
-  };
-  return wrap(native, transaction);
+/**
+ * Convertit la base non chiffrée du lot 1 (si elle contient quelque chose) vers la base chiffrée,
+ * avec `sqlcipher_export`, puis supprime l'ancienne. Ne fait rien si la base chiffrée existe déjà.
+ */
+async function encryptPlaintextDatabaseOnce(key: string): Promise<void> {
+  if (await SecureStore.getItemAsync(PLAINTEXT_CHECKED_KEY)) return;
+
+  const plain = await SQLite.openDatabaseAsync(PLAINTEXT_DATABASE_NAME);
+  let exported = false;
+  try {
+    const tables = await plain.getFirstAsync<{ n: number }>('SELECT count(*) AS n FROM sqlite_master');
+    if ((tables?.n ?? 0) > 0) {
+      const version = (await plain.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version ?? 0;
+      await plain.execAsync(`ATTACH DATABASE '${databasePath(DATABASE_NAME)}' AS chiffree KEY "x'${key}'";`);
+      const target = await plain.getFirstAsync<{ n: number }>('SELECT count(*) AS n FROM chiffree.sqlite_master');
+      if ((target?.n ?? 0) === 0) {
+        await plain.execAsync(`SELECT sqlcipher_export('chiffree'); PRAGMA chiffree.user_version = ${Number(version)};`);
+        exported = true;
+      }
+      await plain.execAsync('DETACH DATABASE chiffree;');
+    } else {
+      exported = true; // Fichier vide (créé par l'ouverture ci-dessus) : rien à convertir.
+    }
+  } finally {
+    await plain.closeAsync();
+  }
+  if (exported) {
+    await SQLite.deleteDatabaseAsync(PLAINTEXT_DATABASE_NAME);
+    await SecureStore.setItemAsync(PLAINTEXT_CHECKED_KEY, '1');
+  }
 }
 
 let opening: Promise<SqlDatabase> | null = null;
 
-/** Ouvre la base (une seule fois), active les clés étrangères et applique les migrations. */
+/**
+ * Ouvre la base chiffrée (une seule fois), active les clés étrangères et applique les migrations.
+ * `PRAGMA key` est la toute première instruction après l'ouverture (exigence SQLCipher).
+ */
 export function getDatabase(): Promise<SqlDatabase> {
   if (!opening) {
     opening = (async () => {
+      const key = await getOrCreateDatabaseKey();
+      assertKey(key);
+      await encryptPlaintextDatabaseOnce(key);
+
       const native = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      await native.execAsync(`PRAGMA key = "x'${key}'";`);
+      // Échoue ici (« file is not a database ») si la clé ne correspond pas au fichier.
+      await native.getFirstAsync('SELECT count(*) FROM sqlite_master');
       await native.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+
       const db = fromExpoDatabase(native);
       await migrate(db);
       return db;

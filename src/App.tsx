@@ -1,7 +1,7 @@
 import '../global.css';
 
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -20,11 +20,14 @@ import { PropertiesScreen } from './screens/PropertiesScreen';
 import { InvoicesScreen } from './screens/InvoicesScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PinScreen } from './screens/PinScreen';
+import { OnboardingScreen } from './screens/OnboardingScreen';
 
 import { AppProvider } from './context/AppContext';
 import { useBadges } from './hooks/useBadges';
 import { getDatabase } from './db/client';
 import { colors } from './theme/colors';
+import { pinService } from './security/native';
+import { shouldLockOnResume } from './security/autoLock';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -122,11 +125,42 @@ function useDatabaseReady(): DatabaseState {
   return state;
 }
 
+type Access = 'checking' | 'onboarding' | 'locked' | 'unlocked';
+
+/**
+ * Accès à l'application : premier lancement (profil + PIN), puis PIN à chaque ouverture
+ * et après 2 minutes en arrière-plan. La session n'est jamais conservée sur disque.
+ */
+function useAccess(ready: boolean) {
+  const [access, setAccess] = useState<Access>('checking');
+  const backgroundSince = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!ready) return;
+    pinService.hasPin().then((hasPin) => setAccess(hasPin ? 'locked' : 'onboarding'));
+  }, [ready]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        backgroundSince.current = Date.now();
+      } else if (state === 'active') {
+        if (shouldLockOnResume(backgroundSince.current, Date.now())) {
+          setAccess((current) => (current === 'unlocked' ? 'locked' : current));
+        }
+        backgroundSince.current = null;
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  return { access, unlock: () => setAccess('unlocked'), lock: () => setAccess('locked') };
+}
+
 export default function App() {
-  // La session n'est jamais conservée : le PIN est demandé à chaque lancement.
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
   const database = useDatabaseReady();
+  const { access, unlock, lock } = useAccess(database.status === 'ready');
 
   if (database.status === 'error') {
     return (
@@ -137,7 +171,7 @@ export default function App() {
     );
   }
 
-  if (!fontsLoaded || database.status === 'opening') {
+  if (!fontsLoaded || database.status === 'opening' || access === 'checking') {
     return (
       <View className="flex-1 items-center justify-center bg-primary">
         <ActivityIndicator color={colors.white} />
@@ -149,14 +183,14 @@ export default function App() {
     <SafeAreaProvider>
       <AppProvider>
         <NavigationContainer theme={navigationTheme}>
-          <StatusBar style={isAuthenticated ? 'dark' : 'light'} />
+          <StatusBar style={access === 'unlocked' ? 'dark' : 'light'} />
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!isAuthenticated ? (
-              <Stack.Screen name="Pin">
-                {(props) => <PinScreen {...props} onSuccess={() => setIsAuthenticated(true)} />}
-              </Stack.Screen>
+            {access === 'onboarding' ? (
+              <Stack.Screen name="Onboarding">{() => <OnboardingScreen onDone={unlock} />}</Stack.Screen>
+            ) : access === 'locked' ? (
+              <Stack.Screen name="Pin">{() => <PinScreen onSuccess={unlock} />}</Stack.Screen>
             ) : (
-              <Stack.Screen name="Main">{() => <MainTabs onLogout={() => setIsAuthenticated(false)} />}</Stack.Screen>
+              <Stack.Screen name="Main">{() => <MainTabs onLogout={lock} />}</Stack.Screen>
             )}
           </Stack.Navigator>
         </NavigationContainer>

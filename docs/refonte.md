@@ -2,6 +2,51 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 2 — Accès et sécurité (15 octobre 2026)
+
+**Statut : codé, à valider sur téléphone.** Branche `refonte/lot-2-securite` (part du lot 1).
+
+### Fait
+
+- Premier lancement : profil du propriétaire (nom obligatoire, téléphone, adresse) puis création et
+  confirmation d'un PIN de 4 à 6 chiffres. Aucun PIN par défaut ; les codes trop simples (1234, 0000,
+  654321…) sont refusés.
+- PIN salé et haché (SHA-256) dans `expo-secure-store` (Keystore Android), jamais en clair ni dans SQLite.
+- PIN demandé à chaque lancement et au retour après 2 minutes en arrière-plan ; bouton « Verrouiller
+  l'application » dans Plus.
+- Après 5 erreurs : blocage 30 s, puis doublé à chaque nouvel échec (plafond 1 h), conservé même si l'app
+  est fermée et rouverte ; compte à rebours affiché.
+- Modification du PIN fonctionnelle (vérification de l'ancien code, même limitation des essais).
+- Profil propriétaire enregistré dans la nouvelle base (`repositories/proprietaireRepository.ts`) : la
+  modification du profil dans Plus fonctionne, et les PDF reprennent ce profil.
+- Base chiffrée par SQLCipher (`useSQLCipher`) avec une clé aléatoire de 256 bits gardée dans le Keystore.
+  La base non chiffrée d'un APK du lot 1 est convertie automatiquement (`sqlcipher_export`), pas effacée.
+
+### Correction d'un défaut du lot 1
+
+Les transactions utilisaient `withExclusiveTransactionAsync`, qui ouvre une seconde connexion SQLite sans
+`PRAGMA foreign_keys` (et, désormais, sans la clé de chiffrement). Remplacé par `src/db/serialized.ts` :
+transactions sur la connexion principale, autres requêtes mises en file d'attente. Testé (concurrence,
+annulation, clés étrangères dans une transaction).
+
+### Vérifications
+
+| Contrôle | Résultat |
+| --- | --- |
+| `tsc --noEmit` | 0 erreur |
+| `jest` | 34 tests sur 34 (PIN, blocage, verrouillage auto, profil, transactions, schéma) |
+| `expo-doctor` | 21/21 |
+| `expo prebuild` | `expo.sqlite.useSQLCipher=true` présent dans la configuration Android |
+| `expo export --platform android` | bundle produit |
+| `expo lint` | 4 erreurs restantes (formulaires des lots 3 et 4), 0 dans le code du lot 2 |
+| Test sur téléphone | **non fait** |
+
+### À vérifier sur le téléphone
+
+- Le chiffrement n'est prouvé que sur un vrai APK : ouvrir l'app, créer des données, la fermer, la rouvrir.
+- Si un APK du lot 1 était installé, vérifier que l'app démarre sans erreur après la mise à jour.
+- Désinstaller l'app efface la clé : la base devient illisible. Les sauvegardes (lot 8) sont donc essentielles.
+
 ## Lot 1 — Socle technique (15 octobre 2026)
 
 **Statut : livré, à valider sur téléphone.** Branche `refonte/lot-1-socle`.
