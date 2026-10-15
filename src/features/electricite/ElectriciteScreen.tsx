@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Zap } from 'lucide-react-native';
+import { Zap } from 'lucide-react-native';
 
-import { Badge, Carte, Chargement, EnTete, EtatErreur, EtatVide } from '../../components/ui/kit';
+import { Badge, BoutonRetour, Carte, Chargement, EnTete, EtatErreur, EtatVide } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { LIBELLES_STOCK } from '../../domain/electricite';
 import { messageErreur } from '../../domain/erreurs';
@@ -27,13 +27,8 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
   const alertes = donnees.filter((s) => s.etat !== 'ok' && s.achetes > 0).length;
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      {onRetour ? (
-        <Pressable onPress={onRetour} accessibilityRole="button" className="flex-row items-center px-4 pt-3">
-          <ChevronLeft size={20} color={colors.primary} />
-          <Text className="text-primary font-medium">Plus</Text>
-        </Pressable>
-      ) : null}
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+      {onRetour ? <BoutonRetour onPress={onRetour} /> : null}
       <EnTete titre="Électricité" sousTitre={donnees.length ? (alertes ? `${alertes} alerte(s) de stock` : 'Tous les stocks sont suffisants') : undefined} />
       {erreur ? (
         <EtatErreur message={messageErreur(erreur, erreur.message)} onReessayer={rafraichir} />

@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
-import { Bouton, Champ, EnTete } from '../../components/ui/kit';
+import { Bouton, BoutonRetour, Champ, EnTete } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { APP_VERSION } from '../../constants';
 import { getDatabase } from '../../db/client';
@@ -21,7 +21,7 @@ import { pinService } from '../../security/native';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../../security/pin';
 import { colors } from '../../theme/colors';
 
-export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
+export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => void; onRetour: () => void }) {
   const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
   const [profil, setProfil] = useState(false);
   const [pin, setPin] = useState(false);
@@ -46,8 +46,9 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <EnTete titre="Plus" />
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+      <BoutonRetour onPress={onRetour} />
+      <EnTete titre="Paramètres" />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 20 }}>
         <Pressable
           onPress={() => setProfil(true)}
@@ -176,7 +177,7 @@ function FormProfil({ proprietaire, onEnregistre }: { proprietaire: Proprietaire
   return (
     <>
       <Text className="text-muted">Ces informations apparaissent sur vos factures et reçus.</Text>
-      <Champ libelle="Nom" obligatoire value={nom} onChangeText={setNom} />
+      <Champ libelle="Nom et prénom(s)" obligatoire value={nom} onChangeText={setNom} />
       <Champ libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" />
       <Champ libelle="Adresse" value={adresse} onChangeText={setAdresse} />
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}

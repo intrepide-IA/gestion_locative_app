@@ -24,6 +24,7 @@ export interface Destinataire {
   nom: string;
   telephone: string | null;
   logement: string;
+  pieceIdentite?: string | null;
 }
 
 export interface DonneesRecu {
@@ -64,6 +65,11 @@ const SYMBOLE = `<svg width="44" height="44" viewBox="0 0 512 512" aria-hidden="
   <path d="M152 458c112-12 214-58 286-130 6 76-42 138-118 156-62 14-122 4-168-26Z" fill="${colors.accent}"/>
 </svg>`;
 
+/** Ligne « libellé : valeur » d'un bloc d'identité ; « non renseigné » si la valeur manque. */
+function ligne(libelle: string, valeur: string | null | undefined): string {
+  return `<div class="ligne"><span>${echapper(libelle)}</span><span>${valeur ? echapper(valeur) : '<i class="muted">non renseigné</i>'}</span></div>`;
+}
+
 function page(titre: string, numero: string, corps: string, d: { emetteur: Emetteur; destinataire: Destinataire }, filigrane?: string) {
   const e = d.emetteur;
   const t = d.destinataire;
@@ -77,7 +83,11 @@ function page(titre: string, numero: string, corps: string, d: { emetteur: Emett
   .muted { color: ${colors.muted}; }
   .doc { text-align: right; }
   .doc h1 { margin: 0; font-size: 22px; color: ${colors.primary}; letter-spacing: 1px; }
-  .blocs { display: flex; gap: 16px; margin: 22px 0; }
+  .blocs { display: flex; gap: 16px; margin: 22px 0 0; }
+  .blocs.details { margin: 12px 0 22px; }
+  .bloc .ligne { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+  .bloc .ligne span:first-child { color: ${colors.muted}; }
+  .bloc .nom { font-size: 15px; font-weight: 700; display: block; margin-bottom: 4px; }
   .bloc { flex: 1; background: ${colors.background}; border-radius: 10px; padding: 12px 14px; }
   .bloc h2 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; color: ${colors.muted}; letter-spacing: .5px; }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -92,15 +102,16 @@ function page(titre: string, numero: string, corps: string, d: { emetteur: Emett
 </style></head><body>
 ${filigrane ? `<div class="filigrane">${echapper(filigrane)}</div>` : ''}
 <div class="entete">
-  <div class="marque">${SYMBOLE}<div><b>${echapper(e.nom)}</b>
-    ${e.telephone ? `<span class="muted">${echapper(e.telephone)}</span><br>` : ''}
-    ${e.adresse ? `<span class="muted">${echapper(e.adresse)}</span>` : ''}</div></div>
+  <div class="marque">${SYMBOLE}<div><b>${echapper(e.nom)}</b><span class="muted">Location de logements</span></div></div>
   <div class="doc"><h1>${echapper(titre)}</h1><div class="muted">N° ${echapper(numero)}</div></div>
 </div>
 <div class="blocs">
-  <div class="bloc"><h2>Locataire</h2><b>${echapper(t.nom)}</b><br>${t.telephone ? `${echapper(t.telephone)}<br>` : ''}Logement : ${echapper(t.logement)}</div>
-  ${corps.split('<!--blocs-->')[0]}
+  <div class="bloc"><h2>Propriétaire (bailleur)</h2><span class="nom">${echapper(e.nom)}</span>
+    ${ligne('Téléphone', e.telephone)}${ligne('Adresse', e.adresse)}</div>
+  <div class="bloc"><h2>Locataire</h2><span class="nom">${echapper(t.nom)}</span>
+    ${ligne('Téléphone', t.telephone)}${ligne('Logement', t.logement)}${ligne('Pièce d’identité', t.pieceIdentite)}</div>
 </div>
+<div class="blocs details">${corps.split('<!--blocs-->')[0]}</div>
 ${corps.split('<!--blocs-->')[1] ?? ''}
 <div class="pied">Document établi avec Onílé — Gérer aujourd’hui, habiter demain.</div>
 </body></html>`;

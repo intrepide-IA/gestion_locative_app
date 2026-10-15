@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from './Text';
-import { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { Check, Delete } from 'lucide-react-native';
 
-import { AnimatedView } from './AnimatedView';
 import { colors } from '../../theme/colors';
 
 function Key({ label, onPress, disabled, accessibilityLabel }: {
@@ -20,7 +19,7 @@ function Key({ label, onPress, disabled, accessibilityLabel }: {
       activeOpacity={0.6}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      className={`w-20 h-20 rounded-full items-center justify-center ${disabled ? 'opacity-30' : ''}`}
+      style={[styles.touche, disabled && styles.inactive]}
     >
       {typeof label === 'string' ? <Text className="text-3xl text-white font-medium">{label}</Text> : label}
     </TouchableOpacity>
@@ -57,37 +56,51 @@ export function PinPad({ value, onChange, length, disabled, onSubmit, canSubmit,
     if (!disabled && value.length < length) onChange(value + digit);
   };
 
-  return (
-    <View className="items-center">
-      <AnimatedView style={shakeStyle} className="flex-row items-center mb-12" accessibilityLabel={`${value.length} chiffre(s) saisi(s)`}>
-        {Array.from({ length }, (_, i) => (
-          <View key={i} className={`w-4 h-4 rounded-full mx-3 ${i < value.length ? 'bg-accent' : 'bg-white/30'}`} />
-        ))}
-      </AnimatedView>
+  const effacer = (
+    <Key
+      label={<Delete size={30} color={colors.white} />}
+      accessibilityLabel="Effacer"
+      onPress={() => onChange(value.slice(0, -1))}
+      disabled={disabled || value.length === 0}
+    />
+  );
+  const gauche = onSubmit ? (
+    <Key label={<Check size={30} color={colors.accent} />} accessibilityLabel="Valider" onPress={onSubmit} disabled={disabled || !canSubmit} />
+  ) : (
+    <View style={styles.touche} />
+  );
+  const rangees: ReactNode[][] = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+  ].map((r) => r.map((d) => <Key key={d} label={d} accessibilityLabel={d} onPress={() => press(d)} disabled={disabled} />));
+  rangees.push([gauche, <Key key="0" label="0" accessibilityLabel="0" onPress={() => press('0')} disabled={disabled} />, effacer]);
 
-      <View className="flex-row flex-wrap justify-center max-w-[300px]">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-          <Key key={d} label={d} accessibilityLabel={d} onPress={() => press(d)} disabled={disabled} />
+  // Mise en page en styles explicites (pas de classes) : grille 3 × 4 identique sur tous les téléphones.
+  return (
+    <View style={styles.centre}>
+      <Animated.View style={[styles.points, shakeStyle]} accessibilityLabel={`${value.length} chiffre(s) saisi(s)`}>
+        {Array.from({ length }, (_, i) => (
+          <View key={i} style={[styles.point, { backgroundColor: i < value.length ? colors.accent : 'rgba(255,255,255,0.3)' }]} />
         ))}
-        {onSubmit ? (
-          <Key
-            label={<Check size={30} color={colors.accent} />}
-            accessibilityLabel="Valider"
-            onPress={onSubmit}
-            disabled={disabled || !canSubmit}
-          />
-        ) : (
-          <View className="w-20 h-20" />
-        )}
-        <Key label="0" accessibilityLabel="0" onPress={() => press('0')} disabled={disabled} />
-        <Key
-          label={<Delete size={30} color={colors.white} />}
-          accessibilityLabel="Effacer"
-          onPress={() => onChange(value.slice(0, -1))}
-          disabled={disabled || value.length === 0}
-        />
-      </View>
+      </Animated.View>
+      {rangees.map((rangee, i) => (
+        <View key={i} style={styles.rangee}>
+          {rangee.map((touche, j) => (
+            <View key={j}>{touche}</View>
+          ))}
+        </View>
+      ))}
     </View>
   );
 }
 
+const TOUCHE = 76;
+const styles = StyleSheet.create({
+  centre: { alignItems: 'center' },
+  points: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
+  point: { width: 16, height: 16, borderRadius: 8, marginHorizontal: 10 },
+  rangee: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 8 },
+  touche: { width: TOUCHE, height: TOUCHE, borderRadius: TOUCHE / 2, alignItems: 'center', justifyContent: 'center' },
+  inactive: { opacity: 0.3 },
+});

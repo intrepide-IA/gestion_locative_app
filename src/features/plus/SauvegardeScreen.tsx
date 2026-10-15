@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Download, ShieldAlert, Upload } from 'lucide-react-native';
+import { Download, ShieldAlert, Upload } from 'lucide-react-native';
 
 import { confirmer, informer } from '../../components/ui/confirmer';
-import { Bouton, Carte, Champ, EnTete, LigneInfo } from '../../components/ui/kit';
+import { Bouton, BoutonRetour, Carte, Champ, EnTete, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { LONGUEUR_MIN_MOT_DE_PASSE } from '../../domain/chiffrementSauvegarde';
 import { messageErreur } from '../../domain/erreurs';
@@ -21,11 +21,8 @@ export function SauvegardeScreen({ onRetour }: { onRetour: () => void }) {
   const derniere = useRessource(lireDerniere, null as string | null);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <Pressable onPress={onRetour} accessibilityRole="button" className="flex-row items-center px-4 pt-3">
-        <ChevronLeft size={20} color={colors.primary} />
-        <Text className="text-primary font-medium">Plus</Text>
-      </Pressable>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+      <BoutonRetour onPress={onRetour} />
       <EnTete
         titre="Sauvegarde"
         sousTitre={derniere.donnees ? `Dernière sauvegarde : ${formatDate(derniere.donnees)}` : 'Aucune sauvegarde réalisée'}

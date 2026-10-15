@@ -1,10 +1,10 @@
 import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
-import { aHeure, rappelsSouhaites } from '../../domain/rappels';
+import { aHeure, alertesEnCours, ecartJours, rappelsSouhaites } from '../../domain/rappels';
 import { acheterElectricite, enregistrerReleve } from '../electriciteRepository';
 import { creerLogement } from '../logementRepository';
 import { entrerLocataire } from '../locataireRepository';
 import { enregistrerPaiement } from '../loyerRepository';
-import { definirNotificationsActives, synchroniserRappels, type Planificateur } from '../rappelsRepository';
+import { definirNotificationsActives, listerAlertes, synchroniserRappels, type Planificateur } from '../rappelsRepository';
 
 function fauxPlanificateur() {
   const programmes = new Map<string, string>();
@@ -88,4 +88,39 @@ test('notifications désactivées : tous les rappels à venir sont annulés', as
   const bilan = await synchroniserRappels(db, p, new Date(2026, 9, 1, 8), '2026-10-01');
   expect(bilan.annules).toBe(4);
   expect(p.programmes.size).toBe(0);
+});
+
+test('alertes en cours : retards d’abord, fins de contrat à 30 jours, sauvegarde ancienne', () => {
+  expect(ecartJours('2026-10-30', '2026-11-02')).toBe(3);
+  const alertes = alertesEnCours(
+    {
+      echeancesImpayees: [
+        { id: 1, date_echeance: '2026-10-17', reste: 5000, locataire_nom: 'Awa', logement_reference: 'A' },
+        { id: 2, date_echeance: '2026-10-05', reste: 26000, locataire_nom: 'Koffi', logement_reference: 'B' },
+        { id: 3, date_echeance: '2026-11-05', reste: 26000, locataire_nom: 'Koffi', logement_reference: 'B' },
+      ],
+      contratsAvecFin: [
+        { id: 7, date_fin: '2026-11-10', locataire_nom: 'Awa', logement_reference: 'A' },
+        { id: 8, date_fin: '2027-06-30', locataire_nom: 'Koffi', logement_reference: 'B' },
+      ],
+      stocks: [{ contrat_id: 1, etat: 'bas', stock: 2.5, locataire_nom: 'Awa', achetes: 10, consommes: 7.5 }],
+      derniereSauvegarde: '2026-08-01T10:00:00.000Z',
+    },
+    '2026-10-15'
+  );
+  expect(alertes.map((a) => [a.cle, a.gravite])).toEqual([
+    ['loyer-2', 'urgent'],
+    ['kwh-1', 'attention'],
+    ['loyer-1', 'attention'],
+    ['fin-7', 'attention'],
+    ['sauvegarde', 'info'],
+  ]);
+  expect(alertes[0].titre).toBe('Loyer en retard de 10 jours');
+  expect(alertes[2].titre).toBe('Loyer attendu dans 2 jours');
+});
+
+test('listerAlertes lit la base : loyer du mois en retard, aucune sauvegarde', async () => {
+  const { db } = await maison();
+  const alertes = await listerAlertes(db, '2026-10-08');
+  expect(alertes.map((a) => a.titre)).toEqual(['Loyer en retard de 3 jours', 'Aucune sauvegarde de vos données']);
 });

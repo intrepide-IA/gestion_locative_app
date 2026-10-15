@@ -21,10 +21,11 @@ export async function donneesRecu(db: SqlDatabase, paiementId: number): Promise<
     motif_annulation: string | null;
     nom_complet: string;
     telephone: string | null;
+    piece_identite: string | null;
     locataire_id: number;
   }>(
     `SELECT r.numero, r.solde_restant, p.date_paiement, p.montant, p.mode, p.reference, p.annule_le, p.motif_annulation,
-            t.nom_complet, t.telephone, t.id AS locataire_id
+            t.nom_complet, t.telephone, t.piece_identite, t.id AS locataire_id
      FROM paiements p JOIN recus r ON r.paiement_id = p.id JOIN locataires t ON t.id = p.locataire_id
      WHERE p.id = ?`,
     [paiementId]
@@ -51,7 +52,7 @@ export async function donneesRecu(db: SqlDatabase, paiementId: number): Promise<
     soldeRestant: p.solde_restant,
     annule: p.annule_le ? { le: p.annule_le, motif: p.motif_annulation ?? '' } : null,
     emetteur: await emetteur(db),
-    destinataire: { nom: p.nom_complet, telephone: p.telephone, logement: logement?.reference ?? '—' },
+    destinataire: { nom: p.nom_complet, telephone: p.telephone, pieceIdentite: p.piece_identite, logement: logement?.reference ?? '—' },
   };
 }
 
@@ -69,10 +70,11 @@ export async function donneesFacture(db: SqlDatabase, numero: string): Promise<D
     date_echeance: string;
     nom_complet: string;
     telephone: string | null;
+    piece_identite: string | null;
     reference: string;
   }>(
     `SELECT f.numero, f.cree_le, f.statut, f.montant, f.echeance_id, e.annee, e.mois, e.loyer, e.toilettes, e.date_echeance,
-            t.nom_complet, t.telephone, l.reference
+            t.nom_complet, t.telephone, t.piece_identite, l.reference
      FROM factures f JOIN echeances e ON e.id = f.echeance_id JOIN contrats c ON c.id = e.contrat_id
      JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
      WHERE f.numero = ?`,
@@ -95,7 +97,7 @@ export async function donneesFacture(db: SqlDatabase, numero: string): Promise<D
     regle: regle?.total ?? 0,
     annulee: f.statut === 'annulee',
     emetteur: await emetteur(db),
-    destinataire: { nom: f.nom_complet, telephone: f.telephone, logement: f.reference },
+    destinataire: { nom: f.nom_complet, telephone: f.telephone, pieceIdentite: f.piece_identite, logement: f.reference },
   };
 }
 
@@ -112,10 +114,11 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     mode: ModePaiement;
     nom_complet: string;
     telephone: string | null;
+    piece_identite: string | null;
     reference: string;
   }>(
     `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode,
-            t.nom_complet, t.telephone, l.reference
+            t.nom_complet, t.telephone, t.piece_identite, l.reference
      FROM achats_electricite a JOIN factures f ON f.achat_electricite_id = a.id
      JOIN contrats c ON c.id = a.contrat_id JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
      WHERE a.id = ? ORDER BY f.id DESC LIMIT 1`,
@@ -133,6 +136,6 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     mode: LIBELLES_MODE[a.mode],
     annulee: a.statut === 'annulee',
     emetteur: await emetteur(db),
-    destinataire: { nom: a.nom_complet, telephone: a.telephone, logement: a.reference },
+    destinataire: { nom: a.nom_complet, telephone: a.telephone, pieceIdentite: a.piece_identite, logement: a.reference },
   };
 }

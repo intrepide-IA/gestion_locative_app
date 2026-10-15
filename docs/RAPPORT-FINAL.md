@@ -28,7 +28,7 @@ faire** : c'est la seule partie que je ne peux pas réaliser moi-même. L'APK 1.
 - Pour en refaire un plus tard : `npx eas-cli@latest build --platform android --profile preview`.
 
 **Important avant de saisir tes vraies données** : désinstaller l'application efface la clé de chiffrement de
-la base. Fais une sauvegarde (Plus → Sauvegarde et restauration) régulièrement et garde le fichier et son mot
+la base. Fais une sauvegarde (Paramètres (roue dentée de l’accueil) → Sauvegarde et restauration) régulièrement et garde le fichier et son mot
 de passe hors du téléphone.
 
 ## À tester sur le téléphone (15 minutes)
@@ -40,7 +40,7 @@ de passe hors du téléphone.
 - [ ] Émettre et partager une facture de loyer.
 - [ ] Vendre des kWh, saisir un relevé ; partager la facture d'électricité.
 - [ ] Ajouter une dépense ; exporter les opérations en CSV.
-- [ ] Plus → Sauvegarde : exporter, puis restaurer le fichier (vérifier que tout revient).
+- [ ] Paramètres (roue dentée de l’accueil) → Sauvegarde : exporter, puis restaurer le fichier (vérifier que tout revient).
 - [ ] Le lendemain d'une échéance non payée : notification de rappel reçue.
 
 ## Ce qui a été livré

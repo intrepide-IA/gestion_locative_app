@@ -3,6 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, Minus, Pencil, Plus } from 'lucide-react-native';
 
+import { Courbe } from '../../components/ui/Courbe';
 import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
 import { DemandeMotif } from '../../components/ui/DemandeMotif';
@@ -35,6 +36,14 @@ type Vue = 'mois' | 'annee';
 type Filtre = 'toutes' | 'entrees' | 'sorties' | 'prevues';
 
 const MOIS_COURTS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+const MOIS_ABREGES = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+
+/** Fenêtre de la courbe : les 6 mois jusqu'au mois choisi, ou toute l'année. */
+function bornesTendance(vue: Vue, annee: number, mois: number) {
+  if (vue === 'annee') return bornes('annee', annee, mois);
+  const debut = new Date(annee, mois - 6, 1);
+  return { debut: `${debut.getFullYear()}-${String(debut.getMonth() + 1).padStart(2, '0')}-01`, fin: bornes('mois', annee, mois).fin };
+}
 
 function bornes(vue: Vue, annee: number, mois: number) {
   if (vue === 'annee') return { debut: `${annee}-01-01`, fin: `${annee}-12-31` };
@@ -47,10 +56,11 @@ interface Donnees {
   tresorerie: number;
   soldeDepart: number;
   rapport: Rapport | null;
+  tendance: Rapport['parMois'];
   mouvements: Mouvement[];
 }
 
-const VIDE: Donnees = { tresorerie: 0, soldeDepart: 0, rapport: null, mouvements: [] };
+const VIDE: Donnees = { tresorerie: 0, soldeDepart: 0, rapport: null, tendance: [], mouvements: [] };
 
 export function FinancesScreen() {
   const maintenant = new Date();
@@ -62,18 +72,20 @@ export function FinancesScreen() {
   const [editionSolde, setEditionSolde] = useState(false);
 
   const p = bornes(vue, periode.annee, periode.mois);
+  const t = bornesTendance(vue, periode.annee, periode.mois);
   const lire = useCallback(
     async (db: SqlDatabase): Promise<Donnees> => {
       await genererEcheances(db, aujourdhui());
-      const [tresorerie, soldeDepart, r, mouvements] = await Promise.all([
+      const [tresorerie, soldeDepart, r, tendance, mouvements] = await Promise.all([
         soldeTresorerie(db),
         soldeInitial(db),
         rapport(db, { debut: p.debut, fin: p.fin }),
+        rapport(db, { debut: t.debut, fin: t.fin }),
         listerMouvements(db, { debut: p.debut, fin: p.fin }),
       ]);
-      return { tresorerie, soldeDepart, rapport: r, mouvements };
+      return { tresorerie, soldeDepart, rapport: r, tendance: tendance.parMois, mouvements };
     },
-    [p.debut, p.fin]
+    [p.debut, p.fin, t.debut, t.fin]
   );
   const { donnees, erreur, rafraichir } = useRessource(lire, VIDE);
   const r = donnees.rapport;
@@ -110,7 +122,8 @@ export function FinancesScreen() {
   };
 
   const libellePeriode = vue === 'annee' ? String(periode.annee) : formatMois(periode.mois, periode.annee);
-  const maxMois = r ? Math.max(1, ...r.parMois.map((m) => Math.max(m.entrees, m.sorties))) : 1;
+  const tendance = donnees.tendance;
+  const surligne = vue === 'mois' ? tendance.findIndex((m) => m.annee === periode.annee && m.mois === periode.mois) : undefined;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -177,6 +190,21 @@ export function FinancesScreen() {
                 <Text className="text-lg font-bold text-ink">{formatFCFA(r.sorties)}</Text>
               </Carte>
             </View>
+            {tendance.length ? (
+              <Carte>
+                <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                  {vue === 'annee' ? `Évolution ${periode.annee}` : 'Évolution sur 6 mois'}
+                </Text>
+                <Courbe
+                  series={[
+                    { libelle: 'Entrées', couleur: colors.secondary, valeurs: tendance.map((m) => m.entrees) },
+                    { libelle: 'Sorties', couleur: colors.danger, valeurs: tendance.map((m) => m.sorties) },
+                  ]}
+                  etiquettes={tendance.map((m) => (vue === 'annee' ? MOIS_COURTS[m.mois - 1] : MOIS_ABREGES[m.mois - 1]))}
+                  surligne={surligne !== undefined && surligne >= 0 ? surligne : undefined}
+                />
+              </Carte>
+            ) : null}
             <Carte>
               <LigneInfo
                 libelle="Résultat de la période"
@@ -190,30 +218,6 @@ export function FinancesScreen() {
               <Text className="text-muted text-xs pt-2">Les impayés sont des sommes dues, pas de l’argent disponible.</Text>
             </Carte>
 
-            {vue === 'annee' ? (
-              <Carte>
-                <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Évolution mensuelle</Text>
-                <View className="flex-row items-end justify-between h-32">
-                  {r.parMois.map((m) => (
-                    <View key={m.mois} className="items-center flex-1">
-                      <View className="flex-row items-end h-28 gap-0.5">
-                        <View className="w-1.5 bg-secondary rounded-t" style={{ height: `${(m.entrees / maxMois) * 100}%` }} />
-                        <View className="w-1.5 bg-danger rounded-t" style={{ height: `${(m.sorties / maxMois) * 100}%` }} />
-                      </View>
-                      <Text className="text-[10px] text-muted mt-1">{MOIS_COURTS[m.mois - 1]}</Text>
-                    </View>
-                  ))}
-                </View>
-                <View className="flex-row gap-4 mt-2">
-                  <Text className="text-xs text-muted">
-                    <Text className="text-secondary">■</Text> Entrées
-                  </Text>
-                  <Text className="text-xs text-muted">
-                    <Text className="text-danger">■</Text> Sorties
-                  </Text>
-                </View>
-              </Carte>
-            ) : null}
 
             {r.parCategorie.length ? (
               <Carte>

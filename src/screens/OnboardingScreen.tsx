@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { Text } from '../components/ui/Text';
 
 import { AnimatedView, FadeInDown } from '../components/ui/AnimatedView';
@@ -64,7 +64,7 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 
   if (step === 'profil') {
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 bg-background">
+      <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
           <AnimatedView entering={FadeInDown.duration(300)} className="items-center mb-8">
             <LogoSymbole taille={88} />

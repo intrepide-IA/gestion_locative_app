@@ -55,5 +55,5 @@ Les tests (`npm test`, 99 tests) exécutent le vrai schéma SQL avec `node:sqlit
 - Base `onile-securise.db` chiffrée (SQLCipher), clé aléatoire dans le Keystore Android.
 - PIN de 4 à 6 chiffres, haché et salé, jamais en clair ; blocage progressif après 5 erreurs ; verrouillage
   au lancement et après 2 minutes en arrière-plan.
-- **Désinstaller l'application efface la clé : faites régulièrement une sauvegarde** (Plus → Sauvegarde) et
+- **Désinstaller l'application efface la clé : faites régulièrement une sauvegarde** (Paramètres (roue dentée de l’accueil) → Sauvegarde) et
   gardez le fichier et son mot de passe hors du téléphone.

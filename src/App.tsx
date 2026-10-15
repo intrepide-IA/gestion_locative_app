@@ -6,11 +6,11 @@ import { Text } from './components/ui/Text';
 import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
-import { LayoutDashboard, Users, Building2, Receipt, Menu, Wallet } from 'lucide-react-native';
+import { LayoutDashboard, Users, Building2, Receipt, Wallet } from 'lucide-react-native';
 
 import { AccueilScreen } from './features/accueil/AccueilScreen';
 import { LocatairesScreen } from './features/locataires/LocatairesScreen';
@@ -20,6 +20,7 @@ import { FinancesScreen } from './features/finances/FinancesScreen';
 import { PlusScreen } from './features/plus/PlusScreen';
 import { ElectriciteScreen } from './features/electricite/ElectriciteScreen';
 import { SauvegardeScreen } from './features/plus/SauvegardeScreen';
+import { NotificationsScreen } from './features/notifications/NotificationsScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
@@ -33,19 +34,6 @@ installerDemo();
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-const PlusPile = createNativeStackNavigator();
-
-/** Onglet Plus : menu, puis écrans secondaires (électricité…). */
-function PlusStack({ onVerrouiller }: { onVerrouiller: () => void }) {
-  return (
-    <PlusPile.Navigator screenOptions={{ headerShown: false }}>
-      <PlusPile.Screen name="PlusMenu">{() => <PlusScreen onVerrouiller={onVerrouiller} />}</PlusPile.Screen>
-      <PlusPile.Screen name="Sauvegarde">{({ navigation }) => <SauvegardeScreen onRetour={() => navigation.popTo('PlusMenu')} />}</PlusPile.Screen>
-      <PlusPile.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={() => navigation.popTo('PlusMenu')} />}</PlusPile.Screen>
-    </PlusPile.Navigator>
-  );
-}
-
 const navigationTheme: Theme = {
   ...DefaultTheme,
   colors: {
@@ -59,7 +47,9 @@ const navigationTheme: Theme = {
   },
 };
 
-function MainTabs({ onLogout }: { onLogout: () => void }) {
+/** Cinq onglets au plus ; le reste (paramètres, électricité, sauvegarde) s'ouvre depuis l'accueil. */
+function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -68,13 +58,13 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
           backgroundColor: colors.white,
           borderTopWidth: 0,
           elevation: 10,
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 10,
+          height: 68 + insets.bottom,
+          paddingBottom: insets.bottom + 10,
+          paddingTop: 8,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 9.5, fontFamily: 'Inter', fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter', fontWeight: '600' },
         tabBarItemStyle: { paddingHorizontal: 0 },
       }}
     >
@@ -118,15 +108,6 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
           tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
         }}
       />
-      <Tab.Screen
-        name="Settings"
-        options={{
-          title: 'Plus',
-          tabBarIcon: ({ color, size }) => <Menu size={size} color={color} />,
-        }}
-      >
-        {() => <PlusStack onVerrouiller={onLogout} />}
-      </Tab.Screen>
     </Tab.Navigator>
   );
 }
@@ -211,13 +192,21 @@ export default function App() {
     <SafeAreaProvider>
         <NavigationContainer theme={navigationTheme}>
           <StatusBar style={access === 'unlocked' ? 'dark' : 'light'} />
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             {access === 'onboarding' ? (
               <Stack.Screen name="Onboarding">{() => <OnboardingScreen onDone={unlock} />}</Stack.Screen>
             ) : access === 'locked' ? (
               <Stack.Screen name="Pin">{() => <PinScreen onSuccess={unlock} />}</Stack.Screen>
             ) : (
-              <Stack.Screen name="Main">{() => <MainTabs onLogout={lock} />}</Stack.Screen>
+              <>
+                <Stack.Screen name="Main" component={MainTabs} />
+                <Stack.Screen name="Parametres">
+                  {({ navigation }) => <PlusScreen onVerrouiller={lock} onRetour={navigation.goBack} />}
+                </Stack.Screen>
+                <Stack.Screen name="Notifications">{({ navigation }) => <NotificationsScreen onRetour={navigation.goBack} />}</Stack.Screen>
+                <Stack.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={navigation.goBack} />}</Stack.Screen>
+                <Stack.Screen name="Sauvegarde">{({ navigation }) => <SauvegardeScreen onRetour={navigation.goBack} />}</Stack.Screen>
+              </>
             )}
           </Stack.Navigator>
         </NavigationContainer>

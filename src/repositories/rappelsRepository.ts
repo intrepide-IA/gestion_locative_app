@@ -4,7 +4,7 @@
  * un rappel déjà programmé ou déjà affiché (table notifications_programmees).
  */
 import type { SqlDatabase } from '../db/types';
-import { rappelsSouhaites, type DonneesRappels, type RappelSouhaite } from '../domain/rappels';
+import { alertesEnCours, rappelsSouhaites, type Alerte, type DonneesRappels, type RappelSouhaite } from '../domain/rappels';
 import { listerSituationsElectricite } from './electriciteRepository';
 import { genererEcheances } from './loyerRepository';
 
@@ -43,6 +43,13 @@ async function lireDonnees(db: SqlDatabase, aujourdhui: string): Promise<Donnees
   );
   const stocks = await listerSituationsElectricite(db);
   return { echeancesImpayees, contratsAvecFin, stocks };
+}
+
+/** Alertes affichées sur la page Notifications (et la pastille de la cloche). */
+export async function listerAlertes(db: SqlDatabase, aujourdhui: string): Promise<Alerte[]> {
+  const donnees = await lireDonnees(db, aujourdhui);
+  const sauvegarde = await db.get<{ valeur: string }>("SELECT valeur FROM parametres WHERE cle = 'derniere_sauvegarde'");
+  return alertesEnCours({ ...donnees, derniereSauvegarde: sauvegarde?.valeur ?? null }, aujourdhui);
 }
 
 export interface BilanSynchronisation {

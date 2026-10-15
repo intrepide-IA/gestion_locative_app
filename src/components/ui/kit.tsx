@@ -3,7 +3,7 @@
  */
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View, type TextInputProps } from 'react-native';
-import { AlertCircle, CheckCircle2, Plus, Search, TriangleAlert } from 'lucide-react-native';
+import { AlertCircle, CheckCircle2, ChevronLeft, Plus, Search, TriangleAlert } from 'lucide-react-native';
 
 import { Text } from './Text';
 import { FONT_FAMILY } from '../../theme/fonts';
@@ -250,6 +250,16 @@ export function Choix<T extends string | number>({
       </View>
       {erreur ? <Text className="text-danger text-xs mt-1">{erreur}</Text> : null}
     </View>
+  );
+}
+
+/** Lien « Retour » en haut des écrans ouverts par-dessus les onglets. */
+export function BoutonRetour({ onPress, libelle = 'Retour' }: { onPress: () => void; libelle?: string }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={10} className="flex-row items-center self-start px-4 pt-3">
+      <ChevronLeft size={20} color={colors.primary} />
+      <Text className="text-primary font-medium">{libelle}</Text>
+    </Pressable>
   );
 }
 
