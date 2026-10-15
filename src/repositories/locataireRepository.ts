@@ -1,6 +1,7 @@
 import type { SqlDatabase } from '../db/types';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
 import { prochainNumero } from './numerotation';
+import { enregistrerPaiementDans, situationLocataire } from './loyerRepository';
 
 export type StatutLocataire = 'actif' | 'contrat_termine' | 'parti';
 
@@ -30,6 +31,10 @@ export interface Contrat {
   jour_echeance: number;
   statut: 'actif' | 'termine';
   cree_le: string;
+  caution_retenue_impayes: number;
+  caution_retenue_reparations: number;
+  motif_retenue: string | null;
+  caution_rendue: number;
 }
 
 /** Locataire avec son contrat le plus récent (actif de préférence) et le logement associé. */
@@ -204,27 +209,69 @@ export async function modifierConditionsContrat(
   });
 }
 
+/** Décompte de la caution au départ : retenues (impayés, réparations) et somme rendue. */
+export interface SoldeCaution {
+  /** Part de la caution qui règle les loyers impayés (sans nouvelle entrée en trésorerie). */
+  retenueImpayes?: number;
+  /** Part gardée pour réparer les dégradations. */
+  retenueReparations?: number;
+  motifReparations?: string | null;
+  /** Part rendue au locataire (sortie de trésorerie). */
+  cautionRendue?: number;
+}
+
+/** Proposition de décompte : impayés d'abord, puis réparations, le reste est rendu. */
+export function proposerSoldeCaution(caution: number, dette: number, reparations: number) {
+  const retenueImpayes = Math.min(caution, Math.max(0, dette));
+  const retenueReparations = Math.min(caution - retenueImpayes, Math.max(0, reparations));
+  const cautionRendue = caution - retenueImpayes - retenueReparations;
+  return { retenueImpayes, retenueReparations, cautionRendue, resteDu: Math.max(0, dette - retenueImpayes) };
+}
+
 /**
  * Départ du locataire : le contrat est terminé à la date de sortie, le logement redevient libre.
- * Rien n'est supprimé : contrats, paiements et factures restent dans l'historique.
+ * La caution n'est jamais comptée comme un loyer : au départ, on en retient les impayés et les
+ * réparations, on rend le reste. Rien n'est supprimé : l'historique est conservé.
  */
 export async function terminerContrat(
   db: SqlDatabase,
   contratId: number,
   dateSortie: string,
-  /** Part de la caution rendue au locataire (sortie de trésorerie). */
-  cautionRestituee = 0,
+  /** Décompte de la caution (ou, par compatibilité, la seule somme rendue). */
+  solde: SoldeCaution | number = 0,
   maintenant = new Date().toISOString()
 ): Promise<void> {
   const sortie = exigerDate(dateSortie, 'Date de sortie');
-  exigerMontant(cautionRestituee, 'Caution restituée');
+  const d: SoldeCaution = typeof solde === 'number' ? { cautionRendue: solde } : solde;
+  const retenueImpayes = exigerMontant(d.retenueImpayes ?? 0, 'Retenue pour impayés');
+  const retenueReparations = exigerMontant(d.retenueReparations ?? 0, 'Retenue pour réparations');
+  const cautionRestituee = exigerMontant(d.cautionRendue ?? 0, 'Caution restituée');
+  if (retenueReparations > 0 && !texteOuNull(d.motifReparations)) throw new ErreurMetier('Précisez les réparations retenues sur la caution.');
   await db.transaction(async (tx) => {
     const contrat = await tx.get<Contrat>('SELECT * FROM contrats WHERE id = ?', [contratId]);
     if (!contrat) throw new ErreurMetier('Contrat introuvable.');
     if (contrat.statut !== 'actif') throw new ErreurMetier('Ce contrat est déjà terminé.');
     if (sortie < contrat.date_debut) throw new ErreurMetier('La date de sortie précède la date d’entrée.');
-    if (cautionRestituee > contrat.caution) throw new ErreurMetier('La somme rendue dépasse la caution reçue.');
-    await tx.run("UPDATE contrats SET statut = 'termine', date_sortie = ? WHERE id = ?", [sortie, contratId]);
+    if (retenueImpayes + retenueReparations + cautionRestituee > contrat.caution) {
+      throw new ErreurMetier(`Retenues et somme rendue dépassent la caution reçue (${contrat.caution} FCFA).`);
+    }
+    if (retenueImpayes > 0) {
+      const dette = await situationLocataire(tx, contrat.locataire_id);
+      if (retenueImpayes > dette.dette) throw new ErreurMetier('La retenue pour impayés dépasse ce que le locataire doit.');
+      await enregistrerPaiementDans(
+        tx,
+        { locataireId: contrat.locataire_id, montant: retenueImpayes, mode: 'autre', datePaiement: sortie, note: 'Retenue sur la caution' },
+        sortie,
+        retenueImpayes,
+        maintenant,
+        { tresorerie: false }
+      );
+    }
+    await tx.run(
+      `UPDATE contrats SET statut = 'termine', date_sortie = ?, caution_retenue_impayes = ?, caution_retenue_reparations = ?,
+         motif_retenue = ?, caution_rendue = ? WHERE id = ?`,
+      [sortie, retenueImpayes, retenueReparations, texteOuNull(d.motifReparations), cautionRestituee, contratId]
+    );
     await tx.run("UPDATE locataires SET statut = 'parti' WHERE id = ?", [contrat.locataire_id]);
     if (cautionRestituee > 0) {
       const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'restitution_caution'");

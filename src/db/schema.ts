@@ -300,10 +300,22 @@ CREATE TABLE etats_des_lieux (
 );
 `;
 
+/**
+ * V4 : décompte de la caution au départ. La caution est un fonds de garantie, jamais un loyer :
+ * au départ, on en retient les loyers impayés et les réparations, et on rend le reste.
+ */
+const V4 = `
+ALTER TABLE contrats ADD COLUMN caution_retenue_impayes INTEGER NOT NULL DEFAULT 0 CHECK (caution_retenue_impayes >= 0);
+ALTER TABLE contrats ADD COLUMN caution_retenue_reparations INTEGER NOT NULL DEFAULT 0 CHECK (caution_retenue_reparations >= 0);
+ALTER TABLE contrats ADD COLUMN motif_retenue TEXT;
+ALTER TABLE contrats ADD COLUMN caution_rendue INTEGER NOT NULL DEFAULT 0 CHECK (caution_rendue >= 0);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, description: 'Schéma initial Onílé', sql: V1 },
   { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
   { version: 3, description: 'État des lieux d’entrée et de sortie', sql: V3 },
+  { version: 4, description: 'Décompte de la caution au départ', sql: V4 },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

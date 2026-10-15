@@ -21,10 +21,12 @@ import {
   modifierConditionsContrat,
   modifierFicheLocataire,
   retirerLocataire,
+  proposerSoldeCaution,
   terminerContrat,
   type Contrat,
   type LocataireAvecContrat,
 } from '../../repositories/locataireRepository';
+import { degradations, getEtatDesLieux } from '../../repositories/etatDesLieuxRepository';
 import { colors } from '../../theme/colors';
 import { preparerRecu } from '../../documents';
 import { useApercu } from '../../components/documents/Apercu';
@@ -416,23 +418,48 @@ function FormConditions({ contrat, onEnregistre }: { contrat: Contrat; onEnregis
 
 function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: string; onEnregistre: () => void }) {
   const [date, setDate] = useState(aujourdhui());
-  const [rendu, setRendu] = useState('');
+  const lire = useCallback(
+    async (db: SqlDatabase) => {
+      const [situation, entree, sortie] = await Promise.all([
+        situationLocataire(db, contrat.locataire_id),
+        getEtatDesLieux(db, contrat.id, 'entree', aujourdhui()),
+        getEtatDesLieux(db, contrat.id, 'sortie', aujourdhui()),
+      ]);
+      return {
+        dette: situation.dette,
+        degradations: entree.enregistre && sortie.enregistre ? degradations(entree.elements, sortie.elements) : [],
+      };
+    },
+    [contrat.id, contrat.locataire_id]
+  );
+  const { donnees, chargement } = useRessource(lire, { dette: 0, degradations: [] as ReturnType<typeof degradations> });
+  const [reparations, setReparations] = useState('');
+  const [motif, setMotif] = useState('');
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
 
+  const montantReparations = reparations.trim() === '' ? 0 : lireMontant(reparations);
+  const d = proposerSoldeCaution(contrat.caution, donnees.dette, montantReparations ?? 0);
+
   const enregistrer = async () => {
-    const montantRendu = rendu.trim() === '' ? 0 : lireMontant(rendu);
-    if (montantRendu === null) return setErreur('Montant de caution rendu invalide.');
+    if (montantReparations === null) return setErreur('Montant des réparations invalide.');
     const ok = await confirmer(
       'Confirmer le départ ?',
-      `Le contrat de ${nom} sera terminé le ${formatDate(date)} et le logement redeviendra libre. L’historique est conservé.`,
+      `Le contrat de ${nom} sera terminé le ${formatDate(date)}. Caution : ${formatFCFA(d.retenueImpayes)} pour les impayés, ${formatFCFA(
+        d.retenueReparations
+      )} pour les réparations, ${formatFCFA(d.cautionRendue)} rendus au locataire.`,
       'Confirmer le départ'
     );
     if (!ok) return;
     setEnCours(true);
     setErreur('');
     try {
-      await terminerContrat(await getDatabase(), contrat.id, date, montantRendu);
+      await terminerContrat(await getDatabase(), contrat.id, date, {
+        retenueImpayes: d.retenueImpayes,
+        retenueReparations: d.retenueReparations,
+        motifReparations: motif,
+        cautionRendue: d.cautionRendue,
+      });
       onEnregistre();
     } catch (error) {
       setErreur(messageErreur(error, 'Enregistrement impossible.'));
@@ -440,20 +467,44 @@ function FormDepart({ contrat, nom, onEnregistre }: { contrat: Contrat; nom: str
     }
   };
 
+  if (chargement) return <Chargement />;
+
   return (
     <>
       <Text className="text-muted">
-        Le contrat est terminé à cette date et le logement redevient libre. Les échéances jusqu’au mois de sortie restent dues.
+        Le contrat est terminé à cette date et le logement redevient libre. La caution n’est pas un loyer : on en retire les loyers impayés et
+        les réparations, et on rend le reste.
       </Text>
       <ChampDate libelle="Date de sortie" valeur={date} onChange={setDate} minimum={contrat.date_debut} />
+      {donnees.degradations.length ? (
+        <View className="rounded-xl p-3 bg-danger/10">
+          <Text className="font-semibold text-danger">Dégradations constatées (état des lieux)</Text>
+          {donnees.degradations.map((g) => (
+            <Text key={g.element} className="text-ink text-sm">
+              • {g.element}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       <Champ
-        libelle="Caution rendue au locataire (FCFA)"
-        value={rendu}
-        onChangeText={setRendu}
+        libelle="Coût des réparations (FCFA)"
+        value={reparations}
+        onChangeText={setReparations}
         keyboardType="number-pad"
         placeholder="0"
-        aide={`Caution reçue : ${formatFCFA(contrat.caution)}. La somme rendue est enregistrée en dépense.`}
+        aide="Dégradations à réparer aux frais du locataire."
       />
+      {montantReparations ? <Champ libelle="Réparations concernées" obligatoire value={motif} onChangeText={setMotif} placeholder="Ex. porte, robinet" /> : null}
+      <Carte>
+        <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Décompte de la caution</Text>
+        <LigneInfo libelle="Caution versée à l’entrée" valeur={formatFCFA(contrat.caution)} />
+        <LigneInfo libelle="− Loyers impayés" valeur={formatFCFA(d.retenueImpayes)} />
+        <LigneInfo libelle="− Réparations" valeur={formatFCFA(d.retenueReparations)} />
+        <LigneInfo libelle="À rendre au locataire" valeur={<Text className="font-bold text-primary">{formatFCFA(d.cautionRendue)}</Text>} />
+        {d.resteDu > 0 ? (
+          <Text className="text-danger text-sm pt-2">La caution ne suffit pas : {nom} doit encore {formatFCFA(d.resteDu)} de loyers.</Text>
+        ) : null}
+      </Carte>
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
       <Bouton titre="Enregistrer le départ" variante="danger" onPress={enregistrer} chargement={enCours} />
     </>

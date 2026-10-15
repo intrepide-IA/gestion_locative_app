@@ -4,7 +4,15 @@
  * la part non affectée d'un paiement forme un crédit, affecté ensuite aux échéances suivantes.
  */
 import type { SqlDatabase } from '../db/types';
-import { dateEcheance, echeancier, etatEcheance, moisEntre, premierMoisFacture, type Echeancier, type EtatEcheance } from '../domain/echeances';
+import {
+  dateEcheance,
+  echeancier,
+  etatEcheance,
+  moisEntre,
+  premierMoisFacture,
+  type Echeancier,
+  type EtatEcheance,
+} from '../domain/echeances';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
 import { prochainNumero } from './numerotation';
 
@@ -77,10 +85,12 @@ const SELECT_ECHEANCES = `
 
 type LigneEcheance = Omit<EcheanceDetaillee, keyof EtatEcheance>;
 
-const avecEtat = (aujourdhui: string) => (e: LigneEcheance): EcheanceDetaillee => ({
-  ...e,
-  ...etatEcheance(e.montant_du, e.paye, e.date_echeance, aujourdhui),
-});
+const avecEtat =
+  (aujourdhui: string) =>
+  (e: LigneEcheance): EcheanceDetaillee => ({
+    ...e,
+    ...etatEcheance(e.montant_du, e.paye, e.date_echeance, aujourdhui),
+  });
 
 /* ---------- Génération des échéances ---------- */
 
@@ -89,7 +99,11 @@ const avecEtat = (aujourdhui: string) => (e: LigneEcheance): EcheanceDetaillee =
  * et jusqu'au mois de sortie pour un contrat terminé. Idempotent : relancer ne crée aucun doublon.
  * Applique ensuite les crédits disponibles aux nouvelles échéances.
  */
-export async function genererEcheances(db: SqlDatabase, aujourdhui: string, maintenant = new Date().toISOString()): Promise<number> {
+export async function genererEcheances(
+  db: SqlDatabase,
+  aujourdhui: string,
+  maintenant = new Date().toISOString()
+): Promise<number> {
   return db.transaction(async (tx) => {
     const contrats = await tx.all<{
       id: number;
@@ -105,13 +119,27 @@ export async function genererEcheances(db: SqlDatabase, aujourdhui: string, main
     let creees = 0;
     const locatairesConcernes = new Set<number>();
     for (const c of contrats) {
-      const fin = c.statut === 'termine' && c.date_sortie ? (c.date_sortie < aujourdhui ? c.date_sortie : aujourdhui) : aujourdhui;
+      const fin =
+        c.statut === 'termine' && c.date_sortie
+          ? c.date_sortie < aujourdhui
+            ? c.date_sortie
+            : aujourdhui
+          : aujourdhui;
       if (fin < c.date_debut) continue;
       for (const { annee, mois } of moisEntre(premierMoisFacture(c.date_debut), fin)) {
         const { changes } = await tx.run(
           `INSERT OR IGNORE INTO echeances (contrat_id, annee, mois, loyer, toilettes, montant_du, date_echeance, cree_le)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [c.id, annee, mois, c.loyer, c.toilettes, c.loyer + c.toilettes, dateEcheance(annee, mois, c.jour_echeance, c.date_debut), maintenant]
+          [
+            c.id,
+            annee,
+            mois,
+            c.loyer,
+            c.toilettes,
+            c.loyer + c.toilettes,
+            dateEcheance(annee, mois, c.jour_echeance, c.date_debut),
+            maintenant,
+          ]
         );
         if (changes > 0) {
           creees += 1;
@@ -137,7 +165,13 @@ async function appliquerCredits(tx: SqlDatabase, locataireId: number, maintenant
 }
 
 /** Répartit `montant` du paiement sur les échéances impayées du locataire ; renvoie ce qui reste non affecté. */
-async function affecter(tx: SqlDatabase, locataireId: number, paiementId: number, montant: number, maintenant: string): Promise<number> {
+async function affecter(
+  tx: SqlDatabase,
+  locataireId: number,
+  paiementId: number,
+  montant: number,
+  maintenant: string
+): Promise<number> {
   const impayees = await tx.all<{ id: number; reste: number }>(
     `SELECT e.id, e.montant_du - COALESCE(pe.paye, 0) AS reste
      FROM echeances e JOIN contrats c ON c.id = e.contrat_id
@@ -163,18 +197,28 @@ async function affecter(tx: SqlDatabase, locataireId: number, paiementId: number
 
 /* ---------- Lecture ---------- */
 
-export async function listerEcheancesDuMois(db: SqlDatabase, annee: number, mois: number, aujourdhui: string): Promise<EcheanceDetaillee[]> {
-  const lignes = await db.all<LigneEcheance>(`${SELECT_ECHEANCES} WHERE e.annee = ? AND e.mois = ? ORDER BY l.reference COLLATE NOCASE`, [
-    annee,
-    mois,
-  ]);
+export async function listerEcheancesDuMois(
+  db: SqlDatabase,
+  annee: number,
+  mois: number,
+  aujourdhui: string
+): Promise<EcheanceDetaillee[]> {
+  const lignes = await db.all<LigneEcheance>(
+    `${SELECT_ECHEANCES} WHERE e.annee = ? AND e.mois = ? ORDER BY l.reference COLLATE NOCASE`,
+    [annee, mois]
+  );
   return lignes.map(avecEtat(aujourdhui));
 }
 
-export async function echeancesDuLocataire(db: SqlDatabase, locataireId: number, aujourdhui: string): Promise<EcheanceDetaillee[]> {
-  const lignes = await db.all<LigneEcheance>(`${SELECT_ECHEANCES} WHERE c.locataire_id = ? ORDER BY e.annee DESC, e.mois DESC`, [
-    locataireId,
-  ]);
+export async function echeancesDuLocataire(
+  db: SqlDatabase,
+  locataireId: number,
+  aujourdhui: string
+): Promise<EcheanceDetaillee[]> {
+  const lignes = await db.all<LigneEcheance>(
+    `${SELECT_ECHEANCES} WHERE c.locataire_id = ? ORDER BY e.annee DESC, e.mois DESC`,
+    [locataireId]
+  );
   return lignes.map(avecEtat(aujourdhui));
 }
 
@@ -192,7 +236,10 @@ export async function paiementsDuLocataire(db: SqlDatabase, locataireId: number)
   );
 }
 
-export async function paiementsDeLEcheance(db: SqlDatabase, echeanceId: number): Promise<(PaiementDetaille & { part: number })[]> {
+export async function paiementsDeLEcheance(
+  db: SqlDatabase,
+  echeanceId: number
+): Promise<(PaiementDetaille & { part: number })[]> {
   return db.all(
     `SELECT p.*, r.numero AS recu_numero, a.montant AS part, a.montant AS affecte
      FROM affectations a JOIN paiements p ON p.id = a.paiement_id LEFT JOIN recus r ON r.paiement_id = p.id
@@ -224,11 +271,16 @@ export interface SyntheseMois {
   enRetard: number;
 }
 
-export async function syntheseDuMois(db: SqlDatabase, annee: number, mois: number, aujourdhui: string): Promise<SyntheseMois> {
+export async function syntheseDuMois(
+  db: SqlDatabase,
+  annee: number,
+  mois: number,
+  aujourdhui: string
+): Promise<SyntheseMois> {
   const echeances = await listerEcheancesDuMois(db, annee, mois, aujourdhui);
   const p = (n: number) => String(n).padStart(2, '0');
   const encaisse = await db.get<{ total: number }>(
-    "SELECT COALESCE(SUM(montant), 0) AS total FROM paiements WHERE annule_le IS NULL AND substr(date_paiement, 1, 7) = ?",
+    'SELECT COALESCE(SUM(montant), 0) AS total FROM paiements WHERE annule_le IS NULL AND substr(date_paiement, 1, 7) = ?',
     [`${annee}-${p(mois)}`]
   );
   return {
@@ -273,50 +325,73 @@ export async function enregistrerPaiement(
   const date = exigerDate(p.datePaiement, 'Date du paiement');
   if (!(p.mode in LIBELLES_MODE)) throw new ErreurMetier('Mode de paiement inconnu.');
 
-  return db.transaction(async (tx) => {
-    const locataire = await tx.get<{ id: number }>('SELECT id FROM locataires WHERE id = ?', [p.locataireId]);
-    if (!locataire) throw new ErreurMetier('Locataire introuvable.');
+  return db.transaction((tx) => enregistrerPaiementDans(tx, p, date, montant, maintenant, { tresorerie: true }));
+}
 
-    const { lastInsertRowId: paiementId } = await tx.run(
-      'INSERT INTO paiements (locataire_id, date_paiement, montant, mode, reference, note, cree_le) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [p.locataireId, date, montant, p.mode, texteOuNull(p.reference), texteOuNull(p.note), maintenant]
-    );
-    const credit = await affecter(tx, p.locataireId, paiementId, montant, maintenant);
+/** Corps de l'enregistrement d'un paiement, dans une transaction déjà ouverte. */
+export async function enregistrerPaiementDans(
+  tx: SqlDatabase,
+  p: NouveauPaiement,
+  date: string,
+  montant: number,
+  maintenant: string,
+  options: { tresorerie: boolean }
+): Promise<ResultatPaiement> {
+  const locataire = await tx.get<{ id: number }>('SELECT id FROM locataires WHERE id = ?', [p.locataireId]);
+  if (!locataire) throw new ErreurMetier('Locataire introuvable.');
 
+  const { lastInsertRowId: paiementId } = await tx.run(
+    'INSERT INTO paiements (locataire_id, date_paiement, montant, mode, reference, note, cree_le) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [p.locataireId, date, montant, p.mode, texteOuNull(p.reference), texteOuNull(p.note), maintenant]
+  );
+  const credit = await affecter(tx, p.locataireId, paiementId, montant, maintenant);
+
+  // Une retenue sur la caution règle le loyer sans nouvelle entrée d'argent : la caution est déjà en trésorerie.
+  if (options.tresorerie) {
     const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'loyer'");
     await tx.run(
       `INSERT INTO mouvements_financiers (date_operation, sens, montant, categorie_id, mode, description, origine_type, origine_id, statut, cree_le)
-       VALUES (?, 'entree', ?, ?, ?, 'Paiement de loyer', 'paiement', ?, 'valide', ?)`,
+     VALUES (?, 'entree', ?, ?, ?, 'Paiement de loyer', 'paiement', ?, 'valide', ?)`,
       [date, montant, categorie!.id, p.mode, paiementId, maintenant]
     );
+  }
 
-    const situation = await situationLocataire(tx, p.locataireId);
-    const recuNumero = await prochainNumero(tx, 'REC', Number(date.slice(0, 4)));
-    await tx.run('INSERT INTO recus (numero, paiement_id, montant, solde_restant, cree_le) VALUES (?, ?, ?, ?, ?)', [
-      recuNumero,
-      paiementId,
-      montant,
-      situation.dette,
-      maintenant,
-    ]);
-    return { paiementId, recuNumero, credit, dette: situation.dette };
-  });
+  const situation = await situationLocataire(tx, p.locataireId);
+  const recuNumero = await prochainNumero(tx, 'REC', Number(date.slice(0, 4)));
+  await tx.run('INSERT INTO recus (numero, paiement_id, montant, solde_restant, cree_le) VALUES (?, ?, ?, ?, ?)', [
+    recuNumero,
+    paiementId,
+    montant,
+    situation.dette,
+    maintenant,
+  ]);
+  return { paiementId, recuNumero, credit, dette: situation.dette };
 }
 
 /**
  * Annule un paiement (erreur de saisie) : il reste dans l'historique avec son motif, ne compte plus
  * dans les règlements ni dans la trésorerie. Son reçu garde son numéro.
  */
-export async function annulerPaiement(db: SqlDatabase, paiementId: number, motif: string, maintenant = new Date().toISOString()): Promise<void> {
+export async function annulerPaiement(
+  db: SqlDatabase,
+  paiementId: number,
+  motif: string,
+  maintenant = new Date().toISOString()
+): Promise<void> {
   const raison = motif.trim();
   if (!raison) throw new ErreurMetier('Indiquez le motif de l’annulation.');
   await db.transaction(async (tx) => {
-    const p = await tx.get<{ locataire_id: number; annule_le: string | null }>('SELECT locataire_id, annule_le FROM paiements WHERE id = ?', [
-      paiementId,
-    ]);
+    const p = await tx.get<{ locataire_id: number; annule_le: string | null }>(
+      'SELECT locataire_id, annule_le FROM paiements WHERE id = ?',
+      [paiementId]
+    );
     if (!p) throw new ErreurMetier('Paiement introuvable.');
     if (p.annule_le) throw new ErreurMetier('Ce paiement est déjà annulé.');
-    await tx.run('UPDATE paiements SET annule_le = ?, motif_annulation = ? WHERE id = ?', [maintenant, raison, paiementId]);
+    await tx.run('UPDATE paiements SET annule_le = ?, motif_annulation = ? WHERE id = ?', [
+      maintenant,
+      raison,
+      paiementId,
+    ]);
     await tx.run(
       "UPDATE mouvements_financiers SET statut = 'annule', motif_annulation = ? WHERE origine_type = 'paiement' AND origine_id = ?",
       [raison, paiementId]
@@ -327,9 +402,16 @@ export async function annulerPaiement(db: SqlDatabase, paiementId: number, motif
 }
 
 /** Facture de loyer d'une échéance (montant dû). Réutilise la facture existante si elle a déjà été émise. */
-export async function emettreFactureLoyer(db: SqlDatabase, echeanceId: number, maintenant = new Date().toISOString()): Promise<string> {
+export async function emettreFactureLoyer(
+  db: SqlDatabase,
+  echeanceId: number,
+  maintenant = new Date().toISOString()
+): Promise<string> {
   return db.transaction(async (tx) => {
-    const existante = await tx.get<{ numero: string }>("SELECT numero FROM factures WHERE echeance_id = ? AND statut = 'emise'", [echeanceId]);
+    const existante = await tx.get<{ numero: string }>(
+      "SELECT numero FROM factures WHERE echeance_id = ? AND statut = 'emise'",
+      [echeanceId]
+    );
     if (existante) return existante.numero;
     const e = await tx.get<{ montant_du: number; annee: number; locataire_id: number }>(
       'SELECT e.montant_du, e.annee, c.locataire_id FROM echeances e JOIN contrats c ON c.id = e.contrat_id WHERE e.id = ?',
@@ -349,15 +431,20 @@ export async function emettreFactureLoyer(db: SqlDatabase, echeanceId: number, m
 export async function annulerFacture(db: SqlDatabase, numero: string, motif: string): Promise<void> {
   const raison = motif.trim();
   if (!raison) throw new ErreurMetier('Indiquez le motif de l’annulation.');
-  const { changes } = await db.run("UPDATE factures SET statut = 'annulee', motif_annulation = ? WHERE numero = ? AND statut = 'emise'", [
-    raison,
-    numero,
-  ]);
+  const { changes } = await db.run(
+    "UPDATE factures SET statut = 'annulee', motif_annulation = ? WHERE numero = ? AND statut = 'emise'",
+    [raison, numero]
+  );
   if (changes === 0) throw new ErreurMetier('Facture introuvable ou déjà annulée.');
 }
 
 /** Échéancier du locataire : échéances créées + 12 mois à venir (couverts ou non par son avance). */
-export async function echeancierDuLocataire(db: SqlDatabase, locataireId: number, aujourdhui: string, moisFuturs = 12): Promise<Echeancier> {
+export async function echeancierDuLocataire(
+  db: SqlDatabase,
+  locataireId: number,
+  aujourdhui: string,
+  moisFuturs = 12
+): Promise<Echeancier> {
   const [echeances, situation, contrat] = await Promise.all([
     echeancesDuLocataire(db, locataireId, aujourdhui),
     situationLocataire(db, locataireId),
@@ -391,7 +478,12 @@ export interface PrevisionMois {
  * Mois pas encore facturé (à venir) : pour chaque contrat actif, ce qui sera dû et la part déjà
  * payée d'avance. Permet de voir dès aujourd'hui qu'un locataire a déjà réglé un mois futur.
  */
-export async function previsionsDuMois(db: SqlDatabase, annee: number, mois: number, aujourdhui: string): Promise<PrevisionMois[]> {
+export async function previsionsDuMois(
+  db: SqlDatabase,
+  annee: number,
+  mois: number,
+  aujourdhui: string
+): Promise<PrevisionMois[]> {
   const contrats = await db.all<{ locataire_id: number; locataire_nom: string; logement_reference: string }>(
     `SELECT c.locataire_id, t.nom_complet AS locataire_nom, l.reference AS logement_reference
      FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id

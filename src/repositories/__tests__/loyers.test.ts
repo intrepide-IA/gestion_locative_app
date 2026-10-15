@@ -2,7 +2,8 @@ import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
 import type { SqlDatabase } from '../../db/types';
 import { dateEcheance, etatEcheance, jourEcheanceParDefaut, moisEntre, payeJusquaApres, premierMoisFacture } from '../../domain/echeances';
 import { creerLogement } from '../logementRepository';
-import { entrerLocataire, modifierConditionsContrat, terminerContrat, type ConditionsContrat } from '../locataireRepository';
+import { entrerLocataire, modifierConditionsContrat, proposerSoldeCaution, terminerContrat, type ConditionsContrat } from '../locataireRepository';
+import { soldeTresorerie } from '../financesRepository';
 import {
   annulerFacture,
   annulerPaiement,
@@ -250,4 +251,37 @@ test('mois à venir : l’onglet Loyers voit qu’un locataire a déjà payé d�
   expect(await previsionsDuMois(db, 2026, 12, '2026-10-10')).toMatchObject([{ statut: 'partielle', regle: 10000 }]);
   expect(await previsionsDuMois(db, 2027, 1, '2026-10-10')).toMatchObject([{ statut: 'a_venir', regle: 0 }]);
   expect(await previsionsDuMois(db, 2026, 10, '2026-10-10')).toEqual([]);
+});
+
+describe('caution : fonds de garantie, jamais un loyer', () => {
+  test('la caution reçue à l’entrée ne règle aucun loyer', async () => {
+    const db = await createMigratedDatabase();
+    const { locataireId } = await installer(db, { caution: 78000 });
+    await genererEcheances(db, '2026-10-10');
+    expect(await situationLocataire(db, locataireId)).toMatchObject({ dette: 26000, credit: 0 });
+  });
+
+  test('départ : impayés puis réparations retenus, le reste rendu ; trésorerie juste', async () => {
+    const db = await createMigratedDatabase();
+    const { locataireId, contratId } = await installer(db, { caution: 78000 });
+    await genererEcheances(db, '2026-11-10');
+    expect(proposerSoldeCaution(78000, 52000, 10000)).toEqual({ retenueImpayes: 52000, retenueReparations: 10000, cautionRendue: 16000, resteDu: 0 });
+    expect(proposerSoldeCaution(50000, 52000, 10000)).toEqual({ retenueImpayes: 50000, retenueReparations: 0, cautionRendue: 0, resteDu: 2000 });
+
+    await expect(
+      terminerContrat(db, contratId, '2026-11-10', { retenueImpayes: 52000, retenueReparations: 10000, cautionRendue: 16000 })
+    ).rejects.toThrow(/Précisez/);
+    await expect(terminerContrat(db, contratId, '2026-11-10', { retenueImpayes: 60000 })).rejects.toThrow(/dépasse ce que/);
+    await terminerContrat(db, contratId, '2026-11-10', {
+      retenueImpayes: 52000,
+      retenueReparations: 10000,
+      motifReparations: 'Porte cassée',
+      cautionRendue: 16000,
+    });
+    expect((await situationLocataire(db, locataireId)).dette).toBe(0);
+    // Trésorerie : +78 000 de caution, −16 000 rendus ; la retenue n'ajoute pas d'argent.
+    expect(await soldeTresorerie(db)).toBe(78000 - 16000);
+    const c = await db.get<{ caution_retenue_impayes: number; motif_retenue: string }>('SELECT * FROM contrats WHERE id = ?', [contratId]);
+    expect(c).toMatchObject({ caution_retenue_impayes: 52000, motif_retenue: 'Porte cassée' });
+  });
 });
