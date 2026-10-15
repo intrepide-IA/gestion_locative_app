@@ -2,6 +2,24 @@
 
 Un compte rendu par lot, du plus récent au plus ancien. Référence : cahier des charges Onílé v2.0, section 13.
 
+## Lot 8 — Sauvegarde, restauration, réinitialisation (15 octobre 2026)
+
+**Statut : livré, vérifié dans l'aperçu web (export → restauration).** Branche `refonte/lot-8-sauvegarde`.
+
+- Export de toute la base (format versionné, 16 tables, séquences de numérotation comprises), **chiffré par
+  mot de passe** : PBKDF2-SHA256 (30 000 itérations, sel aléatoire) → AES-256-GCM. PBKDF2 écrit en
+  JavaScript pur et vérifié contre Node ; un mot de passe faux ou un fichier modifié est détecté.
+- Restauration en 3 étapes : choix du fichier → mot de passe → résumé (propriétaire, logements, locataires,
+  paiements…) → confirmation. Validation stricte (format, version, tables et colonnes connues uniquement,
+  types) ; remplacement en une transaction avec contrôle des clés étrangères ; en cas d'échec, aucune
+  donnée n'est modifiée. Aucun nom de table ou de colonne du fichier n'entre dans le SQL.
+- Réinitialisation : PIN + deux confirmations ; efface les données de gestion, conserve profil, PIN,
+  paramètres et catégories.
+- Rappels recalculés après restauration ou réinitialisation.
+- Vérifié : 99 tests (dont fichier piégé avec injection SQL dans un nom de colonne, table inconnue, fichier
+  incohérent, mauvais mot de passe, fichier altéré) ; dans l'aperçu, export chiffré puis restauration,
+  mot de passe faux refusé, données identiques après restauration.
+
 ## Lot 7 — Notifications et accueil (15 octobre 2026)
 
 **Statut : livré ; logique vérifiée par tests, notifications réelles à vérifier sur l'APK.** Branche `refonte/lot-7-notifications`.

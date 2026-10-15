@@ -4,3 +4,5 @@ export async function demanderPermissionNotifications(): Promise<boolean> {
 }
 
 export async function synchroniserNotifications(): Promise<void> {}
+
+export async function reinitialiserNotifications(): Promise<void> {}

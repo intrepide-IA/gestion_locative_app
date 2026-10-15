@@ -63,3 +63,9 @@ export function synchroniserNotifications(): Promise<void> {
   })();
   return enCours;
 }
+
+/** Après une restauration ou une réinitialisation : annule tout ce qui était programmé, puis recalcule. */
+export async function reinitialiserNotifications(): Promise<void> {
+  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+  await synchroniserNotifications();
+}

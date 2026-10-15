@@ -45,8 +45,6 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
     }
   };
 
-  const bientot = (fonction: string, lot: string) => informer('Bientôt disponible', `${fonction} arrive avec le ${lot} de la refonte.`);
-
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <EnTete titre="Plus" />
@@ -68,7 +66,13 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
         </Pressable>
 
         <Groupe titre="Gestion">
-          <Ligne icone={<Zap size={18} color={colors.primary} />} libelle="Électricité prépayée" onPress={() => navigation.navigate('Electricite')} dernier />
+          <Ligne icone={<Zap size={18} color={colors.primary} />} libelle="Électricité prépayée" onPress={() => navigation.navigate('Electricite')} />
+          <Ligne
+            icone={<Database size={18} color={colors.primary} />}
+            libelle="Sauvegarde et restauration"
+            onPress={() => navigation.navigate('Sauvegarde')}
+            dernier
+          />
         </Groupe>
 
         <Groupe titre="Rappels">
@@ -93,16 +97,6 @@ export function PlusScreen({ onVerrouiller }: { onVerrouiller: () => void }) {
         <Groupe titre="Sécurité">
           <Ligne icone={<Shield size={18} color={colors.primary} />} libelle="Modifier le code PIN" onPress={() => setPin(true)} />
           <Ligne icone={<Lock size={18} color={colors.primary} />} libelle="Verrouiller maintenant" onPress={onVerrouiller} dernier />
-        </Groupe>
-
-        <Groupe titre="Bientôt">
-          <Ligne
-            icone={<Database size={18} color={colors.muted} />}
-            libelle="Sauvegarde et restauration"
-            detail="Lot 8"
-            onPress={() => bientot('La sauvegarde complète (export et restauration)', 'lot 8')}
-            dernier
-          />
         </Groupe>
 
         <Text className="text-center text-xs text-muted">Onílé v{APP_VERSION} · données stockées et chiffrées sur ce téléphone</Text>

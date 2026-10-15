@@ -18,6 +18,7 @@ import { LoyersScreen } from './features/loyers/LoyersScreen';
 import { FinancesScreen } from './features/finances/FinancesScreen';
 import { PlusScreen } from './features/plus/PlusScreen';
 import { ElectriciteScreen } from './features/electricite/ElectriciteScreen';
+import { SauvegardeScreen } from './features/plus/SauvegardeScreen';
 import { PinScreen } from './screens/PinScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
@@ -35,6 +36,7 @@ function PlusStack({ onVerrouiller }: { onVerrouiller: () => void }) {
   return (
     <PlusPile.Navigator screenOptions={{ headerShown: false }}>
       <PlusPile.Screen name="PlusMenu">{() => <PlusScreen onVerrouiller={onVerrouiller} />}</PlusPile.Screen>
+      <PlusPile.Screen name="Sauvegarde">{({ navigation }) => <SauvegardeScreen onRetour={() => navigation.popTo('PlusMenu')} />}</PlusPile.Screen>
       <PlusPile.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={() => navigation.popTo('PlusMenu')} />}</PlusPile.Screen>
     </PlusPile.Navigator>
   );
