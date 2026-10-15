@@ -69,3 +69,34 @@ export async function reinitialiserNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
   await synchroniserNotifications();
 }
+
+/** Test : une notification dans 10 secondes (l'application peut être fermée entre-temps). */
+export async function envoyerNotificationTest(): Promise<'programmee' | 'refusee'> {
+  if (!(await demanderPermissionNotifications())) return 'refusee';
+  await Notifications.scheduleNotificationAsync({
+    content: { title: 'Onílé : test réussi', body: 'Les rappels de loyers et d’électricité s’afficheront comme ceci.' },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 10, channelId: CANAL },
+  });
+  return 'programmee';
+}
+
+export interface EtatRappels {
+  autorisees: boolean;
+  programmes: number;
+  prochain: { titre: string; date: Date } | null;
+}
+
+/** Ce qui est réellement programmé sur le téléphone (pour vérifier que les rappels sont en place). */
+export async function etatRappels(): Promise<EtatRappels> {
+  const autorisees = (await Notifications.getPermissionsAsync()).granted;
+  const liste = await Notifications.getAllScheduledNotificationsAsync();
+  const dates = liste
+    .map((n) => {
+      const t = n.trigger as { type?: string; value?: number; date?: number | string } | null;
+      const brut = t && 'value' in t && typeof t.value === 'number' ? t.value : t?.date;
+      return brut ? { titre: n.content.title ?? '', date: new Date(brut) } : null;
+    })
+    .filter((x): x is { titre: string; date: Date } => x !== null && !Number.isNaN(x.date.getTime()))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  return { autorisees, programmes: liste.length, prochain: dates[0] ?? null };
+}

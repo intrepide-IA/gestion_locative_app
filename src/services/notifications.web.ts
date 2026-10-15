@@ -6,3 +6,17 @@ export async function demanderPermissionNotifications(): Promise<boolean> {
 export async function synchroniserNotifications(): Promise<void> {}
 
 export async function reinitialiserNotifications(): Promise<void> {}
+
+export async function envoyerNotificationTest(): Promise<'programmee' | 'refusee'> {
+  return 'refusee';
+}
+
+export interface EtatRappels {
+  autorisees: boolean;
+  programmes: number;
+  prochain: { titre: string; date: Date } | null;
+}
+
+export async function etatRappels(): Promise<EtatRappels> {
+  return { autorisees: false, programmes: 0, prochain: null };
+}

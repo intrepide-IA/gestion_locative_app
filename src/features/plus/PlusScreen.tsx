@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, ChevronRight, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -20,12 +20,13 @@ import { definirSignature, enregistrerProprietaire, getProprietaire, type Propri
 import { importerImage } from '../../services/images';
 import { formatDelay } from '../../security/format';
 import { definirNotificationsActives, notificationsActives } from '../../repositories/rappelsRepository';
-import { demanderPermissionNotifications, synchroniserNotifications } from '../../services/notifications';
+import { demanderPermissionNotifications, envoyerNotificationTest, etatRappels, synchroniserNotifications } from '../../services/notifications';
 import { pinService } from '../../security/native';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../../security/pin';
 import { colors } from '../../theme/colors';
 
 const lireMiseAJour = () => nouvelleVersion();
+const lireEtatRappels = () => synchroniserNotifications().then(etatRappels);
 
 export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => void; onRetour: () => void }) {
   const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
@@ -34,6 +35,21 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const [signature, setSignature] = useState(false);
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
   const notifs = useRessource(notificationsActives, true);
+  const rappels = useRessource(lireEtatRappels, null);
+
+  const testerNotification = async () => {
+    try {
+      const r = await envoyerNotificationTest();
+      informer(
+        r === 'programmee' ? 'Notification envoyée dans 10 secondes' : 'Notifications refusées',
+        r === 'programmee'
+          ? 'Vous pouvez quitter l’application : la notification doit s’afficher en haut de l’écran.'
+          : 'Autorisez les notifications d’Onílé dans les réglages Android (Applications → Onílé → Notifications).'
+      );
+    } catch (error) {
+      informer('Test impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
+    }
+  };
   const maj = useRessource(lireMiseAJour, null);
 
   const basculerNotifications = async (actives: boolean) => {
@@ -130,6 +146,29 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
               accessibilityLabel="Activer les notifications"
             />
           </View>
+          <View className="px-4 pb-3 -mt-1">
+            <Text className="text-muted text-xs">
+              {!rappels.donnees
+                ? ' '
+                : !rappels.donnees.autorisees
+                  ? 'Notifications non autorisées sur ce téléphone.'
+                  : rappels.donnees.programmes === 0
+                    ? 'Aucun rappel programmé pour le moment.'
+                    : `${rappels.donnees.programmes} rappel(s) programmé(s)${
+                        rappels.donnees.prochain
+                          ? ` · prochain le ${rappels.donnees.prochain.date.toLocaleDateString('fr-FR')} à ${rappels.donnees.prochain.date
+                              .toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} : ${rappels.donnees.prochain.titre}`
+                          : ''
+                      }`}
+            </Text>
+          </View>
+          <Ligne
+            icone={<BellRing size={18} color={colors.primary} />}
+            libelle="Tester une notification"
+            detail="dans 10 s"
+            onPress={testerNotification}
+            dernier
+          />
         </Groupe>
 
         <Groupe titre="Sécurité">
