@@ -3,7 +3,7 @@
  * Chaque rappel a une clé unique : un même événement ne produit jamais deux notifications.
  */
 import { formatFCFA } from './format';
-import { LIBELLES_STOCK, type EtatStock } from './electricite';
+import { ajouterJours, LIBELLES_STOCK, type EtatStock } from './electricite';
 
 export interface RappelSouhaite {
   cle: string;
@@ -16,7 +16,17 @@ export interface RappelSouhaite {
 export interface DonneesRappels {
   echeancesImpayees: { id: number; date_echeance: string; reste: number; locataire_nom: string; logement_reference: string }[];
   contratsAvecFin: { id: number; date_fin: string; locataire_nom: string; logement_reference: string }[];
-  stocks: { contrat_id: number; etat: EtatStock; stock: number; locataire_nom: string; achetes: number; consommes: number }[];
+  stocks: {
+    contrat_id: number;
+    etat: EtatStock;
+    stock: number;
+    locataire_nom: string;
+    achetes: number;
+    consommes: number;
+    index_coupure?: number;
+    epuisement_estime?: string | null;
+    dernier_releve_le?: string | null;
+  }[];
 }
 
 /** Date locale à 9 h (ou `heure`) pour un jour AAAA-MM-JJ décalé de `jours`. */
@@ -56,6 +66,40 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
       titre: `Électricité : ${LIBELLES_STOCK[s.etat].toLowerCase()}`,
       corps: `${s.locataire_nom} : ${String(s.stock).replace('.', ',')} kWh`,
       date: new Date(maintenant.getTime() + 5000),
+    });
+  }
+
+  // Contrôle du compteur : la veille et le jour de l'épuisement estimé (nouvelle vente = nouvelle estimation).
+  const kwh = (n: number) => String(n).replace('.', ',');
+  for (const s of d.stocks) {
+    if (s.achetes === 0 || s.stock <= 0 || !s.epuisement_estime) continue;
+    const coupure = s.index_coupure !== undefined ? ` Index de coupure : ${kwh(s.index_coupure)}.` : '';
+    const base = `kwh-verif-${s.contrat_id}-${s.achetes}-${s.consommes}`;
+    futur({
+      cle: `${base}-j-1`,
+      type: 'electricite',
+      titre: 'Électricité bientôt épuisée',
+      corps: `${s.locataire_nom} : crédit estimé épuisé demain.${coupure}`,
+      date: aHeure(s.epuisement_estime, -1, 18),
+    });
+    futur({
+      cle: `${base}-j`,
+      type: 'electricite',
+      titre: 'Vérifiez le compteur',
+      corps: `${s.locataire_nom} : crédit estimé épuisé aujourd’hui.${coupure}`,
+      date: aHeure(s.epuisement_estime),
+    });
+  }
+
+  // Sans relevé depuis 7 jours, on ne peut plus estimer : rappel d'aller relever le compteur.
+  for (const s of d.stocks) {
+    if (s.achetes === 0 || s.stock <= 0 || !s.dernier_releve_le) continue;
+    futur({
+      cle: `releve-${s.contrat_id}-${s.dernier_releve_le}`,
+      type: 'electricite',
+      titre: 'Relevez le compteur',
+      corps: `${s.locataire_nom} : aucun relevé depuis 7 jours.`,
+      date: aHeure(ajouterJours(s.dernier_releve_le, 7)),
     });
   }
 
@@ -139,13 +183,29 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
   }
 
   for (const s of d.stocks) {
+    if (s.etat === 'ok' && s.achetes > 0 && s.epuisement_estime) {
+      const reste = ecartJours(jour, s.epuisement_estime);
+      if (reste <= 2) {
+        alertes.push({
+          cle: `kwh-${s.contrat_id}`,
+          type: 'electricite',
+          gravite: 'attention',
+          titre: reste <= 0 ? 'Électricité : crédit estimé épuisé' : `Électricité : épuisement estimé dans ${pluriel(reste, 'jour')}`,
+          detail: `${s.locataire_nom}${s.index_coupure !== undefined ? ` · coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : ''}`,
+          jour: s.epuisement_estime,
+        });
+      }
+      continue;
+    }
     if (s.etat === 'ok' || s.achetes === 0) continue;
     alertes.push({
       cle: `kwh-${s.contrat_id}`,
       type: 'electricite',
       gravite: s.etat === 'bas' ? 'attention' : 'urgent',
       titre: `Électricité : ${LIBELLES_STOCK[s.etat].toLowerCase()}`,
-      detail: `${s.locataire_nom} : ${String(s.stock).replace('.', ',')} kWh restants`,
+      detail: `${s.locataire_nom} : ${String(s.stock).replace('.', ',')} kWh restants${
+        s.index_coupure !== undefined ? ` · coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : ''
+      }`,
       jour,
     });
   }

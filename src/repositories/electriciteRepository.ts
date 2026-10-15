@@ -3,7 +3,7 @@
  * Le stock n'est pas stocké : stock = kWh achetés (non annulés) − consommation relevée.
  */
 import type { SqlDatabase } from '../db/types';
-import { arrondiKwh, calculerAchat, etatStock, type EtatStock } from '../domain/electricite';
+import { arrondiKwh, calculerAchat, estimerEpuisement, etatStock, type EtatStock } from '../domain/electricite';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
 import { LIBELLES_MODE, type ModePaiement } from './loyerRepository';
 import { prochainNumero } from './numerotation';
@@ -21,7 +21,13 @@ export interface SituationElectricite {
   stock: number;
   dernier_index: number;
   dernier_releve_le: string | null;
+  date_debut: string;
   etat: EtatStock;
+  /** Index auquel le crédit payé est épuisé : il faut couper le compteur. */
+  index_coupure: number;
+  kwh_par_jour: number | null;
+  /** Date estimée d'épuisement (AAAA-MM-JJ), d'après la consommation moyenne. */
+  epuisement_estime: string | null;
 }
 
 export interface Achat {
@@ -49,7 +55,7 @@ export interface Releve {
 
 const SELECT_SITUATION = `
   SELECT c.id AS contrat_id, c.locataire_id, t.nom_complet AS locataire_nom, l.reference AS logement_reference,
-         c.prix_kwh, c.releve_initial,
+         c.prix_kwh, c.releve_initial, c.date_debut,
          COALESCE((SELECT SUM(kwh) FROM achats_electricite WHERE contrat_id = c.id AND annule_le IS NULL), 0) AS achetes,
          COALESCE((SELECT SUM(consommation) FROM releves WHERE contrat_id = c.id AND compteur = 'electricite'), 0) AS consommes,
          COALESCE((SELECT nouvel_index FROM releves WHERE contrat_id = c.id AND compteur = 'electricite'
@@ -58,13 +64,23 @@ const SELECT_SITUATION = `
             ORDER BY date_releve DESC, id DESC LIMIT 1) AS dernier_releve_le
   FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id`;
 
-type Ligne = Omit<SituationElectricite, 'stock' | 'etat'>;
+type Ligne = Omit<SituationElectricite, 'stock' | 'etat' | 'index_coupure' | 'kwh_par_jour' | 'epuisement_estime'>;
 
 const completer = (seuil: number) => (l: Ligne): SituationElectricite => {
   const achetes = arrondiKwh(l.achetes);
   const consommes = arrondiKwh(l.consommes);
   const stock = arrondiKwh(achetes - consommes);
-  return { ...l, achetes, consommes, stock, etat: etatStock(stock, seuil) };
+  const estimation = estimerEpuisement({ stock, consommes, dateDebut: l.date_debut, dernierReleve: l.dernier_releve_le });
+  return {
+    ...l,
+    achetes,
+    consommes,
+    stock,
+    etat: etatStock(stock, seuil),
+    index_coupure: arrondiKwh(l.dernier_index + stock),
+    kwh_par_jour: estimation.kwhParJour === null ? null : Math.round(estimation.kwhParJour * 100) / 100,
+    epuisement_estime: estimation.epuisement,
+  };
 };
 
 /** Situation électrique des contrats actifs, les plus urgents d'abord. */

@@ -65,6 +65,9 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
                   <Text className="text-sm font-semibold text-ink mt-1.5">
                     {item.stock < 0 ? `−${formatKwh(-item.stock)}` : formatKwh(item.stock)}
                   </Text>
+                  {item.achetes > 0 ? (
+                    <Text className="text-xs text-muted">Coupure : {String(item.index_coupure).replace('.', ',')}</Text>
+                  ) : null}
                 </View>
               </View>
             </Carte>

@@ -106,3 +106,23 @@ describe('ventes et relevés', () => {
     await expect(vendre(db, contratId, 5000)).rejects.toThrow(/terminé/);
   });
 });
+
+describe('index de coupure et épuisement estimé', () => {
+  test('2 000 FCFA à 250 = 8 kWh : coupure à l’index actuel + 8', async () => {
+    const db = await createMigratedDatabase();
+    const { contratId } = await installer(db, 1000);
+    await vendre(db, contratId, 2000);
+    const s = await situationElectricite(db, contratId);
+    expect(s).toMatchObject({ stock: 8, index_coupure: 1008, epuisement_estime: null });
+  });
+
+  test('épuisement estimé d’après la consommation moyenne depuis l’entrée', async () => {
+    const db = await createMigratedDatabase();
+    const { contratId } = await installer(db, 1000);
+    await vendre(db, contratId, 10000); // 40 kWh
+    // Entrée le 5 septembre ; 30 kWh consommés en 30 jours = 1 kWh/jour.
+    await enregistrerReleve(db, { contratId, nouvelIndex: 1030, date: '2026-10-05' });
+    const s = await situationElectricite(db, contratId);
+    expect(s).toMatchObject({ stock: 10, index_coupure: 1040, kwh_par_jour: 1, epuisement_estime: '2026-10-15' });
+  });
+});

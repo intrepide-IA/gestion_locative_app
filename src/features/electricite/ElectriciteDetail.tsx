@@ -126,8 +126,25 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
       </View>
 
       <Carte>
-        <LigneInfo libelle="Dernier index" valeur={`${String(s.dernier_index).replace('.', ',')}`} />
+        <View className="flex-row items-center justify-between pb-2.5 border-b border-border">
+          <View>
+            <Text className="text-muted">Index de coupure</Text>
+            <Text className="text-xs text-muted">Couper le compteur à cet index</Text>
+          </View>
+          <Text className="text-2xl font-bold text-danger">{indexTexte(s.index_coupure)}</Text>
+        </View>
+        <LigneInfo libelle="Dernier index relevé" valeur={indexTexte(s.dernier_index)} />
         <LigneInfo libelle="Relevé le" valeur={s.dernier_releve_le ? formatDate(s.dernier_releve_le) : 'Index initial du contrat'} />
+        <LigneInfo
+          libelle="Consommation moyenne"
+          valeur={s.kwh_par_jour !== null ? `${String(s.kwh_par_jour).replace('.', ',')} kWh / jour` : 'Après un premier relevé'}
+        />
+        {s.epuisement_estime && s.stock > 0 ? (
+          <LigneInfo libelle="Épuisement estimé" valeur={<Text className="font-bold text-ink">{formatDate(s.epuisement_estime)}</Text>} />
+        ) : null}
+        <Text className="text-muted text-xs pt-2">
+          Un rappel vous est envoyé la veille et le jour de l’épuisement estimé pour aller vérifier le compteur.
+        </Text>
       </Carte>
 
       <Bouton titre="Vendre des kWh" icone={<Zap size={18} color={colors.white} />} onPress={() => setVue('vente')} />
@@ -203,10 +220,14 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
   );
 }
 
+const indexTexte = (n: number) => String(n).replace('.', ',');
+
 const MODES = (Object.keys(LIBELLES_MODE) as ModePaiement[]).map((m) => ({ valeur: m, libelle: LIBELLES_MODE[m] }));
 
 function FormVente({ situation, onEnregistre, onTerminer }: { situation: SituationElectricite; onEnregistre: () => void; onTerminer: () => void }) {
   const [montant, setMontant] = useState('');
+  const [indexActuel, setIndexActuel] = useState('');
+  const [coupureFinale, setCoupureFinale] = useState<number | null>(null);
   const [mode, setMode] = useState<ModePaiement>('especes');
   const [date, setDate] = useState(aujourdhui());
   const [erreur, setErreur] = useState('');
@@ -216,12 +237,23 @@ function FormVente({ situation, onEnregistre, onTerminer }: { situation: Situati
 
   const m = lireMontant(montant);
   const apercu = m ? calculerAchat(m, situation.prix_kwh) : null;
+  const index = indexActuel.trim() === '' ? null : Number(indexActuel.replace(',', '.'));
+  const indexValide = index !== null && Number.isFinite(index) && index >= situation.dernier_index;
+  // Le crédit restant s'ajoute au compteur tel qu'il est lu aujourd'hui.
+  const stockApres = index !== null && indexValide ? situation.stock - (index - situation.dernier_index) : situation.stock;
+  const coupureApres = apercu ? Math.round(((indexValide ? index! : situation.dernier_index) + stockApres + apercu.kwh) * 10) / 10 : null;
 
   const enregistrer = async () => {
     if (!m) return setErreur('Indiquez le montant reçu en FCFA.');
+    if (index !== null && !indexValide)
+      return setErreur(`L’index lu doit être au moins ${indexTexte(situation.dernier_index)}. Nouveau compteur : utilisez « Saisir un relevé ».`);
     setEnCours(true);
     setErreur('');
     try {
+      if (index !== null && index > situation.dernier_index) {
+        await enregistrerReleve(await getDatabase(), { contratId: situation.contrat_id, nouvelIndex: index, date });
+      }
+      setCoupureFinale(coupureApres);
       setResultat(await acheterElectricite(await getDatabase(), { contratId: situation.contrat_id, montantRecu: m, mode, date }));
       onEnregistre();
     } catch (error) {
@@ -242,6 +274,9 @@ function FormVente({ situation, onEnregistre, onTerminer }: { situation: Situati
         <Carte>
           <LigneInfo libelle="Montant facturé" valeur={formatFCFA(resultat.montantFacture)} />
           {resultat.ecart > 0 ? <LigneInfo libelle="À rendre au locataire" valeur={formatFCFA(resultat.ecart)} /> : null}
+          {coupureFinale !== null ? (
+            <LigneInfo libelle="Nouvel index de coupure" valeur={<Text className="font-bold text-danger">{indexTexte(coupureFinale)}</Text>} />
+          ) : null}
         </Carte>
         <Bouton
           titre="Partager la facture (PDF)"
@@ -270,10 +305,21 @@ function FormVente({ situation, onEnregistre, onTerminer }: { situation: Situati
         Prix du contrat : {formatFCFA(situation.prix_kwh)} / kWh. La quantité est arrondie à 0,1 kWh inférieur ; la différence est à
         rendre.
       </Text>
-      <Champ libelle="Montant reçu (FCFA)" obligatoire value={montant} onChangeText={setMontant} keyboardType="number-pad" placeholder="5000" />
+      <Champ libelle="Montant reçu (FCFA)" obligatoire value={montant} onChangeText={setMontant} keyboardType="number-pad" placeholder="2000" />
+      <Champ
+        libelle="Index lu sur le compteur maintenant"
+        value={indexActuel}
+        onChangeText={setIndexActuel}
+        keyboardType="decimal-pad"
+        placeholder={`Dernier : ${indexTexte(situation.dernier_index)}`}
+        aide="Facultatif, mais conseillé : il enregistre un relevé et rend le calcul de coupure exact."
+      />
       {apercu ? (
         <Carte>
           <LigneInfo libelle="kWh" valeur={formatKwh(apercu.kwh)} />
+          {coupureApres !== null ? (
+            <LigneInfo libelle="Couper à l’index" valeur={<Text className="font-bold text-danger">{indexTexte(coupureApres)}</Text>} />
+          ) : null}
           <LigneInfo libelle="Montant facturé" valeur={formatFCFA(apercu.montantFacture)} />
           {apercu.ecart > 0 ? <LigneInfo libelle="À rendre" valeur={formatFCFA(apercu.ecart)} /> : null}
         </Carte>

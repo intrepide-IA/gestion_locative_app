@@ -124,3 +124,26 @@ test('listerAlertes lit la base : loyer du mois en retard, aucune sauvegarde', a
   const alertes = await listerAlertes(db, '2026-10-08');
   expect(alertes.map((a) => a.titre)).toEqual(['Loyer en retard de 3 jours', 'Aucune sauvegarde de vos données']);
 });
+
+test('rappels de contrôle du compteur : veille et jour de l’épuisement estimé, relevé après 7 jours', () => {
+  const stock = {
+    contrat_id: 3,
+    etat: 'ok' as const,
+    stock: 10,
+    locataire_nom: 'Awa',
+    achetes: 40,
+    consommes: 30,
+    index_coupure: 1040,
+    epuisement_estime: '2026-10-15',
+    dernier_releve_le: '2026-10-05',
+  };
+  const r = rappelsSouhaites({ echeancesImpayees: [], contratsAvecFin: [], stocks: [stock] }, new Date(2026, 9, 6, 8));
+  expect(r.filter((x) => x.type === 'electricite').map((x) => [x.cle, x.date.getDate()])).toEqual([
+    ['kwh-verif-3-40-30-j-1', 14],
+    ['kwh-verif-3-40-30-j', 15],
+    ['releve-3-2026-10-05', 12],
+  ]);
+  expect(r[1].corps).toContain('Index de coupure : 1040');
+  const alertes = alertesEnCours({ echeancesImpayees: [], contratsAvecFin: [], stocks: [stock], derniereSauvegarde: '2026-10-10' }, '2026-10-14');
+  expect(alertes.map((a) => a.titre)).toEqual(['Électricité : épuisement estimé dans 1 jour']);
+});
