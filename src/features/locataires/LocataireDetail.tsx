@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { DoorOpen, Pencil, Phone, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
 import { Feuille } from '../../components/ui/Feuille';
@@ -48,6 +49,7 @@ interface Props {
 
 export function LocataireDetail({ locataireId, onFermer, onModifie }: Props) {
   const [vue, setVue] = useState<Vue>('fiche');
+  const navigation = useNavigation<{ navigate: (ecran: string, params?: object) => void }>();
   const fermer = () => {
     setVue('fiche');
     onFermer();
@@ -74,6 +76,11 @@ export function LocataireDetail({ locataireId, onFermer, onModifie }: Props) {
             onModifie();
             onFermer();
           }}
+          onOuvrirBail={(contratId) => {
+            // La feuille se ferme d'abord : une fenêtre modale resterait au-dessus du nouvel écran.
+            fermer();
+            navigation.navigate('Bail', { contratId });
+          }}
         />
       ) : null}
     </Feuille>
@@ -94,12 +101,14 @@ function Contenu({
   setVue,
   onModifie,
   onRetire,
+  onOuvrirBail,
 }: {
   locataireId: number;
   vue: Vue;
   setVue: (v: Vue) => void;
   onModifie: () => void;
   onRetire: () => void;
+  onOuvrirBail: (contratId: number) => void;
 }) {
   const lire = useCallback(
     async (db: SqlDatabase): Promise<Donnees> => {
@@ -186,6 +195,14 @@ function Contenu({
       </Carte>
       <Bouton titre="Encaisser un paiement" icone={<Wallet size={18} color={colors.white} />} onPress={() => setEncaisser(true)} />
 
+      {contrat ? (
+        <Bouton
+          titre="Contrat de bail (signature, PDF)"
+          variante="secondaire"
+          icone={<FileSignature size={18} color={colors.primary} />}
+          onPress={() => onOuvrirBail(contrat.id)}
+        />
+      ) : null}
       {contrat ? (
         <Bouton titre="Électricité (stock, ventes, relevés)" variante="secondaire" icone={<Zap size={18} color={colors.primary} />} onPress={() => setElectricite(true)} />
       ) : null}

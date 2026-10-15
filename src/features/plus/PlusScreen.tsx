@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, ChevronRight, Database, Lock, Shield, Zap } from 'lucide-react-native';
+import { Bell, ChevronRight, Database, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
+import { ApercuSignature } from '../../components/ui/ApercuSignature';
 import { Feuille } from '../../components/ui/Feuille';
+import { PadSignature } from '../../components/ui/PadSignature';
 import { informer } from '../../components/ui/confirmer';
 import { Bouton, BoutonRetour, Champ, EnTete } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
@@ -13,7 +15,8 @@ import { getDatabase } from '../../db/client';
 import { messageErreur } from '../../domain/erreurs';
 import { initiales } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
-import { enregistrerProprietaire, getProprietaire, type Proprietaire } from '../../repositories/proprietaireRepository';
+import { definirSignature, enregistrerProprietaire, getProprietaire, type Proprietaire } from '../../repositories/proprietaireRepository';
+import { choisirImage } from '../../services/images';
 import { formatDelay } from '../../security/format';
 import { definirNotificationsActives, notificationsActives } from '../../repositories/rappelsRepository';
 import { demanderPermissionNotifications, synchroniserNotifications } from '../../services/notifications';
@@ -25,6 +28,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
   const [profil, setProfil] = useState(false);
   const [pin, setPin] = useState(false);
+  const [signature, setSignature] = useState(false);
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
   const notifs = useRessource(notificationsActives, true);
 
@@ -65,6 +69,16 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
           </View>
           <ChevronRight size={18} color={colors.muted} />
         </Pressable>
+
+        <Groupe titre="Documents">
+          <Ligne
+            icone={<PenLine size={18} color={colors.primary} />}
+            libelle="Ma signature"
+            detail={proprietaire?.signature ? 'Enregistrée' : 'À ajouter'}
+            onPress={() => setSignature(true)}
+            dernier
+          />
+        </Groupe>
 
         <Groupe titre="Gestion">
           <Ligne icone={<Zap size={18} color={colors.primary} />} libelle="Électricité prépayée" onPress={() => navigation.navigate('Electricite')} />
@@ -108,6 +122,16 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
           proprietaire={proprietaire}
           onEnregistre={() => {
             setProfil(false);
+            rafraichir();
+          }}
+        />
+      </Feuille>
+      <Feuille ouverte={signature} onFermer={() => setSignature(false)} titre="Ma signature">
+        <FormSignature
+          actuelle={proprietaire?.signature ?? null}
+          nom={proprietaire?.nom ?? ''}
+          onModifiee={() => {
+            setSignature(false);
             rafraichir();
           }}
         />
@@ -239,6 +263,56 @@ function FormPin({ onTermine }: { onTermine: () => void }) {
       />
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
       <Bouton titre="Valider" onPress={valider} chargement={enCours} />
+    </>
+  );
+}
+
+/** Signature du bailleur : importée (photo d'une signature sur papier blanc) ou dessinée sur place. */
+function FormSignature({ actuelle, nom, onModifiee }: { actuelle: string | null; nom: string; onModifiee: () => void }) {
+  const [dessin, setDessin] = useState(false);
+  const [enCours, setEnCours] = useState(false);
+
+  const enregistrer = async (image: string | null) => {
+    setEnCours(true);
+    try {
+      await definirSignature(await getDatabase(), image);
+      onModifiee();
+    } catch (error) {
+      informer('Enregistrement impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
+      setEnCours(false);
+    }
+  };
+
+  const importer = async () => {
+    try {
+      const image = await choisirImage('galerie', { largeur: 700, format: 'png' });
+      if (image) await enregistrer(image);
+    } catch (error) {
+      informer('Import impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
+    }
+  };
+
+  if (dessin) return <PadSignature nom={nom} onValider={enregistrer} chargement={enCours} />;
+
+  return (
+    <>
+      <Text className="text-muted">
+        Elle est apposée sur vos contrats de bail, reçus et factures. Pour un contrat, vous pouvez aussi signer sur place au moment de la
+        signature.
+      </Text>
+      {actuelle ? (
+        <View className="bg-white rounded-2xl border border-border p-4">
+          <ApercuSignature image={actuelle} />
+        </View>
+      ) : (
+        <View className="bg-white rounded-2xl border border-dashed border-border p-6 items-center">
+          <Text className="text-muted">Aucune signature enregistrée</Text>
+        </View>
+      )}
+      <Bouton titre="Dessiner ma signature" onPress={() => setDessin(true)} />
+      <Bouton titre="Importer une image" variante="secondaire" onPress={importer} chargement={enCours} />
+      <Text className="text-muted text-xs">Image conseillée : signature à l’encre noire sur fond blanc ou transparent (PNG).</Text>
+      {actuelle ? <Bouton titre="Retirer la signature" variante="danger" onPress={() => enregistrer(null)} /> : null}
     </>
   );
 }

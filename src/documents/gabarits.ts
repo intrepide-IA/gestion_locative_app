@@ -25,7 +25,7 @@ export interface Emetteur {
 /** Image de signature : seules les images « data: » enregistrées par l'application sont acceptées. */
 export function imageSignature(src: string | null | undefined, hauteur = 70): string {
   if (!src || !/^data:image\/(png|jpeg|svg\+xml);/.test(src)) return '';
-  return `<img src="${echapper(src)}" alt="Signature" style="height:${hauteur}px;max-width:240px;object-fit:contain">`;
+  return `<img src="${echapper(src)}" alt="Signature" style="height:${hauteur}px;max-width:240px;object-fit:contain;mix-blend-mode:multiply">`;
 }
 
 export interface Destinataire {
