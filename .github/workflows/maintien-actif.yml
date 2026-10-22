@@ -1,0 +1,35 @@
+# Garde le projet Supabase (offre gratuite) actif : sans requête pendant 7 jours, Supabase le met en pause.
+# Tous les 2 jours, lit la dernière version publiée directement dans Supabase (clé anon, lecture publique)
+# puis réveille l'API Render, qui interroge elle aussi la base.
+# Secrets utilisés : EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, ONILE_API_URL.
+name: Maintien actif
+
+on:
+  schedule:
+    - cron: '17 6 */2 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Requête Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          ANON: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          code=$(curl -s -o reponse.json -w '%{http_code}' --retry 3 --retry-delay 10 \
+            "${SUPABASE_URL%/}/rest/v1/versions_app?select=version&order=version_code.desc&limit=1" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $ANON")
+          echo "Supabase : HTTP $code — $(cat reponse.json)"
+          [ "$code" = "200" ]
+
+      - name: Réveil de l'API Render
+        env:
+          ONILE_API_URL: ${{ secrets.ONILE_API_URL }}
+        run: |
+          [ -z "$ONILE_API_URL" ] && { echo "ONILE_API_URL absent : étape ignorée."; exit 0; }
+          # Le service gratuit de Render peut mettre ~1 minute à démarrer.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 --retry 3 --retry-delay 20 "${ONILE_API_URL%/}/api/version")
+          echo "API : HTTP $code"
