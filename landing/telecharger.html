@@ -118,6 +118,10 @@
           <li><div><b>Ouvrez « onile-…apk »</b><span>Dans Chrome → Téléchargements, ou l’application Fichiers → Téléchargements.</span></div></li>
           <li><div><b>Autorisez puis installez</b><span>Si Android le demande : « Paramètres » → « Autoriser cette source », puis « Installer ».</span></div></li>
         </ol>
+        <div class="alerte" style="margin-bottom:12px">
+          <b>Page ouverte depuis Telegram ou WhatsApp ?</b> Le bouton ouvre le téléchargement dans l’application Chrome. Si le
+          téléchargement reste bloqué à 100 %, annulez-le puis touchez ⋮ → « Ouvrir dans Chrome » et recommencez.
+        </div>
         <div class="alerte">
           <b>Déjà installée ?</b> Installez simplement la nouvelle version par-dessus : vos données sont conservées. Ne désinstallez pas
           l’application avant d’avoir fait une sauvegarde.
@@ -198,10 +202,19 @@
       }
     }
 
+    /** Lien « intent » qui ouvre l'adresse dans Chrome (repli : navigateur par défaut si Chrome est absent). */
+    function versChrome(url) {
+      const u = new URL(url);
+      return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    }
+
     function telechargementDirect() {
       // Repli : le navigateur télécharge lui-même (progression dans sa barre de notifications).
       const a = document.createElement('a');
-      a.href = secours && info?.url_apk ? info.url_apk : `${API}/telecharger`;
+      const url = secours && info?.url_apk ? info.url_apk : `${API}/telecharger`;
+      // Android : on ouvre le téléchargement dans l'application Chrome elle-même. Les onglets intégrés
+      // (lien touché dans Telegram, WhatsApp…) restent bloqués à 100 % sur un fichier .apk.
+      a.href = estAndroid ? versChrome(url) : url;
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
@@ -215,6 +228,7 @@
       }, 120000);
       etat(
         `<b>Téléchargement lancé (≈ 80 Mo).</b><br>
+        Le téléchargement s’ouvre dans l’application <b>Chrome</b>.<br>
         1. Chrome va demander <b>« Télécharger quand même »</b> ou <b>« Conserver »</b> : touchez-le. Sinon le téléchargement reste bloqué à 100 %.<br>
         2. Question invisible ou notification bloquée ? Menu <b>⋮</b> de Chrome → <b>Téléchargements</b> → touchez le fichier ou « Conserver ».<br>
         3. Touchez <b>onile-${info?.version ?? ''}.apk</b> puis <b>Installer</b>.`,
@@ -224,7 +238,7 @@
 
     async function telecharger() {
       // Serveur indisponible : le navigateur télécharge directement depuis GitHub.
-      if (secours) return telechargementDirect();
+      if (secours || estAndroid) return telechargementDirect();
       $('bouton').disabled = true;
       $('etat').className = 'etat';
       $('progression').classList.add('visible');
