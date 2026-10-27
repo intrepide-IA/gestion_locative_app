@@ -341,6 +341,16 @@ CREATE TABLE journal_modifications (
 );
 `;
 
+/**
+ * V8 : clients « électricité seule ». Certaines personnes ne louent pas chez le propriétaire mais lui
+ * achètent l'électricité : leur contrat est de type « electricite » (sans loyer ni échéance) et leur
+ * compteur est un emplacement réservé à l'électricité, absent de la liste des logements.
+ */
+const V8 = `
+ALTER TABLE contrats ADD COLUMN type TEXT NOT NULL DEFAULT 'bail' CHECK (type IN ('bail', 'electricite'));
+ALTER TABLE logements ADD COLUMN usage TEXT NOT NULL DEFAULT 'location' CHECK (usage IN ('location', 'electricite'));
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, description: 'Schéma initial Onílé', sql: V1 },
   { version: 2, description: 'Contrat de bail numérique et signatures', sql: V2 },
@@ -349,6 +359,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 5, description: 'Index du compteur sur les ventes d’électricité', sql: V5 },
   { version: 6, description: 'Cautions électricité et eau', sql: V6 },
   { version: 7, description: 'Journal des corrections', sql: V7 },
+  { version: 8, description: 'Clients électricité seule', sql: V8 },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

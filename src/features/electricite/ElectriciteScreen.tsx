@@ -3,13 +3,14 @@ import { FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Zap } from 'lucide-react-native';
 
-import { Badge, BoutonRetour, Carte, Chargement, EnTete, EtatErreur, EtatVide } from '../../components/ui/kit';
+import { Badge, Bouton, BoutonFlottant, BoutonRetour, Carte, Chargement, EnTete, EtatErreur, EtatVide } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { LIBELLES_STOCK } from '../../domain/electricite';
 import { messageErreur } from '../../domain/erreurs';
 import { useRessource } from '../../hooks/useRessource';
 import { listerSituationsElectricite, type SituationElectricite } from '../../repositories/electriciteRepository';
 import { colors } from '../../theme/colors';
+import { ClientElectriciteForm } from './ClientElectriciteForm';
 import { ElectriciteDetail, formatKwh, tonStock } from './ElectriciteDetail';
 import { synchroniserNotifications } from '../../services/notifications';
 
@@ -24,6 +25,7 @@ const lire = async (db: Parameters<typeof listerSituationsElectricite>[0]) => {
 export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
   const { donnees, chargement, erreur, rafraichir } = useRessource(lire, AUCUNE);
   const [selection, setSelection] = useState<number | null>(null);
+  const [creation, setCreation] = useState(false);
   const alertes = donnees.filter((s) => s.etat !== 'ok' && s.achetes > 0).length;
 
   return (
@@ -38,12 +40,13 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
         <FlatList
           data={donnees}
           keyExtractor={(s) => String(s.contrat_id)}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 10 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110, gap: 10 }}
           ListEmptyComponent={
             <EtatVide
               icone={<Zap size={30} color={colors.primary} />}
-              titre="Aucun locataire actif"
-              message="Le suivi de l’électricité apparaît dès qu’un locataire occupe un logement."
+              titre="Aucun compteur suivi"
+              message="Le suivi apparaît dès qu’un locataire occupe un logement. Vous vendez aussi l’électricité à quelqu’un qui ne loue pas ? Ajoutez-le comme client."
+              action={<Bouton titre="Ajouter un client électricité" variante="secondaire" onPress={() => setCreation(true)} />}
             />
           }
           renderItem={({ item }) => (
@@ -54,7 +57,9 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
                 </View>
                 <View className="flex-1 ml-3">
                   <Text className="text-base font-semibold text-ink">{item.locataire_nom}</Text>
-                  <Text className="text-sm text-muted">{item.logement_reference}</Text>
+                  <Text className="text-sm text-muted" numberOfLines={1}>
+                    {item.type_contrat === 'electricite' ? 'Client électricité' : item.logement_reference}
+                  </Text>
                 </View>
                 <View className="items-end">
                   {item.achetes === 0 && item.consommes === 0 ? (
@@ -74,7 +79,17 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
           )}
         />
       )}
+      {donnees.length > 0 ? <BoutonFlottant libelle="Ajouter un client électricité" onPress={() => setCreation(true)} /> : null}
       <ElectriciteDetail contratId={selection} onFermer={() => setSelection(null)} onModifie={rafraichir} />
+      <ClientElectriciteForm
+        ouverte={creation}
+        onFermer={() => setCreation(false)}
+        onEnregistre={(contratId) => {
+          setCreation(false);
+          rafraichir();
+          setSelection(contratId);
+        }}
+      />
     </SafeAreaView>
   );
 }

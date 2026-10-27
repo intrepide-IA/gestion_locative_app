@@ -109,7 +109,7 @@ export function FormCorrection({ locataire, contrat, onEnregistre }: { locataire
         Pour corriger une erreur de saisie. Les mois déjà payés ne changent pas ; les autres sont recalculés avec les nouvelles conditions.
       </Text>
       <Champ libelle="Nom complet" obligatoire {...champ('nom')} />
-      {deux(<Champ libelle="Téléphone" keyboardType="phone-pad" {...champ('telephone')} />, <Champ libelle="Pièce d’identité" {...champ('piece')} />)}
+      {deux(<Champ libelle="Téléphone (WhatsApp)" keyboardType="phone-pad" {...champ('telephone')} />, <Champ libelle="Pièce d’identité" {...champ('piece')} />)}
       <ChampDate libelle="Date d’entrée" valeur={dateDebut} onChange={setDateDebut} />
       {deux(<Champ libelle="Loyer" keyboardType="number-pad" {...champ('loyer')} />, <Champ libelle="Toilettes" keyboardType="number-pad" {...champ('toilettes')} />)}
       {deux(<Champ libelle="Caution loyer" keyboardType="number-pad" {...champ('caution')} />, <Champ libelle="Échéance (jour)" keyboardType="number-pad" {...champ('jour')} />)}

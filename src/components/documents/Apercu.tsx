@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Modal, Pressable, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Share2, X } from 'lucide-react-native';
+import { MessageCircle, Share2, X } from 'lucide-react-native';
 
 import { informer } from '../ui/confirmer';
 import { Bouton } from '../ui/kit';
 import { Text } from '../ui/Text';
 import { partagerDocument, type DocumentPdf } from '../../documents';
 import { messageErreur } from '../../domain/erreurs';
+import { lienWhatsApp } from '../../domain/whatsapp';
 import { colors } from '../../theme/colors';
 import { VueHtml } from './VueHtml';
 
@@ -57,6 +58,13 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
     }
   };
 
+  const whatsapp = etat?.doc?.whatsapp;
+  const lien = whatsapp ? lienWhatsApp(whatsapp.telephone, whatsapp.message) : null;
+  const ouvrirWhatsApp = () => {
+    if (!lien) return;
+    Linking.openURL(lien).catch(() => informer('WhatsApp indisponible', 'Impossible d’ouvrir WhatsApp sur cet appareil.'));
+  };
+
   return (
     <Contexte.Provider value={ouvrir}>
       {children}
@@ -96,6 +104,26 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                     a.onPress();
                   }}
                 />
+              ) : null}
+              {whatsapp ? (
+                lien ? (
+                  <>
+                    <Bouton
+                      titre="Écrire sur WhatsApp"
+                      variante="secondaire"
+                      icone={<MessageCircle size={18} color={colors.primary} />}
+                      onPress={ouvrirWhatsApp}
+                    />
+                    <Text className="text-muted text-xs text-center">
+                      Le message s’ouvre déjà rédigé, même si le numéro n’est pas dans vos contacts. Revenez ensuite sur « Partager (PDF) » :
+                      la discussion sera en haut de la liste WhatsApp.
+                    </Text>
+                  </>
+                ) : (
+                  <Text className="text-muted text-xs text-center">
+                    Ajoutez le numéro WhatsApp du locataire sur sa fiche pour lui écrire directement.
+                  </Text>
+                )
               ) : null}
               <Bouton
                 titre="Partager (PDF)"

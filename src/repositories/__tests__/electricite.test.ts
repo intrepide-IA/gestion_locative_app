@@ -5,13 +5,16 @@ import {
   achatsDuContrat,
   acheterElectricite,
   annulerAchat,
+  arreterClientElectricite,
+  creerClientElectricite,
   enregistrerReleve,
   listerSituationsElectricite,
   relevesDuContrat,
   situationElectricite,
 } from '../electriciteRepository';
-import { creerLogement } from '../logementRepository';
-import { entrerLocataire, terminerContrat } from '../locataireRepository';
+import { creerLogement, listerLogements } from '../logementRepository';
+import { entrerLocataire, listerLocataires, terminerContrat } from '../locataireRepository';
+import { genererEcheances } from '../loyerRepository';
 
 async function installer(db: SqlDatabase, releveInitial = 1000) {
   const logementId = await creerLogement(db, { reference: 'Chambre 1', type: 'chambre_salon', loyer_indicatif: 25000, toilettes: 0 });
@@ -124,5 +127,66 @@ describe('index de coupure et épuisement estimé', () => {
     await enregistrerReleve(db, { contratId, nouvelIndex: 1030, date: '2026-10-05' });
     const s = await situationElectricite(db, contratId);
     expect(s).toMatchObject({ stock: 10, index_coupure: 1040, kwh_par_jour: 1, epuisement_estime: '2026-10-15' });
+  });
+});
+
+describe('clients « électricité seule »', () => {
+  const nouveauClient = (db: SqlDatabase, extra: Partial<Parameters<typeof creerClientElectricite>[1]> = {}) =>
+    creerClientElectricite(db, { nom_complet: 'Mama Boutique', telephone: '0156784063', prix_kwh: 250, releve_initial: 500, date_debut: '2026-10-01', ...extra });
+
+  test('ni logement ni locataire visibles, ni loyer : seulement l’électricité', async () => {
+    const db = await createMigratedDatabase();
+    await installer(db);
+    const { contratId } = await nouveauClient(db);
+    expect((await listerLogements(db)).map((l) => l.reference)).toEqual(['Chambre 1']);
+    expect((await listerLocataires(db)).map((l) => l.nom_complet)).toEqual(['Awa']);
+    await genererEcheances(db, '2027-01-10');
+    const echeances = await db.get<{ n: number }>('SELECT count(*) AS n FROM echeances WHERE contrat_id = ?', [contratId]);
+    expect(echeances?.n).toBe(0);
+    const situations = await listerSituationsElectricite(db);
+    expect(situations.map((s) => [s.locataire_nom, s.type_contrat])).toEqual(
+      expect.arrayContaining([
+        ['Awa', 'bail'],
+        ['Mama Boutique', 'electricite'],
+      ])
+    );
+    const s = await situationElectricite(db, contratId);
+    expect(s).toMatchObject({ logement_reference: 'Compteur — Mama Boutique', dernier_index: 500, locataire_telephone: '0156784063' });
+  });
+
+  test('ventes, relevés et factures comme pour un locataire', async () => {
+    const db = await createMigratedDatabase();
+    const { contratId } = await nouveauClient(db);
+    await vendre(db, contratId, 2500);
+    await enregistrerReleve(db, { contratId, nouvelIndex: 504, date: '2026-10-10' });
+    expect(await situationElectricite(db, contratId)).toMatchObject({ stock: 6, index_coupure: 510 });
+  });
+
+  test('emplacement en double : un numéro est ajouté', async () => {
+    const db = await createMigratedDatabase();
+    await nouveauClient(db, { emplacement: 'Boutique' });
+    const { contratId } = await nouveauClient(db, { nom_complet: 'Autre', emplacement: 'boutique' });
+    expect((await situationElectricite(db, contratId))?.logement_reference).toBe('boutique (2)');
+  });
+
+  test('arrêt du suivi : dépassement retenu sur la caution, reste rendu, compteur archivé', async () => {
+    const db = await createMigratedDatabase();
+    const { contratId } = await nouveauClient(db, { caution_electricite: 5000 });
+    await vendre(db, contratId, 1000); // 4 kWh
+    await enregistrerReleve(db, { contratId, nouvelIndex: 510, date: '2026-10-20' }); // 10 consommés : 6 kWh sans crédit
+    const r = await arreterClientElectricite(db, contratId, '2026-10-21');
+    expect(r).toEqual({ retenue: 1500, rendue: 3500, resteDu: 0 });
+    expect(await listerSituationsElectricite(db)).toEqual([]);
+    const sortie = await db.get<{ montant: number }>("SELECT montant FROM mouvements_financiers WHERE sens = 'sortie'");
+    expect(sortie?.montant).toBe(3500);
+  });
+
+  test('un logement de location ne peut pas recevoir le compteur d’un client', async () => {
+    const db = await createMigratedDatabase();
+    await nouveauClient(db);
+    const compteur = await db.get<{ id: number }>("SELECT id FROM logements WHERE usage = 'electricite'");
+    await expect(
+      entrerLocataire(db, { nom_complet: 'X' }, compteur!.id, { date_debut: '2026-10-01', loyer: 1, toilettes: 0, caution: 0, prix_kwh: 250, releve_initial: 0, jour_echeance: 5 })
+    ).rejects.toThrow('Logement introuvable.');
   });
 });

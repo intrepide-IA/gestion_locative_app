@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
-import { DoorOpen, Pencil, Phone, ShieldAlert, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
+import { Pressable, View } from 'react-native';
+import { DoorOpen, Pencil, ShieldAlert, Trash2, FileSignature, Wallet, Zap } from 'lucide-react-native';
 import { FormCorrection, FormSuppression } from './CorrectionsLocataire';
 import { useNavigation } from '@react-navigation/native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
+import { BoutonsContact } from '../../components/ui/Contact';
 import { Feuille } from '../../components/ui/Feuille';
 import { confirmer, informer } from '../../components/ui/confirmer';
 import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
@@ -191,15 +192,9 @@ function Contenu({
         <View className="mt-1">
           <Badge libelle={contrat ? 'Locataire actif' : 'Parti'} ton={contrat ? 'succes' : 'neutre'} />
         </View>
-        {locataire.telephone ? (
-          <Bouton
-            titre={locataire.telephone}
-            variante="discret"
-            icone={<Phone size={16} color={colors.primary} />}
-            onPress={() => Linking.openURL(`tel:${locataire.telephone!.replace(/\s/g, '')}`)}
-          />
-        ) : null}
+        {locataire.telephone ? <Text className="text-muted mt-1">{locataire.telephone}</Text> : null}
       </View>
+      <BoutonsContact telephone={locataire.telephone} />
 
       <Carte>
         <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Situation</Text>
@@ -348,7 +343,14 @@ function FormFiche({ locataire, onEnregistre }: { locataire: LocataireAvecContra
   return (
     <>
       <Champ libelle="Nom complet" obligatoire value={nom} onChangeText={setNom} />
-      <Champ libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" />
+      <Champ
+        libelle="Téléphone (WhatsApp)"
+        value={telephone}
+        onChangeText={setTelephone}
+        keyboardType="phone-pad"
+        placeholder="01 XX XX XX XX"
+        aide="Le numéro WhatsApp de préférence : reçus et factures lui sont envoyés directement."
+      />
       <Champ libelle="Pièce d’identité" value={piece} onChangeText={setPiece} />
       <Champ libelle="Notes internes" value={notes} onChangeText={setNotes} multiline placeholder="Visibles par vous seul" />
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}

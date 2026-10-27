@@ -25,6 +25,7 @@ export interface LogementAvecOccupant extends Logement {
   contrat_id: number | null;
   locataire_id: number | null;
   locataire_nom: string | null;
+  locataire_telephone: string | null;
   loyer_contrat: number | null;
   toilettes_contrat: number | null;
 }
@@ -38,7 +39,7 @@ export interface DonneesLogement {
 }
 
 const SELECT_AVEC_OCCUPANT = `
-  SELECT l.*, c.id AS contrat_id, c.locataire_id, t.nom_complet AS locataire_nom,
+  SELECT l.*, c.id AS contrat_id, c.locataire_id, t.nom_complet AS locataire_nom, t.telephone AS locataire_telephone,
          c.loyer AS loyer_contrat, c.toilettes AS toilettes_contrat
   FROM logements l
   LEFT JOIN contrats c ON c.logement_id = l.id AND c.statut = 'actif'
@@ -62,10 +63,13 @@ async function exigerReferenceLibre(db: SqlDatabase, reference: string, saufId?:
   if (existant && existant.id !== saufId) throw new ErreurMetier('Un logement porte déjà cette référence.');
 }
 
-/** Logements non archivés (ou tous), triés par référence, avec leur occupant. */
+/**
+ * Logements non archivés (ou tous), triés par référence, avec leur occupant.
+ * Les compteurs des clients « électricité seule » ne sont pas des logements : ils sont exclus.
+ */
 export async function listerLogements(db: SqlDatabase, { inclureArchives = false } = {}): Promise<LogementAvecOccupant[]> {
   return db.all<LogementAvecOccupant>(
-    `${SELECT_AVEC_OCCUPANT} ${inclureArchives ? '' : 'WHERE l.archive = 0'} ORDER BY l.reference COLLATE NOCASE`
+    `${SELECT_AVEC_OCCUPANT} WHERE l.usage = 'location' ${inclureArchives ? '' : 'AND l.archive = 0'} ORDER BY l.reference COLLATE NOCASE`
   );
 }
 

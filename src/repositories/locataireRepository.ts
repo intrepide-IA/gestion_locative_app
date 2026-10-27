@@ -39,6 +39,8 @@ export interface Contrat {
   caution_rendue: number;
   caution_retenue_charges: number;
   motif_retenue_charges: string | null;
+  /** « bail » : location ; « electricite » : client qui achète seulement l'électricité. */
+  type: 'bail' | 'electricite';
 }
 
 /** Fonds de garantie total d'un contrat : caution de loyer + électricité + eau. */
@@ -55,6 +57,7 @@ export interface LocataireAvecContrat extends Locataire {
   toilettes: number | null;
   date_debut: string | null;
   date_sortie: string | null;
+  contrat_type: 'bail' | 'electricite';
 }
 
 export interface FicheLocataire {
@@ -82,7 +85,7 @@ export interface ConditionsContrat {
 
 const SELECT_AVEC_CONTRAT = `
   SELECT t.*, c.id AS contrat_id, c.statut AS contrat_statut, c.logement_id, l.reference AS logement_reference,
-         c.loyer, c.toilettes, c.date_debut, c.date_sortie
+         c.loyer, c.toilettes, c.date_debut, c.date_sortie, COALESCE(c.type, 'bail') AS contrat_type
   FROM locataires t
   LEFT JOIN contrats c ON c.id = (
     SELECT id FROM contrats WHERE locataire_id = t.id ORDER BY statut = 'actif' DESC, date_debut DESC, id DESC LIMIT 1
@@ -127,7 +130,8 @@ function validerConditions(c: ConditionsContrat) {
 /** Locataires non archivés : actifs d'abord, puis par nom. */
 export async function listerLocataires(db: SqlDatabase): Promise<LocataireAvecContrat[]> {
   return db.all<LocataireAvecContrat>(
-    `${SELECT_AVEC_CONTRAT} WHERE t.archive = 0 ORDER BY t.statut = 'actif' DESC, t.nom_complet COLLATE NOCASE`
+    // Les clients « électricité seule » sont gérés dans l'écran Électricité, pas parmi les locataires.
+    `${SELECT_AVEC_CONTRAT} WHERE t.archive = 0 AND COALESCE(c.type, 'bail') = 'bail' ORDER BY t.statut = 'actif' DESC, t.nom_complet COLLATE NOCASE`
   );
 }
 
@@ -161,8 +165,8 @@ export async function entrerLocataire(
   const f = validerFiche(fiche);
   const c = validerConditions(conditions);
   return db.transaction(async (tx) => {
-    const logement = await tx.get<{ archive: number }>('SELECT archive FROM logements WHERE id = ?', [logementId]);
-    if (!logement) throw new ErreurMetier('Logement introuvable.');
+    const logement = await tx.get<{ archive: number; usage: string }>('SELECT archive, usage FROM logements WHERE id = ?', [logementId]);
+    if (!logement || logement.usage !== 'location') throw new ErreurMetier('Logement introuvable.');
     if (logement.archive) throw new ErreurMetier('Ce logement est archivé.');
     const occupe = await tx.get<{ n: number }>(
       "SELECT count(*) AS n FROM contrats WHERE logement_id = ? AND statut = 'actif'",

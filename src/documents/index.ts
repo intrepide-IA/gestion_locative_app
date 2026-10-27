@@ -5,10 +5,11 @@
 import { getDatabase } from '../db/client';
 import { aujourdhui } from '../domain/format';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
-import { donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
+import { donneesAvisElectricite, donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
+import { messageAvisElectricite, messageFactureElectricite, messageFactureLoyer, messageRecu } from '../domain/messages';
 import { donneesContrat, htmlContrat } from './contrat';
 import { donneesEtatDesLieux, htmlEtatDesLieux, sectionEtatDesLieux } from './etatDesLieux';
-import { htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
+import { htmlAvisElectricite, htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
 import { partagerPdf } from './partage';
 
 export interface DocumentPdf {
@@ -16,11 +17,30 @@ export interface DocumentPdf {
   /** Nom du fichier PDF, sans extension. */
   nomFichier: string;
   titre: string;
+  /** Envoi direct sur WhatsApp : numéro du destinataire et message déjà rédigé. */
+  whatsapp?: { telephone: string | null; message: string };
 }
 
 export async function preparerRecu(paiementId: number): Promise<DocumentPdf> {
   const d = await donneesRecu(await getDatabase(), paiementId);
-  return { html: htmlRecu(d), nomFichier: `Recu-${d.numero}`, titre: `Reçu ${d.numero}` };
+  return {
+    html: htmlRecu(d),
+    nomFichier: `Recu-${d.numero}`,
+    titre: `Reçu ${d.numero}`,
+    whatsapp: {
+      telephone: d.destinataire.telephone,
+      message: messageRecu({
+        nom: d.destinataire.nom,
+        numero: d.numero,
+        date: d.date,
+        montant: d.montant,
+        mois: d.lignes,
+        avance: d.credit,
+        soldeRestant: d.soldeRestant,
+        proprietaire: d.emetteur.nom,
+      }),
+    },
+  };
 }
 
 /** Facture d'une échéance (émise à la première préparation, puis réutilisée). */
@@ -28,12 +48,53 @@ export async function preparerFactureEcheance(echeanceId: number): Promise<Docum
   const db = await getDatabase();
   const numero = await emettreFactureLoyer(db, echeanceId);
   const d = await donneesFacture(db, numero);
-  return { html: htmlFacture(d), nomFichier: `Facture-${numero}`, titre: `Facture ${numero}` };
+  return {
+    html: htmlFacture(d),
+    nomFichier: `Facture-${numero}`,
+    titre: `Facture ${numero}`,
+    whatsapp: {
+      telephone: d.destinataire.telephone,
+      message: messageFactureLoyer({
+        nom: d.destinataire.nom,
+        numero,
+        periode: d.periode,
+        dateEcheance: d.dateEcheance,
+        reste: Math.max(0, d.montant - d.regle),
+        proprietaire: d.emetteur.nom,
+      }),
+    },
+  };
 }
 
 export async function preparerFactureElectricite(achatId: number): Promise<DocumentPdf> {
   const d = await donneesFactureElectricite(await getDatabase(), achatId);
-  return { html: htmlFactureElectricite(d), nomFichier: `Facture-${d.numero}`, titre: `Facture ${d.numero}` };
+  return {
+    html: htmlFactureElectricite(d),
+    nomFichier: `Facture-${d.numero}`,
+    titre: `Facture ${d.numero}`,
+    whatsapp: {
+      telephone: d.destinataire.telephone,
+      message: messageFactureElectricite({
+        nom: d.destinataire.nom,
+        numero: d.numero,
+        kwh: d.kwh,
+        montant: d.montantFacture,
+        indexCoupure: d.indexCoupure,
+        proprietaire: d.emetteur.nom,
+      }),
+    },
+  };
+}
+
+/** Avis d'électricité : situation du compteur, date de coupure, ou somme due en cas de dépassement. */
+export async function preparerAvisElectricite(contratId: number, dateLimite: string): Promise<DocumentPdf> {
+  const d = await donneesAvisElectricite(await getDatabase(), contratId, aujourdhui(), dateLimite);
+  return {
+    html: htmlAvisElectricite(d),
+    nomFichier: `Avis-electricite-${d.destinataire.nom}-${d.date}`,
+    titre: `Avis d’électricité — ${d.destinataire.nom}`,
+    whatsapp: { telephone: d.destinataire.telephone, message: messageAvisElectricite(d.avis, d.destinataire.nom, d.emetteur.nom) },
+  };
 }
 
 /** Contrat de bail, avec la fiche d'état des lieux en annexe si elle existe : un seul PDF à partager. */

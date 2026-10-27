@@ -39,7 +39,7 @@ async function lireDonnees(db: SqlDatabase, aujourdhui: string): Promise<Donnees
   const contratsAvecFin = await db.all<DonneesRappels['contratsAvecFin'][number]>(
     `SELECT c.id, c.date_fin, t.nom_complet AS locataire_nom, l.reference AS logement_reference
      FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
-     WHERE c.statut = 'actif' AND c.date_fin IS NOT NULL`
+     WHERE c.statut = 'actif' AND c.type = 'bail' AND c.date_fin IS NOT NULL`
   );
   const stocks = await listerSituationsElectricite(db);
   return { echeancesImpayees, contratsAvecFin, stocks };

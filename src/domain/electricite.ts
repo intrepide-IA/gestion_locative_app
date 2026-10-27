@@ -66,3 +66,50 @@ export function estimerEpuisement(e: { stock: number; consommes: number; dateDeb
 }
 
 export { ajouterJours };
+
+/** Situation du compteur annoncée au locataire (avis d'électricité). */
+export type CasAvis = 'credit' | 'bientot' | 'epuise' | 'depasse';
+
+export interface AvisElectricite {
+  cas: CasAvis;
+  /** Index relevé le plus récent. */
+  indexActuel: number;
+  /** Index auquel le crédit payé est (ou était) épuisé. */
+  indexCoupure: number;
+  /** kWh restants avant la coupure (0 si épuisé ou dépassé). */
+  resteKwh: number;
+  /** kWh consommés au-delà du crédit payé. */
+  depasseKwh: number;
+  /** Montant de l'électricité consommée sans crédit (arrondi au franc supérieur). */
+  montantDu: number;
+  prixKwh: number;
+  /** Date limite pour régler ou recharger (dépassé ou épuisé), sinon null. */
+  dateLimite: string | null;
+  /** Date d'épuisement estimée (crédit restant), si connue. */
+  epuisementEstime: string | null;
+}
+
+/**
+ * Avis à envoyer au locataire après un relevé : crédit restant, bientôt épuisé, épuisé ou dépassé
+ * (avec la somme due pour les kWh consommés sans crédit et la date limite avant coupure).
+ */
+export function avisElectricite(
+  s: { stock: number; dernier_index: number; index_coupure: number; prix_kwh: number; epuisement_estime: string | null },
+  seuilBas: number,
+  dateLimite: string
+): AvisElectricite {
+  const stock = arrondiKwh(s.stock);
+  const cas: CasAvis = stock < 0 ? 'depasse' : stock === 0 ? 'epuise' : stock < seuilBas ? 'bientot' : 'credit';
+  const depasseKwh = stock < 0 ? arrondiKwh(-stock) : 0;
+  return {
+    cas,
+    indexActuel: arrondiKwh(s.dernier_index),
+    indexCoupure: arrondiKwh(s.index_coupure),
+    resteKwh: stock > 0 ? stock : 0,
+    depasseKwh,
+    montantDu: depasseKwh > 0 ? Math.ceil(depasseKwh * s.prix_kwh - 1e-9) : 0,
+    prixKwh: s.prix_kwh,
+    dateLimite: cas === 'depasse' || cas === 'epuise' ? dateLimite : null,
+    epuisementEstime: stock > 0 ? s.epuisement_estime : null,
+  };
+}

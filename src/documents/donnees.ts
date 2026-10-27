@@ -2,7 +2,10 @@
 import type { SqlDatabase } from '../db/types';
 import { ErreurMetier } from '../domain/erreurs';
 import { LIBELLES_MODE, type ModePaiement } from '../repositories/loyerRepository';
-import type { DonneesFacture, DonneesFactureElectricite, DonneesRecu, Emetteur } from './gabarits';
+import { avisElectricite } from '../domain/electricite';
+import { situationElectricite } from '../repositories/electriciteRepository';
+import { lireParametreNombre } from '../repositories/parametresRepository';
+import type { DonneesAvisElectricite, DonneesFacture, DonneesFactureElectricite, DonneesRecu, Emetteur } from './gabarits';
 
 async function emetteur(db: SqlDatabase): Promise<Emetteur> {
   const p = await db.get<Emetteur>('SELECT nom, telephone, adresse, signature FROM proprietaire WHERE id = 1');
@@ -121,9 +124,10 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     telephone: string | null;
     piece_identite: string | null;
     reference: string;
+    type_contrat: string;
   }>(
     `SELECT f.numero, f.statut, a.date_achat, a.kwh, a.prix_kwh, a.montant_facture, a.montant_recu, a.ecart_arrondi, a.mode, a.index_achat, a.index_coupure, a.cree_le,
-            t.nom_complet, t.telephone, t.piece_identite, l.reference
+            t.nom_complet, t.telephone, t.piece_identite, l.reference, c.type AS type_contrat
      FROM achats_electricite a JOIN factures f ON f.achat_electricite_id = a.id
      JOIN contrats c ON c.id = a.contrat_id JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
      WHERE a.id = ? ORDER BY f.id DESC LIMIT 1`,
@@ -144,6 +148,39 @@ export async function donneesFactureElectricite(db: SqlDatabase, achatId: number
     mode: LIBELLES_MODE[a.mode],
     annulee: a.statut === 'annulee',
     emetteur: await emetteur(db),
-    destinataire: { nom: a.nom_complet, telephone: a.telephone, pieceIdentite: a.piece_identite, logement: a.reference },
+    destinataire: {
+      nom: a.nom_complet,
+      telephone: a.telephone,
+      pieceIdentite: a.piece_identite,
+      logement: a.reference,
+      clientElectricite: a.type_contrat === 'electricite',
+    },
+  };
+}
+
+/** Avis d'électricité d'un contrat, d'après le dernier relevé et les achats non annulés. */
+export async function donneesAvisElectricite(db: SqlDatabase, contratId: number, date: string, dateLimite: string): Promise<DonneesAvisElectricite> {
+  const s = await situationElectricite(db, contratId);
+  if (!s) throw new ErreurMetier('Contrat introuvable.');
+  const [seuil, client, dernierAchat] = await Promise.all([
+    lireParametreNombre(db, 'seuil_kwh_bas'),
+    db.get<{ telephone: string | null; piece_identite: string | null }>('SELECT telephone, piece_identite FROM locataires WHERE id = ?', [s.locataire_id]),
+    db.get<{ index_achat: number | null }>(
+      'SELECT index_achat FROM achats_electricite WHERE contrat_id = ? AND annule_le IS NULL ORDER BY date_achat DESC, id DESC LIMIT 1',
+      [contratId]
+    ),
+  ]);
+  return {
+    avis: avisElectricite(s, seuil, dateLimite),
+    date,
+    indexDepart: dernierAchat?.index_achat ?? null,
+    emetteur: await emetteur(db),
+    destinataire: {
+      nom: s.locataire_nom,
+      telephone: client?.telephone ?? null,
+      pieceIdentite: client?.piece_identite ?? null,
+      logement: s.logement_reference,
+      clientElectricite: s.type_contrat === 'electricite',
+    },
   };
 }

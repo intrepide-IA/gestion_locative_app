@@ -115,7 +115,7 @@ export async function genererEcheances(
       loyer: number;
       toilettes: number;
       jour_echeance: number;
-    }>('SELECT id, locataire_id, date_debut, date_sortie, statut, loyer, toilettes, jour_echeance FROM contrats');
+    }>("SELECT id, locataire_id, date_debut, date_sortie, statut, loyer, toilettes, jour_echeance FROM contrats WHERE type = 'bail'");
 
     let creees = 0;
     const locatairesConcernes = new Set<number>();
@@ -450,7 +450,7 @@ export async function echeancierDuLocataire(
     echeancesDuLocataire(db, locataireId, aujourdhui),
     situationLocataire(db, locataireId),
     db.get<{ date_debut: string; date_fin: string | null; jour_echeance: number; loyer: number; toilettes: number }>(
-      "SELECT date_debut, date_fin, jour_echeance, loyer, toilettes FROM contrats WHERE locataire_id = ? AND statut = 'actif'",
+      "SELECT date_debut, date_fin, jour_echeance, loyer, toilettes FROM contrats WHERE locataire_id = ? AND statut = 'actif' AND type = 'bail'",
       [locataireId]
     ),
   ]);
@@ -488,7 +488,7 @@ export async function previsionsDuMois(
   const contrats = await db.all<{ locataire_id: number; locataire_nom: string; logement_reference: string }>(
     `SELECT c.locataire_id, t.nom_complet AS locataire_nom, l.reference AS logement_reference
      FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
-     WHERE c.statut = 'actif'
+     WHERE c.statut = 'actif' AND c.type = 'bail'
        AND NOT EXISTS (SELECT 1 FROM echeances e WHERE e.contrat_id = c.id AND e.annee = ? AND e.mois = ?)
      ORDER BY l.reference COLLATE NOCASE`,
     [annee, mois]

@@ -5,6 +5,7 @@
 import type { SqlDatabase } from '../db/types';
 import { arrondiKwh, calculerAchat, estimerEpuisement, etatStock, type EtatStock } from '../domain/electricite';
 import { ErreurMetier, exigerDate, exigerMontant, texteOuNull } from '../domain/erreurs';
+import { terminerContrat } from './locataireRepository';
 import { LIBELLES_MODE, type ModePaiement } from './loyerRepository';
 import { prochainNumero } from './numerotation';
 import { lireParametreNombre } from './parametresRepository';
@@ -13,7 +14,10 @@ export interface SituationElectricite {
   contrat_id: number;
   locataire_id: number;
   locataire_nom: string;
+  locataire_telephone: string | null;
   logement_reference: string;
+  /** « bail » : locataire ; « electricite » : client qui achète seulement l'électricité. */
+  type_contrat: 'bail' | 'electricite';
   prix_kwh: number;
   releve_initial: number;
   achetes: number;
@@ -57,7 +61,8 @@ export interface Releve {
 }
 
 const SELECT_SITUATION = `
-  SELECT c.id AS contrat_id, c.locataire_id, t.nom_complet AS locataire_nom, l.reference AS logement_reference,
+  SELECT c.id AS contrat_id, c.locataire_id, t.nom_complet AS locataire_nom, t.telephone AS locataire_telephone,
+         l.reference AS logement_reference, c.type AS type_contrat,
          c.prix_kwh, c.releve_initial, c.date_debut,
          COALESCE((SELECT SUM(kwh) FROM achats_electricite WHERE contrat_id = c.id AND annule_le IS NULL), 0) AS achetes,
          COALESCE((SELECT SUM(consommation) FROM releves WHERE contrat_id = c.id AND compteur = 'electricite'), 0) AS consommes,
@@ -230,4 +235,93 @@ export async function enregistrerReleve(
     );
     return { consommation: arrondiKwh(consommationBrute) };
   });
+}
+
+export interface NouveauClientElectricite {
+  nom_complet: string;
+  telephone?: string | null;
+  /** Emplacement du compteur (boutique, maison voisine…). Par défaut : « Compteur — nom ». */
+  emplacement?: string | null;
+  prix_kwh: number;
+  releve_initial: number;
+  date_debut: string;
+  caution_electricite?: number;
+}
+
+/**
+ * Client « électricité seule » : une personne qui ne loue pas mais achète l'électricité.
+ * On crée sa fiche, un compteur (hors liste des logements) et un contrat de type « electricite »
+ * sans loyer ni échéance : seules les ventes de kWh et les relevés le concernent.
+ */
+export async function creerClientElectricite(
+  db: SqlDatabase,
+  client: NouveauClientElectricite,
+  maintenant: () => string = () => new Date().toISOString()
+): Promise<{ locataireId: number; contratId: number }> {
+  const nom = client.nom_complet.trim();
+  if (!nom) throw new ErreurMetier('Le nom du client est obligatoire.');
+  const date = exigerDate(client.date_debut, 'Date de début');
+  const prix = exigerMontant(client.prix_kwh, 'Prix du kWh', { strictementPositif: true });
+  const caution = exigerMontant(client.caution_electricite ?? 0, 'Caution électricité');
+  const releve = arrondiKwh(client.releve_initial);
+  if (!Number.isFinite(releve) || releve < 0) throw new ErreurMetier('Index initial du compteur invalide.');
+
+  return db.transaction(async (tx) => {
+    const now = maintenant();
+    // La référence d'un compteur est unique parmi les logements et compteurs : on ajoute un numéro si besoin.
+    const base = texteOuNull(client.emplacement) ?? `Compteur — ${nom}`;
+    let reference = base;
+    for (let n = 2; await tx.get('SELECT 1 AS x FROM logements WHERE reference = ? COLLATE NOCASE', [reference]); n++) reference = `${base} (${n})`;
+    const { lastInsertRowId: logementId } = await tx.run(
+      "INSERT INTO logements (reference, type, loyer_indicatif, toilettes, usage, cree_le) VALUES (?, 'autre', 0, 0, 'electricite', ?)",
+      [reference, now]
+    );
+    const { lastInsertRowId: locataireId } = await tx.run(
+      "INSERT INTO locataires (nom_complet, telephone, statut, cree_le) VALUES (?, ?, 'actif', ?)",
+      [nom, texteOuNull(client.telephone), now]
+    );
+    const { lastInsertRowId: contratId } = await tx.run(
+      `INSERT INTO contrats (locataire_id, logement_id, date_debut, loyer, toilettes, caution, caution_electricite, prix_kwh, releve_initial, type, statut, cree_le)
+       VALUES (?, ?, ?, 0, 0, 0, ?, ?, ?, 'electricite', 'actif', ?)`,
+      [locataireId, logementId, date, caution, prix, releve, now]
+    );
+    if (caution > 0) {
+      const categorie = await tx.get<{ id: number }>("SELECT id FROM categories_financieres WHERE code = 'caution'");
+      await tx.run(
+        `INSERT INTO mouvements_financiers (date_operation, sens, montant, categorie_id, description, logement_id, origine_type, origine_id, statut, cree_le)
+         VALUES (?, 'entree', ?, ?, ?, ?, 'caution', ?, 'valide', ?)`,
+        [date, caution, categorie!.id, `Caution électricité de ${nom}`, logementId, contratId, now]
+      );
+    }
+    return { locataireId, contratId };
+  });
+}
+
+/**
+ * Fin du suivi d'un client « électricité seule » : l'électricité consommée sans crédit est retenue sur
+ * sa caution électricité, le reste lui est rendu ; le compteur est archivé, l'historique conservé.
+ */
+export async function arreterClientElectricite(
+  db: SqlDatabase,
+  contratId: number,
+  date: string
+): Promise<{ retenue: number; rendue: number; resteDu: number }> {
+  const jour = exigerDate(date, 'Date');
+  const c = await db.get<{ type: string; statut: string; logement_id: number; caution_electricite: number }>(
+    'SELECT type, statut, logement_id, caution_electricite FROM contrats WHERE id = ?',
+    [contratId]
+  );
+  if (!c || c.type !== 'electricite') throw new ErreurMetier('Client introuvable.');
+  if (c.statut !== 'actif') throw new ErreurMetier('Ce suivi est déjà arrêté.');
+  const s = await situationElectricite(db, contratId);
+  const deficit = s && s.stock < 0 ? Math.round(-s.stock * s.prix_kwh) : 0;
+  const retenue = Math.min(c.caution_electricite, deficit);
+  const rendue = c.caution_electricite - retenue;
+  await terminerContrat(db, contratId, jour, {
+    retenueCharges: retenue,
+    motifCharges: retenue ? `électricité consommée sans crédit ${retenue} FCFA` : null,
+    cautionRendue: rendue,
+  });
+  await db.run('UPDATE logements SET archive = 1 WHERE id = ?', [c.logement_id]);
+  return { retenue, rendue, resteDu: deficit - retenue };
 }

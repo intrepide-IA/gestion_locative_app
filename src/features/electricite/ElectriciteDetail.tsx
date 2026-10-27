@@ -1,17 +1,19 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { Gauge, Share2, Zap } from 'lucide-react-native';
+import { BellRing, Gauge, Power, Share2, Zap } from 'lucide-react-native';
 
 import { ChampDate } from '../../components/ui/ChampDate';
+import { BoutonsContact } from '../../components/ui/Contact';
+import { confirmer, informer } from '../../components/ui/confirmer';
 import { Feuille } from '../../components/ui/Feuille';
 import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
-import { preparerFactureElectricite } from '../../documents';
+import { preparerAvisElectricite, preparerFactureElectricite } from '../../documents';
 import { useApercu } from '../../components/documents/Apercu';
-import { calculerAchat, LIBELLES_STOCK, type EtatStock } from '../../domain/electricite';
+import { ajouterJours, calculerAchat, LIBELLES_STOCK, type EtatStock } from '../../domain/electricite';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatDate, formatFCFA, lireMontant, formatHeure } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
@@ -19,6 +21,7 @@ import {
   achatsDuContrat,
   acheterElectricite,
   annulerAchat,
+  arreterClientElectricite,
   enregistrerReleve,
   relevesDuContrat,
   situationElectricite,
@@ -36,7 +39,7 @@ export function tonStock(etat: EtatStock): 'succes' | 'attention' | 'erreur' {
   return etat === 'ok' ? 'succes' : etat === 'bas' ? 'attention' : 'erreur';
 }
 
-type Vue = 'detail' | 'vente' | 'releve';
+type Vue = 'detail' | 'vente' | 'releve' | 'avis';
 
 /** Fiche électricité d'un contrat : stock, vente de kWh, relevés et historiques. */
 export function ElectriciteDetail({ contratId, onFermer, onModifie }: { contratId: number | null; onFermer: () => void; onModifie: () => void }) {
@@ -45,7 +48,7 @@ export function ElectriciteDetail({ contratId, onFermer, onModifie }: { contratI
     setVue('detail');
     onFermer();
   };
-  const titres: Record<Vue, string> = { detail: 'Électricité', vente: 'Vendre des kWh', releve: 'Relevé du compteur' };
+  const titres: Record<Vue, string> = { detail: 'Électricité', vente: 'Vendre des kWh', releve: 'Relevé du compteur', avis: 'Avertir le locataire' };
   return (
     <Feuille ouverte={contratId !== null} onFermer={fermer} titre={titres[vue]}>
       {contratId !== null ? (
@@ -54,6 +57,10 @@ export function ElectriciteDetail({ contratId, onFermer, onModifie }: { contratI
           vue={vue}
           setVue={setVue}
           onModifie={onModifie}
+          onArrete={() => {
+            onModifie();
+            fermer();
+          }}
         />
       ) : null}
     </Feuille>
@@ -66,7 +73,19 @@ interface Donnees {
   releves: Releve[];
 }
 
-function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue: Vue; setVue: (v: Vue) => void; onModifie: () => void }) {
+function Contenu({
+  contratId,
+  vue,
+  setVue,
+  onModifie,
+  onArrete,
+}: {
+  contratId: number;
+  vue: Vue;
+  setVue: (v: Vue) => void;
+  onModifie: () => void;
+  onArrete: () => void;
+}) {
   const lire = useCallback(
     async (db: SqlDatabase): Promise<Donnees> => {
       const [situation, achats, releves] = await Promise.all([
@@ -92,7 +111,35 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
   };
 
   if (vue === 'vente') return <FormVente situation={s} onEnregistre={apres} onTerminer={() => setVue('detail')} />;
-  if (vue === 'releve') return <FormReleve situation={s} onEnregistre={() => { apres(); setVue('detail'); }} />;
+  if (vue === 'releve') return <FormReleve situation={s} onEnregistre={() => { apres(); setVue('avis'); }} />;
+  if (vue === 'avis') return <FormAvis situation={s} onTerminer={() => setVue('detail')} />;
+
+  const client = s.type_contrat === 'electricite';
+  const arreter = async () => {
+    const ok = await confirmer(
+      'Arrêter le suivi de ce client ?',
+      'Son compteur sera archivé et son historique conservé. L’électricité consommée sans crédit est retenue sur sa caution, le reste lui est rendu.',
+      'Arrêter le suivi',
+      true
+    );
+    if (!ok) return;
+    try {
+      const r = await arreterClientElectricite(await getDatabase(), s.contrat_id, aujourdhui());
+      informer(
+        'Suivi arrêté',
+        [
+          r.retenue ? `Retenu sur la caution : ${formatFCFA(r.retenue)}.` : '',
+          r.rendue ? `À rendre au client : ${formatFCFA(r.rendue)}.` : '',
+          r.resteDu ? `Le client doit encore ${formatFCFA(r.resteDu)}.` : '',
+        ]
+          .filter(Boolean)
+          .join(' ') || 'Le compteur est archivé.'
+      );
+      onArrete();
+    } catch (error) {
+      informer('Impossible d’arrêter le suivi', messageErreur(error));
+    }
+  };
 
   return (
     <>
@@ -102,9 +149,11 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
           <Text className="text-muted">
             {s.logement_reference} · {formatFCFA(s.prix_kwh)} / kWh
           </Text>
+          {client ? <Text className="text-xs text-muted">Client électricité (sans location)</Text> : null}
         </View>
         <Badge libelle={LIBELLES_STOCK[s.etat]} ton={tonStock(s.etat)} />
       </View>
+      <BoutonsContact telephone={s.locataire_telephone} />
 
       <View className={`rounded-3xl p-5 ${s.etat === 'ok' ? 'bg-primary' : s.etat === 'bas' ? 'bg-accent' : 'bg-danger'}`}>
         <Text className={s.etat === 'bas' ? 'text-ink' : 'text-white/80'}>{s.stock < 0 ? 'Déficit' : 'Stock restant'}</Text>
@@ -138,6 +187,12 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
 
       <Bouton titre="Vendre des kWh" icone={<Zap size={18} color={colors.white} />} onPress={() => setVue('vente')} />
       <Bouton titre="Saisir un relevé" variante="secondaire" icone={<Gauge size={18} color={colors.primary} />} onPress={() => setVue('releve')} />
+      <Bouton
+        titre={client ? 'Avertir le client' : 'Avertir le locataire'}
+        variante="secondaire"
+        icone={<BellRing size={18} color={colors.primary} />}
+        onPress={() => setVue('avis')}
+      />
 
       {achats.length ? (
         <>
@@ -195,6 +250,10 @@ function Contenu({ contratId, vue, setVue, onModifie }: { contratId: number; vue
           apres();
         }}
       />
+
+      {client ? (
+        <Bouton titre="Arrêter le suivi de ce client" variante="danger" icone={<Power size={18} color={colors.danger} />} onPress={arreter} />
+      ) : null}
 
       {releves.length ? (
         <Carte>
@@ -374,6 +433,61 @@ function FormReleve({ situation, onEnregistre }: { situation: SituationElectrici
       <ChampDate libelle="Date du relevé" valeur={date} onChange={setDate} />
       {erreur ? <Text className="text-danger text-center">{erreur}</Text> : null}
       <Bouton titre="Enregistrer le relevé" onPress={enregistrer} chargement={enCours} desactive={recule && !nouveauCompteur} />
+    </>
+  );
+}
+
+/**
+ * Avis au locataire après un relevé : crédit restant et index de coupure, ou, s'il a dépassé,
+ * la somme due et la date limite avant coupure. Fiche PDF (avec le dessin du compteur) et message WhatsApp.
+ */
+function FormAvis({ situation: s, onTerminer }: { situation: SituationElectricite; onTerminer: () => void }) {
+  const [dateLimite, setDateLimite] = useState(ajouterJours(aujourdhui(), 3));
+  const ouvrirApercu = useApercu();
+  const depasse = s.stock < 0;
+  const epuise = s.stock === 0;
+  const montant = depasse ? Math.ceil(-s.stock * s.prix_kwh - 1e-9) : 0;
+  return (
+    <>
+      <Text className="text-muted">
+        Dernier relevé : index {indexTexte(s.dernier_index)}
+        {s.dernier_releve_le ? ` le ${formatDate(s.dernier_releve_le)}` : ' (index initial)'}.
+        {s.dernier_releve_le === aujourdhui() ? '' : ' Pour un avis exact, saisissez d’abord le relevé du jour.'}
+      </Text>
+      <Carte>
+        <LigneInfo libelle="Index actuel" valeur={indexTexte(s.dernier_index)} />
+        <LigneInfo libelle="Index de coupure" valeur={<Text className="font-bold text-danger">{indexTexte(s.index_coupure)}</Text>} />
+        {depasse ? (
+          <>
+            <LigneInfo libelle="Consommé sans crédit" valeur={formatKwh(Math.abs(s.stock))} />
+            <LigneInfo libelle="Montant à régler" valeur={<Text className="font-bold text-danger">{formatFCFA(montant)}</Text>} />
+          </>
+        ) : epuise ? (
+          <LigneInfo libelle="Crédit" valeur="Épuisé" />
+        ) : (
+          <>
+            <LigneInfo libelle="Crédit restant" valeur={formatKwh(s.stock)} />
+            {s.epuisement_estime ? <LigneInfo libelle="Fin estimée" valeur={formatDate(s.epuisement_estime)} /> : null}
+          </>
+        )}
+      </Carte>
+      {depasse || epuise ? (
+        <ChampDate
+          libelle={depasse ? 'À régler avant le' : 'Recharger avant le'}
+          valeur={dateLimite}
+          onChange={setDateLimite}
+          minimum={aujourdhui()}
+        />
+      ) : null}
+      <Bouton
+        titre="Voir l’avis et l’envoyer"
+        icone={<Share2 size={18} color={colors.white} />}
+        onPress={() => ouvrirApercu(() => preparerAvisElectricite(s.contrat_id, dateLimite))}
+      />
+      <Text className="text-muted text-xs text-center">
+        L’avis contient un dessin du compteur. Vous pourrez l’envoyer sur WhatsApp avec un message déjà rédigé, ou le partager en PDF.
+      </Text>
+      <Bouton titre="Terminer" variante="secondaire" onPress={onTerminer} />
     </>
   );
 }

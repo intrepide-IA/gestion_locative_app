@@ -153,7 +153,7 @@ function Champs({ ctx, logementInitial, onEnregistre }: { ctx: Contexte; logemen
     <>
       <Text className="text-xs font-bold text-muted uppercase tracking-wider">Locataire</Text>
       <Champ libelle="Nom complet" obligatoire value={nom} onChangeText={setNom} erreur={erreurs.nom} placeholder="Ex. Awa Houngbo" />
-      <Champ libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" placeholder="+229 …" />
+      <Champ libelle="Téléphone (WhatsApp)" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" placeholder="01 XX XX XX XX" />
       <Champ libelle="Pièce d’identité" value={piece} onChangeText={setPiece} placeholder="N° CNI ou passeport (facultatif)" />
 
       <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-2">Logement</Text>
