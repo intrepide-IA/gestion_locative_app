@@ -132,6 +132,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const API = 'https://onile-api.onrender.com';
+    // Secours si l'API ne répond pas : dernière version publiée sur GitHub.
+    const RELEASES = 'https://api.github.com/repos/intrepide-IA/gestion_locative_app/releases/latest';
+    let secours = false;
     const $ = (id) => document.getElementById(id);
     const mo = (o) => (o / 1048576).toFixed(1).replace('.', ',');
     const estAndroid = /Android/i.test(navigator.userAgent);
@@ -166,11 +169,25 @@
         $('bouton').disabled = false;
       } catch {
         clearTimeout(attente);
-        $('libelle').textContent = 'Télécharger';
+        try {
+          const g = await fetch(RELEASES);
+          if (!g.ok) throw new Error();
+          const rel = await g.json();
+          const apk = rel.assets.find((a) => a.name.endsWith('.apk'));
+          if (!apk) throw new Error();
+          secours = true;
+          info = { version: rel.tag_name.replace(/^v/, ''), url_apk: apk.browser_download_url };
+          $('version').textContent = info.version;
+          $('taille').textContent = `${mo(apk.size)} Mo`;
+          $('date').textContent = new Date(rel.published_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+          $('libelle').textContent = `Télécharger la version ${info.version}`;
+        } catch {
+          $('libelle').textContent = 'Télécharger';
+          $('version').textContent = 'dernière';
+          $('taille').textContent = '≈ 80 Mo';
+          $('date').textContent = '—';
+        }
         $('bouton').disabled = false;
-        $('version').textContent = 'dernière';
-        $('taille').textContent = '≈ 80 Mo';
-        $('date').textContent = '—';
       }
       if (estIos) {
         etat('Onílé n’existe que sur Android pour le moment : ce fichier ne s’installe pas sur iPhone.', 'erreur');
@@ -183,7 +200,7 @@
     function telechargementDirect() {
       // Repli : le navigateur télécharge lui-même (progression dans sa barre de notifications).
       const a = document.createElement('a');
-      a.href = `${API}/telecharger`;
+      a.href = secours && info?.url_apk ? info.url_apk : `${API}/telecharger`;
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
@@ -192,6 +209,8 @@
     }
 
     async function telecharger() {
+      // Serveur indisponible : le navigateur télécharge directement depuis GitHub.
+      if (secours) return telechargementDirect();
       $('bouton').disabled = true;
       $('etat').className = 'etat';
       $('progression').classList.add('visible');
