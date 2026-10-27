@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
@@ -25,6 +25,11 @@ function useHauteurClavier(): number {
   return hauteur;
 }
 
+const DefilementFeuille = createContext<((decalage: number) => void) | undefined>(undefined);
+
+/** Fait défiler la feuille ouverte (visite guidée : garder l'élément montré à l'écran). */
+export const useDefilerFeuille = () => useContext(DefilementFeuille);
+
 /**
  * Feuille modale qui monte du bas de l'écran. Son contenu n'est monté que lorsqu'elle est ouverte :
  * un formulaire repart ainsi de ses valeurs initiales à chaque ouverture.
@@ -45,6 +50,9 @@ export function Feuille({
 }) {
   const insets = useSafeAreaInsets();
   const clavier = useHauteurClavier();
+  const defilement = useRef<ScrollView>(null);
+  const position = useRef(0);
+  const defiler = useCallback((d: number) => defilement.current?.scrollTo({ y: Math.max(0, position.current + d), animated: true }), []);
   // Si le système a déjà réduit la fenêtre pour le clavier, on ne compense que ce qui reste masqué.
   const [hauteurs, setHauteurs] = useState({ pleine: 0, actuelle: 0 });
   const reduction = Math.max(0, hauteurs.pleine - hauteurs.actuelle);
@@ -75,8 +83,17 @@ export function Feuille({
                 <X size={18} color={colors.ink} />
               </Pressable>
             </View>
-            <ScrollView className="px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
-              {children}
+            <ScrollView
+              ref={defilement}
+              onScroll={(e) => {
+                position.current = e.nativeEvent.contentOffset.y;
+              }}
+              scrollEventThrottle={32}
+              className="px-5"
+              contentContainerStyle={{ paddingBottom: 20, gap: 16 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <DefilementFeuille.Provider value={defiler}>{children}</DefilementFeuille.Provider>
             </ScrollView>
             {pied ? <View className="px-5 pt-3 pb-4 border-t border-border bg-background gap-2">{pied}</View> : null}
           </View>

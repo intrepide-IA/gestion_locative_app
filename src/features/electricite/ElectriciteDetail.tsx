@@ -5,9 +5,11 @@ import { BellRing, Gauge, Power, Share2, Zap } from 'lucide-react-native';
 import { ChampDate } from '../../components/ui/ChampDate';
 import { BoutonsContact } from '../../components/ui/Contact';
 import { confirmer, informer } from '../../components/ui/confirmer';
-import { Feuille } from '../../components/ui/Feuille';
+import { Feuille, useDefilerFeuille } from '../../components/ui/Feuille';
 import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
+import { Cible, useVisiteSi } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -101,6 +103,7 @@ function Contenu({
   const { situation: s, achats, releves } = donnees;
   const ouvrirApercu = useApercu();
   const [aAnnuler, setAAnnuler] = useState<number | null>(null);
+  useVisiteSi('compteur', VISITES.compteur, vue === 'detail' && s !== null, useDefilerFeuille());
 
   if (chargement && !s) return <Chargement />;
   if (!s) return <Text className="text-muted text-center py-8">Contrat introuvable.</Text>;
@@ -185,14 +188,20 @@ function Contenu({
         </Text>
       </Carte>
 
-      <Bouton titre="Vendre des kWh" icone={<Zap size={18} color={colors.white} />} onPress={() => setVue('vente')} />
-      <Bouton titre="Saisir un relevé" variante="secondaire" icone={<Gauge size={18} color={colors.primary} />} onPress={() => setVue('releve')} />
-      <Bouton
-        titre={client ? 'Avertir le client' : 'Avertir le locataire'}
-        variante="secondaire"
-        icone={<BellRing size={18} color={colors.primary} />}
-        onPress={() => setVue('avis')}
-      />
+      <Cible id="compteur.vendre">
+        <Bouton titre="Vendre des kWh" icone={<Zap size={18} color={colors.white} />} onPress={() => setVue('vente')} />
+      </Cible>
+      <Cible id="compteur.releve">
+        <Bouton titre="Saisir un relevé" variante="secondaire" icone={<Gauge size={18} color={colors.primary} />} onPress={() => setVue('releve')} />
+      </Cible>
+      <Cible id="compteur.avertir">
+        <Bouton
+          titre={client ? 'Avertir le client' : 'Avertir le locataire'}
+          variante="secondaire"
+          icone={<BellRing size={18} color={colors.primary} />}
+          onPress={() => setVue('avis')}
+        />
+      </Cible>
 
       {achats.length ? (
         <>

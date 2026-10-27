@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, House, Pencil, Trash2, UserPlus, UserRound, Wallet, Zap } from 'lucide-react-native';
 
 import { BoutonsContact } from '../../components/ui/Contact';
-import { Feuille } from '../../components/ui/Feuille';
+import { Cible, useVisite, useVisiteSi } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
+import { Feuille, useDefilerFeuille } from '../../components/ui/Feuille';
 import { confirmer, informer } from '../../components/ui/confirmer';
 import {
   Badge,
@@ -58,6 +60,7 @@ export function LogementsScreen() {
   const [electricite, setElectricite] = useState<number | null>(null);
 
   const occupes = logements.filter((l) => l.contrat_id !== null).length;
+  useVisite('logements', VISITES.logements, { pret: !chargement });
   const visibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     return logements.filter((l) => {
@@ -94,6 +97,7 @@ export function LogementsScreen() {
       {logements.length > 0 ? (
         <>
           <BarreRecherche valeur={recherche} onChange={setRecherche} placeholder="Rechercher un logement ou un locataire…" />
+          <Cible id="logements.filtres">
           <Filtres
             options={[
               { valeur: 'tous', libelle: `Tous (${logements.length})` },
@@ -103,6 +107,7 @@ export function LogementsScreen() {
             valeur={filtre}
             onChange={setFiltre}
           />
+          </Cible>
         </>
       ) : null}
 
@@ -128,12 +133,17 @@ export function LogementsScreen() {
             )
           }
           renderItem={({ item }) => (
-            <CarteLogement logement={item} onPress={() => setSelection(item)} onLocataire={item.locataire_id ? () => setFiche(item.locataire_id) : undefined} />
+            <CarteLogement
+              logement={item}
+              premierOccupe={item.locataire_id !== null && visibles.find((l) => l.locataire_id !== null)?.id === item.id}
+              onPress={() => setSelection(item)}
+              onLocataire={item.locataire_id ? () => setFiche(item.locataire_id) : undefined}
+            />
           )}
         />
       )}
 
-      {logements.length > 0 ? <BoutonFlottant libelle="Ajouter un logement" onPress={() => setCreation(true)} /> : null}
+      {logements.length > 0 ? <BoutonFlottant cible="logements.ajouter" libelle="Ajouter un logement" onPress={() => setCreation(true)} /> : null}
 
       <LogementForm
         ouverte={creation || edition !== null}
@@ -205,10 +215,21 @@ export function LogementsScreen() {
 }
 
 /** Carte d'un logement : touche = détail du logement ; bandeau du bas = fiche du locataire (deux zones distinctes). */
-function CarteLogement({ logement, onPress, onLocataire }: { logement: LogementAvecOccupant; onPress: () => void; onLocataire?: () => void }) {
+function CarteLogement({
+  logement,
+  premierOccupe,
+  onPress,
+  onLocataire,
+}: {
+  logement: LogementAvecOccupant;
+  premierOccupe: boolean;
+  onPress: () => void;
+  onLocataire?: () => void;
+}) {
   const occupe = logement.contrat_id !== null;
   const loyer = occupe ? (logement.loyer_contrat ?? 0) + (logement.toilettes_contrat ?? 0) : logement.loyer_indicatif + logement.toilettes;
   return (
+    <Cible id={premierOccupe ? 'logements.carte' : `logements.carte.${logement.id}`}>
     <View className="bg-white rounded-2xl border border-border overflow-hidden">
       <Pressable onPress={onPress} accessibilityRole="button" className="p-4 active:bg-background">
         <View className="flex-row items-center">
@@ -228,6 +249,7 @@ function CarteLogement({ logement, onPress, onLocataire }: { logement: LogementA
         </View>
       </Pressable>
       {occupe && onLocataire ? (
+        <Cible id={premierOccupe ? 'logements.fiche' : `logements.fiche.${logement.id}`}>
         <Pressable
           onPress={onLocataire}
           accessibilityRole="button"
@@ -240,8 +262,10 @@ function CarteLogement({ logement, onPress, onLocataire }: { logement: LogementA
           </Text>
           <ChevronRight size={16} color={colors.primary} />
         </Pressable>
+        </Cible>
       ) : null}
     </View>
+    </Cible>
   );
 }
 
@@ -310,8 +334,10 @@ function Occupant({
   );
   const { donnees, chargement } = useRessource(lire, null);
   const nom = logement.locataire_nom ?? '';
+  useVisiteSi('chambre', VISITES.chambre, donnees !== null, useDefilerFeuille());
   return (
     <>
+      <Cible id="chambre.locataire">
       <Carte onPress={() => onFiche(locataireId)}>
         <View className="flex-row items-center">
           <View className="flex-1">
@@ -348,20 +374,27 @@ function Occupant({
           ) : null}
         </View>
       </Carte>
-      <BoutonsContact telephone={logement.locataire_telephone} />
+      </Cible>
+      <Cible id="chambre.contact">
+        <BoutonsContact telephone={logement.locataire_telephone} />
+      </Cible>
       <Bouton titre="Voir la fiche du locataire" icone={<UserRound size={18} color={colors.white} />} onPress={() => onFiche(locataireId)} />
+      <Cible id="chambre.encaisser">
       <Bouton
         titre="Encaisser un paiement"
         variante="secondaire"
         icone={<Wallet size={18} color={colors.primary} />}
         onPress={() => onEncaisser({ id: locataireId, nom, du: donnees?.situation.dette ?? 0 })}
       />
-      <Bouton
-        titre="Électricité de la chambre"
-        variante="secondaire"
-        icone={<Zap size={18} color={colors.primary} />}
-        onPress={() => onElectricite(logement.contrat_id!)}
-      />
+      </Cible>
+      <Cible id="chambre.electricite">
+        <Bouton
+          titre="Électricité de la chambre"
+          variante="secondaire"
+          icone={<Zap size={18} color={colors.primary} />}
+          onPress={() => onElectricite(logement.contrat_id!)}
+        />
+      </Cible>
     </>
   );
 }

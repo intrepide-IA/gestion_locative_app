@@ -4,9 +4,11 @@ import { DoorOpen, Pencil, ShieldAlert, Trash2, FileSignature, Wallet, Zap } fro
 import { FormCorrection, FormSuppression } from './CorrectionsLocataire';
 import { useNavigation } from '@react-navigation/native';
 
+import { Cible, useVisiteSi } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { ChampDate } from '../../components/ui/ChampDate';
 import { BoutonsContact } from '../../components/ui/Contact';
-import { Feuille } from '../../components/ui/Feuille';
+import { Feuille, useDefilerFeuille } from '../../components/ui/Feuille';
 import { confirmer, informer } from '../../components/ui/confirmer';
 import { Badge, Bouton, Carte, Champ, Chargement, Choix, LigneInfo } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
@@ -151,6 +153,7 @@ function Contenu({
   const [encaisser, setEncaisser] = useState(false);
   const ouvrirApercu = useApercu();
   const [electricite, setElectricite] = useState(false);
+  useVisiteSi('fiche', VISITES.fiche, vue === 'fiche' && locataire !== null, useDefilerFeuille());
 
   if (chargement && !locataire) return <Chargement />;
   if (!locataire) return <Text className="text-muted text-center py-8">Locataire introuvable.</Text>;
@@ -194,7 +197,9 @@ function Contenu({
         </View>
         {locataire.telephone ? <Text className="text-muted mt-1">{locataire.telephone}</Text> : null}
       </View>
-      <BoutonsContact telephone={locataire.telephone} />
+      <Cible id="fiche.contact">
+        <BoutonsContact telephone={locataire.telephone} />
+      </Cible>
 
       <Carte>
         <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Situation</Text>
@@ -205,20 +210,26 @@ function Contenu({
         {situation.credit > 0 ? <LigneInfo libelle="Avance (crédit)" valeur={formatFCFA(situation.credit)} /> : null}
         <LigneInfo libelle="Total réglé" valeur={formatFCFA(situation.regle)} />
       </Carte>
-      <Bouton titre="Encaisser un paiement" icone={<Wallet size={18} color={colors.white} />} onPress={() => setEncaisser(true)} />
+      <Cible id="fiche.encaisser">
+        <Bouton titre="Encaisser un paiement" icone={<Wallet size={18} color={colors.white} />} onPress={() => setEncaisser(true)} />
+      </Cible>
 
       {echeancier.lignes.length ? <CarteEcheancier echeancier={echeancier} /> : null}
 
       {contrat ? (
-        <Bouton
-          titre="Contrat de bail (signature, PDF)"
-          variante="secondaire"
-          icone={<FileSignature size={18} color={colors.primary} />}
-          onPress={() => onOuvrirBail(contrat.id)}
-        />
+        <Cible id="fiche.bail">
+          <Bouton
+            titre="Contrat de bail (signature, PDF)"
+            variante="secondaire"
+            icone={<FileSignature size={18} color={colors.primary} />}
+            onPress={() => onOuvrirBail(contrat.id)}
+          />
+        </Cible>
       ) : null}
       {contrat ? (
-        <Bouton titre="Électricité (stock, ventes, relevés)" variante="secondaire" icone={<Zap size={18} color={colors.primary} />} onPress={() => setElectricite(true)} />
+        <Cible id="fiche.electricite">
+          <Bouton titre="Électricité (stock, ventes, relevés)" variante="secondaire" icone={<Zap size={18} color={colors.primary} />} onPress={() => setElectricite(true)} />
+        </Cible>
       ) : null}
 
       {contrat ? (

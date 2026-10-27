@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View, type TextInp
 import { AlertCircle, CheckCircle2, ChevronLeft, Plus, Search, TriangleAlert } from 'lucide-react-native';
 
 import { Text } from './Text';
+import { Cible } from '../visite/Visite';
 import { FONT_FAMILY } from '../../theme/fonts';
 import { colors } from '../../theme/colors';
 
@@ -61,17 +62,18 @@ export function Bouton({
 }
 
 /** Bouton flottant « + » en bas à droite. */
-export function BoutonFlottant({ onPress, libelle }: { onPress: () => void; libelle: string }) {
-  return (
+export function BoutonFlottant({ onPress, libelle, cible }: { onPress: () => void; libelle: string; /** Étape de visite guidée. */ cible?: string }) {
+  const bouton = (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={libelle}
-      className="absolute right-5 bottom-6 w-14 h-14 rounded-full bg-primary items-center justify-center shadow-lg active:opacity-80"
+      className="w-14 h-14 rounded-full bg-primary items-center justify-center shadow-lg active:opacity-80"
     >
       <Plus size={28} color={colors.white} />
     </Pressable>
   );
+  return <View className="absolute right-5 bottom-6">{cible ? <Cible id={cible}>{bouton}</Cible> : bouton}</View>;
 }
 
 /* ---------- Badges de statut (couleur + libellé + icône) ---------- */

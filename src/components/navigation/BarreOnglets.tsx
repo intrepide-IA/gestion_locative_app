@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import { Text } from '../ui/Text';
+import { Cible } from '../visite/Visite';
 import { colors } from '../../theme/colors';
 
 const TRANSITION = LinearTransition.springify().damping(18).stiffness(180);
@@ -33,15 +34,15 @@ export function BarreOnglets({ state, descriptors, navigation }: BottomTabBarPro
           };
 
           return (
+            <Cible key={route.key} id={`onglet.${route.name}`} style={actif ? styles.zoneActive : styles.zoneInactive}>
             <Pressable
-              key={route.key}
               onPress={ouvrir}
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
               accessibilityRole="tab"
               accessibilityState={{ selected: actif }}
               accessibilityLabel={libelle}
               hitSlop={6}
-              style={actif ? styles.zoneActive : styles.zoneInactive}
+              style={styles.zonePleine}
             >
               <Animated.View layout={TRANSITION} style={actif ? (etroit ? styles.pastilleActiveEtroite : styles.pastilleActive) : styles.pastille}>
                 {options.tabBarIcon?.({ focused: actif, color: couleur, size: icone })}
@@ -54,6 +55,7 @@ export function BarreOnglets({ state, descriptors, navigation }: BottomTabBarPro
                 ) : null}
               </Animated.View>
             </Pressable>
+            </Cible>
           );
         })}
       </View>
@@ -81,6 +83,7 @@ const styles = StyleSheet.create({
   // Chaque onglet a une part de la largeur : l'actif (icône + libellé) en prend plus, mais tout reste dans la barre.
   zoneActive: { flex: 2.8, minWidth: 0, alignItems: 'center' },
   zoneInactive: { flex: 1, minWidth: 0, alignItems: 'center' },
+  zonePleine: { width: '100%', alignItems: 'center' },
   pastille: { height: 46, width: '100%', maxWidth: 46, borderRadius: 23, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   pastilleActive: {
     height: 46,

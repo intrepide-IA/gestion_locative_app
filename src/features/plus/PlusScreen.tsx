@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, Compass, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion, telechargerEtInstaller, type VersionPubliee } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -11,6 +11,8 @@ import { Feuille } from '../../components/ui/Feuille';
 import { PadSignature } from '../../components/ui/PadSignature';
 import { informer } from '../../components/ui/confirmer';
 import { Bouton, BoutonRetour, Champ, EnTete } from '../../components/ui/kit';
+import { Cible, useDefilementVisite, useReinitialiserVisite, useVisite } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { Text } from '../../components/ui/Text';
 import { APP_VERSION } from '../../constants';
 import { getDatabase } from '../../db/client';
@@ -74,11 +76,25 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
     }
   };
 
+  const reinitialiserVisite = useReinitialiserVisite();
+  const { attacher: attacherDefilement, onScroll: suivreDefilement, defiler } = useDefilementVisite();
+  useVisite('parametres', VISITES.parametres, { defiler });
+  const revoirVisite = async () => {
+    await reinitialiserVisite();
+    informer('Visite guidée relancée', 'Les explications réapparaîtront sur chaque écran, à commencer par l’accueil.');
+    onRetour();
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <BoutonRetour onPress={onRetour} />
       <EnTete titre="Paramètres" />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 20 }}>
+      <ScrollView
+        ref={attacherDefilement}
+        onScroll={suivreDefilement}
+        scrollEventThrottle={32}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 20 }}
+      >
         <Pressable
           onPress={() => setProfil(true)}
           accessibilityRole="button"
@@ -97,10 +113,13 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
 
         {maj.donnees ? <BandeauMiseAJour version={maj.donnees} /> : null}
 
+        <Cible id="parametres.maisons">
         <Groupe titre="Maisons">
           <Ligne icone={<Home size={18} color={colors.primary} />} libelle="Mes maisons" detail={maisonActive?.nom} onPress={() => setMaisons(true)} dernier />
         </Groupe>
+        </Cible>
 
+        <Cible id="parametres.documents">
         <Groupe titre="Documents">
           <Ligne
             icone={<PenLine size={18} color={colors.primary} />}
@@ -116,7 +135,9 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             dernier
           />
         </Groupe>
+        </Cible>
 
+        <Cible id="parametres.gestion">
         <Groupe titre="Gestion">
           <Ligne icone={<Zap size={18} color={colors.primary} />} libelle="Électricité prépayée" onPress={() => navigation.navigate('Electricite')} />
           <Ligne
@@ -131,6 +152,19 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             dernier
           />
         </Groupe>
+        </Cible>
+
+        <Cible id="parametres.visite">
+          <Groupe titre="Aide">
+            <Ligne
+              icone={<Compass size={18} color={colors.primary} />}
+              libelle="Revoir la visite guidée"
+              detail="Toutes les explications"
+              onPress={revoirVisite}
+              dernier
+            />
+          </Groupe>
+        </Cible>
 
         <Groupe titre="Rappels">
           <View className="flex-row items-center px-4 py-4">

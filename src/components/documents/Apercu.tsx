@@ -9,6 +9,8 @@ import { Text } from '../ui/Text';
 import { envoyerDocumentWhatsApp, numeroWhatsAppDocument, partagerDocument, type DocumentPdf } from '../../documents';
 import { messageErreur } from '../../domain/erreurs';
 import { colors } from '../../theme/colors';
+import { Cible, useVisiteSi } from '../visite/Visite';
+import { VISITES } from '../visite/visites';
 import { VueHtml } from './VueHtml';
 
 export interface ActionApercu {
@@ -59,6 +61,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
   };
 
   const whatsapp = etat?.doc?.whatsapp;
+  useVisiteSi('apercu', VISITES.apercu, !!etat?.doc);
   const numero = etat?.doc ? numeroWhatsAppDocument(etat.doc) : null;
   const envoyerWhatsApp = async () => {
     if (!etat?.doc) return;
@@ -118,6 +121,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
               {whatsapp ? (
                 numero ? (
                   <>
+                    <Cible id="apercu.whatsapp">
                     <Bouton
                       titre={`Envoyer sur WhatsApp (+${numero})`}
                       icone={<MessageCircle size={18} color={colors.white} />}
@@ -125,6 +129,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                       chargement={envoiWhatsApp}
                       desactive={!etat?.doc}
                     />
+                    </Cible>
                     <Text className="text-muted text-xs text-center">
                       Le PDF et le message partent directement dans la discussion de ce numéro, même s’il n’est pas dans vos contacts.
                     </Text>
@@ -135,6 +140,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                   </Text>
                 )
               ) : null}
+              <Cible id="apercu.partager">
               <Bouton
                 titre="Partager (PDF)"
                 variante={etat?.action || numero ? 'secondaire' : 'action'}
@@ -143,6 +149,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                 chargement={partage}
                 desactive={!etat?.doc}
               />
+              </Cible>
             </View>
           </View>
         </Modal>

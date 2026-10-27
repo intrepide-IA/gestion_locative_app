@@ -3,6 +3,8 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, Minus, Pencil, Plus } from 'lucide-react-native';
 
+import { Cible, useDefilementVisite, useVisite } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { Courbe } from '../../components/ui/Courbe';
 import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
@@ -67,6 +69,8 @@ export function FinancesScreen() {
   const [vue, setVue] = useState<Vue>('mois');
   const [periode, setPeriode] = useState({ annee: maintenant.getFullYear(), mois: maintenant.getMonth() + 1 });
   const [filtre, setFiltre] = useState<Filtre>('toutes');
+  const { attacher: attacherDefilement, onScroll: suivreDefilement, defiler } = useDefilementVisite();
+  useVisite('finances', VISITES.finances, { defiler });
   const [saisie, setSaisie] = useState<Sens | null>(null);
   const [selection, setSelection] = useState<Mouvement | null>(null);
   const [editionSolde, setEditionSolde] = useState(false);
@@ -129,7 +133,12 @@ export function FinancesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <EnTete titre="Finances" />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 14 }}>
+      <ScrollView
+        ref={attacherDefilement}
+        onScroll={suivreDefilement}
+        scrollEventThrottle={32}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 14 }}
+      >
         {erreur ? <EtatErreur message={messageErreur(erreur, erreur.message)} onReessayer={rafraichir} /> : null}
 
         <View className="bg-primary rounded-3xl p-5">
@@ -192,6 +201,7 @@ export function FinancesScreen() {
               </Carte>
             </View>
             {tendance.length ? (
+              <Cible id="finances.courbe">
               <Carte>
                 <Text className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                   {vue === 'annee' ? `Évolution ${periode.annee}` : 'Évolution sur 6 mois'}
@@ -205,6 +215,7 @@ export function FinancesScreen() {
                   surligne={surligne !== undefined && surligne >= 0 ? surligne : undefined}
                 />
               </Carte>
+              </Cible>
             ) : null}
             <Carte>
               <LigneInfo
@@ -249,7 +260,7 @@ export function FinancesScreen() {
             </Pressable>
           ) : null}
         </View>
-        <View className="-mx-5">
+        <Cible id="finances.filtres" style={{ marginHorizontal: -20 }}>
           <Filtres
             options={[
               { valeur: 'toutes', libelle: 'Toutes' },
@@ -261,7 +272,7 @@ export function FinancesScreen() {
             valeur={filtre}
             onChange={setFiltre}
           />
-        </View>
+        </Cible>
         {visibles.length === 0 ? <Text className="text-muted text-center py-6">Aucune opération sur cette période.</Text> : null}
         {visibles.map((m) => (
           <Carte key={m.id} onPress={() => setSelection(m)}>

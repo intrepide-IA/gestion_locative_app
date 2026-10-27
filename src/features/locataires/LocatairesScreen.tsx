@@ -15,6 +15,8 @@ import {
   EtatVide,
   Filtres,
 } from '../../components/ui/kit';
+import { Cible, useVisite } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { Text } from '../../components/ui/Text';
 import { messageErreur } from '../../domain/erreurs';
 import { formatDate, formatFCFA, initiales } from '../../domain/format';
@@ -36,6 +38,7 @@ export function LocatairesScreen() {
   const [selection, setSelection] = useState<number | null>(null);
 
   const actifs = locataires.filter((l) => l.contrat_statut === 'actif').length;
+  useVisite('locataires', VISITES.locataires, { pret: !chargement });
   const visibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     return locataires.filter((l) => {
@@ -51,7 +54,9 @@ export function LocatairesScreen() {
       <EnTete titre="Locataires" sousTitre={locataires.length ? `${actifs} locataire(s) actif(s)` : undefined} />
       {locataires.length > 0 ? (
         <>
-          <BarreRecherche valeur={recherche} onChange={setRecherche} placeholder="Rechercher un locataire ou un logement…" />
+          <Cible id="locataires.recherche">
+            <BarreRecherche valeur={recherche} onChange={setRecherche} placeholder="Rechercher un locataire ou un logement…" />
+          </Cible>
           <Filtres
             options={[
               { valeur: 'actifs', libelle: `Actifs (${actifs})` },
@@ -85,11 +90,15 @@ export function LocatairesScreen() {
               <Text className="text-muted text-center py-10">Aucun locataire ne correspond.</Text>
             )
           }
-          renderItem={({ item }) => <CarteLocataire locataire={item} onPress={() => setSelection(item.id)} />}
+          renderItem={({ item, index }) => (
+            <Cible id={index === 0 ? 'locataires.carte' : `locataires.carte.${item.id}`}>
+              <CarteLocataire locataire={item} onPress={() => setSelection(item.id)} />
+            </Cible>
+          )}
         />
       )}
 
-      {locataires.length > 0 ? <BoutonFlottant libelle="Ajouter un locataire" onPress={() => setEntree(true)} /> : null}
+      {locataires.length > 0 ? <BoutonFlottant cible="locataires.ajouter" libelle="Ajouter un locataire" onPress={() => setEntree(true)} /> : null}
 
       <EntreeLocataireForm
         ouverte={entree}

@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BarreOnglets } from './components/navigation/BarreOnglets';
 import { FournisseurApercu } from './components/documents/Apercu';
 import { FournisseurMaisons } from './components/maisons/Maisons';
+import { FournisseurVisite } from './components/visite/Visite';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
@@ -180,6 +181,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <FournisseurVisite>
       <FournisseurApercu>
         <FournisseurMaisons>
           {(maison) => (
@@ -226,6 +228,7 @@ export default function App() {
           )}
         </FournisseurMaisons>
       </FournisseurApercu>
+      </FournisseurVisite>
     </SafeAreaProvider>
   );
 }

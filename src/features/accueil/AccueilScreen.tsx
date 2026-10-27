@@ -18,6 +18,8 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Cible, useDefilementVisite, useVisite } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 
 import { LogoSymbole } from '../../components/brand/Logo';
 import { BoutonMaison } from '../../components/maisons/Maisons';
@@ -98,6 +100,8 @@ export function AccueilScreen() {
   const [nouveauLogement, setNouveauLogement] = useState(false);
   const [nouveauLocataire, setNouveauLocataire] = useState(false);
   const navigation = useNavigation<Nav>();
+  const { attacher: attacherDefilement, onScroll: suivreDefilement, defiler } = useDefilementVisite();
+  useVisite('accueil', VISITES.accueil, { defiler });
 
   const taux = s.logements ? Math.round((s.occupes / s.logements) * 100) : 0;
   const part = s.loyers.attendu ? Math.min(1, s.loyers.regle / s.loyers.attendu) : 0;
@@ -105,7 +109,12 @@ export function AccueilScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32, gap: 16 }}>
+      <ScrollView
+        ref={attacherDefilement}
+        onScroll={suivreDefilement}
+        scrollEventThrottle={32}
+        contentContainerStyle={{ padding: 20, paddingBottom: 32, gap: 16 }}
+      >
         <View className="flex-row items-center">
           <LogoSymbole taille={40} />
           <View className="flex-1 ml-3">
@@ -113,22 +122,29 @@ export function AccueilScreen() {
               {salutation()}
               {s.prenom ? `, ${s.prenom}` : ''}
             </Text>
-            <BoutonMaison />
+            <Cible id="accueil.maison" style={{ alignSelf: 'flex-start' }}>
+              <BoutonMaison />
+            </Cible>
           </View>
-          <BoutonRond
-            libelle={aTraiter ? `Notifications, ${aTraiter} à traiter` : 'Notifications'}
-            onPress={() => navigation.navigate('Notifications')}
-            pastille={aTraiter}
-          >
-            <Bell size={20} color={colors.ink} />
-          </BoutonRond>
-          <BoutonRond libelle="Paramètres" onPress={() => navigation.navigate('Parametres')}>
-            <Settings size={20} color={colors.ink} />
-          </BoutonRond>
+          <Cible id="accueil.notifications">
+            <BoutonRond
+              libelle={aTraiter ? `Notifications, ${aTraiter} à traiter` : 'Notifications'}
+              onPress={() => navigation.navigate('Notifications')}
+              pastille={aTraiter}
+            >
+              <Bell size={20} color={colors.ink} />
+            </BoutonRond>
+          </Cible>
+          <Cible id="accueil.parametres">
+            <BoutonRond libelle="Paramètres" onPress={() => navigation.navigate('Parametres')}>
+              <Settings size={20} color={colors.ink} />
+            </BoutonRond>
+          </Cible>
         </View>
 
         {erreur ? <EtatErreur message={messageErreur(erreur, erreur.message)} onReessayer={rafraichir} /> : null}
 
+        <Cible id="accueil.loyers">
         <Pressable onPress={() => navigation.navigate('Invoices')} accessibilityRole="button" className="bg-primary rounded-3xl p-5 overflow-hidden">
           <View className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/5" />
           <View className="absolute right-8 -bottom-20 w-36 h-36 rounded-full bg-accent/10" />
@@ -148,6 +164,7 @@ export function AccueilScreen() {
             </View>
           ) : null}
         </Pressable>
+        </Cible>
 
         <View className="flex-row gap-3">
           <Chiffre
@@ -201,6 +218,7 @@ export function AccueilScreen() {
         )}
 
         <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-1">Actions rapides</Text>
+        <Cible id="accueil.actions">
         <View className="flex-row flex-wrap justify-between" style={{ rowGap: 12 }}>
           <Raccourci icone={<Wallet size={22} color={colors.primary} />} libelle="Encaisser un loyer" onPress={() => navigation.navigate('Invoices')} />
           <Raccourci icone={<Receipt size={22} color={colors.primary} />} libelle="Ajouter une dépense" onPress={() => navigation.navigate('Finances')} />
@@ -209,6 +227,7 @@ export function AccueilScreen() {
           <Raccourci icone={<UserPlus size={22} color={colors.primary} />} libelle="Nouveau locataire" onPress={() => setNouveauLocataire(true)} />
           <Raccourci icone={<Database size={22} color={colors.primary} />} libelle="Sauvegarde" onPress={() => navigation.navigate('Sauvegarde')} />
         </View>
+        </Cible>
       </ScrollView>
 
       <LogementForm

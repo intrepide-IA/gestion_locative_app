@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Zap } from 'lucide-react-native';
 
 import { Badge, Bouton, BoutonFlottant, BoutonRetour, Carte, Chargement, EnTete, EtatErreur, EtatVide } from '../../components/ui/kit';
+import { Cible, useVisite } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { Text } from '../../components/ui/Text';
 import { LIBELLES_STOCK } from '../../domain/electricite';
 import { messageErreur } from '../../domain/erreurs';
@@ -27,6 +29,7 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
   const [selection, setSelection] = useState<number | null>(null);
   const [creation, setCreation] = useState(false);
   const alertes = donnees.filter((s) => s.etat !== 'ok' && s.achetes > 0).length;
+  useVisite('electricite', VISITES.electricite, { pret: !chargement });
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -49,7 +52,8 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
               action={<Bouton titre="Ajouter un client électricité" variante="secondaire" onPress={() => setCreation(true)} />}
             />
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
+            <Cible id={index === 0 ? 'electricite.carte' : `electricite.carte.${item.contrat_id}`}>
             <Carte onPress={() => setSelection(item.contrat_id)}>
               <View className="flex-row items-center">
                 <View className="w-11 h-11 rounded-xl bg-accent/20 items-center justify-center">
@@ -76,10 +80,11 @@ export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
                 </View>
               </View>
             </Carte>
+            </Cible>
           )}
         />
       )}
-      {donnees.length > 0 ? <BoutonFlottant libelle="Ajouter un client électricité" onPress={() => setCreation(true)} /> : null}
+      {donnees.length > 0 ? <BoutonFlottant cible="electricite.client" libelle="Ajouter un client électricité" onPress={() => setCreation(true)} /> : null}
       <ElectriciteDetail contratId={selection} onFermer={() => setSelection(null)} onModifie={rafraichir} />
       <ClientElectriciteForm
         ouverte={creation}

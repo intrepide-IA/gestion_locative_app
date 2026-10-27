@@ -16,6 +16,8 @@ import {
   Filtres,
   LigneInfo,
 } from '../../components/ui/kit';
+import { Cible, useVisite } from '../../components/visite/Visite';
+import { VISITES } from '../../components/visite/visites';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -114,12 +116,14 @@ export function LoyersScreen() {
   );
   const taux = synthese.attendu ? Math.round((synthese.regle / synthese.attendu) * 100) : 0;
   const titreMois = formatMois(periode.mois, periode.annee);
+  useVisite('loyers', VISITES.loyers);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <EnTete
         titre="Loyers"
         droite={
+          <Cible id="loyers.mois">
           <View className="flex-row items-center bg-white border border-border rounded-full">
             <Pressable onPress={() => decaler(-1)} accessibilityLabel="Mois précédent" className="p-2">
               <ChevronLeft size={18} color={colors.ink} />
@@ -129,6 +133,7 @@ export function LoyersScreen() {
               <ChevronRight size={18} color={colors.ink} />
             </Pressable>
           </View>
+          </Cible>
         }
       />
 
@@ -224,7 +229,8 @@ export function LoyersScreen() {
             <Text className="text-muted text-center py-10">Aucune échéance ne correspond.</Text>
           )
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
+          <Cible id={index === 0 ? 'loyers.ligne' : `loyers.ligne.${item.id}`}>
           <Carte onPress={() => setSelection(item.id)}>
             <View className="flex-row items-center">
               <View className="flex-1">
@@ -243,6 +249,7 @@ export function LoyersScreen() {
               </View>
             </View>
           </Carte>
+          </Cible>
         )}
       />
 
