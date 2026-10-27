@@ -113,8 +113,9 @@
       <aside aria-labelledby="installer">
         <h2 id="installer" style="font-size:24px;margin-bottom:16px">Installer en 3 étapes</h2>
         <ol class="etapes">
-          <li><div><b>Téléchargez le fichier</b><span>Attendez la fin de la barre de progression.</span></div></li>
-          <li><div><b>Ouvrez « onile-…apk »</b><span>Dans la notification de téléchargement ou l’application Fichiers.</span></div></li>
+          <li><div><b>Téléchargez le fichier une seule fois</b><span>Environ 80 Mo. Ne touchez pas le bouton plusieurs fois.</span></div></li>
+          <li><div><b>Confirmez dans Chrome</b><span>Chrome demande « Télécharger quand même » ou « Conserver » pour un fichier .apk. Sans cette réponse, il reste bloqué sur « Téléchargement en cours » même à 100 %. Si vous ne voyez pas la question : menu ⋮ de Chrome → <b>Téléchargements</b>.</span></div></li>
+          <li><div><b>Ouvrez « onile-…apk »</b><span>Dans Chrome → Téléchargements, ou l’application Fichiers → Téléchargements.</span></div></li>
           <li><div><b>Autorisez puis installez</b><span>Si Android le demande : « Paramètres » → « Autoriser cette source », puis « Installer ».</span></div></li>
         </ol>
         <div class="alerte">
@@ -205,7 +206,20 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-      etat('Le téléchargement a démarré : suivez sa progression dans la barre de notifications de votre téléphone.', 'ok');
+      // Un seul téléchargement à la fois : plusieurs clics créent plusieurs fichiers incomplets.
+      $('bouton').disabled = true;
+      $('libelle').textContent = 'Téléchargement lancé';
+      setTimeout(() => {
+        $('bouton').disabled = false;
+        $('libelle').textContent = 'Relancer le téléchargement';
+      }, 120000);
+      etat(
+        `<b>Téléchargement lancé (≈ 80 Mo).</b><br>
+        1. Chrome va demander <b>« Télécharger quand même »</b> ou <b>« Conserver »</b> : touchez-le. Sinon le téléchargement reste bloqué à 100 %.<br>
+        2. Question invisible ou notification bloquée ? Menu <b>⋮</b> de Chrome → <b>Téléchargements</b> → touchez le fichier ou « Conserver ».<br>
+        3. Touchez <b>onile-${info?.version ?? ''}.apk</b> puis <b>Installer</b>.`,
+        'ok'
+      );
     }
 
     async function telecharger() {
@@ -260,7 +274,8 @@
           telechargementDirect();
         }
       } finally {
-        $('bouton').disabled = false;
+        // Après un repli sur le téléchargement direct, le bouton reste bloqué 2 minutes (voir plus haut).
+        if ($('libelle').textContent !== 'Téléchargement lancé') $('bouton').disabled = false;
         controleur = null;
       }
     }
