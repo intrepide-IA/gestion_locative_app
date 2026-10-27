@@ -14,13 +14,18 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * ACTION_SEND ciblé sur WhatsApp (ou WhatsApp Business) avec l'extra « jid » (numéro@s.whatsapp.net).
  * Renvoie false si aucune version de WhatsApp n'est installée (l'application utilise alors le partage habituel).
  */
+private val PAQUETS = listOf("com.whatsapp.w4b", "com.whatsapp")
+
 class PartageWhatsAppModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PartageWhatsApp")
 
-    AsyncFunction("envoyer") { contentUri: String, mimeType: String, numero: String, message: String ->
+    // `prefere` : « com.whatsapp.w4b » (WhatsApp Business) ou « com.whatsapp » ; sinon le premier installé.
+    AsyncFunction("envoyer") { contentUri: String, mimeType: String, numero: String, message: String, prefere: String? ->
       val activite = appContext.currentActivity ?: throw Exceptions.MissingActivity()
-      val paquet = listOf("com.whatsapp", "com.whatsapp.w4b").firstOrNull { estInstalle(activite.packageManager, it) }
+      val pm = activite.packageManager
+      val paquet = (if (prefere != null && estInstalle(pm, prefere)) prefere else null)
+        ?: PAQUETS.firstOrNull { estInstalle(pm, it) }
         ?: return@AsyncFunction false
       val uri = Uri.parse(contentUri)
       val intent = Intent(Intent.ACTION_SEND).apply {
@@ -40,9 +45,10 @@ class PartageWhatsAppModule : Module() {
       }
     }
 
-    Function("whatsappInstalle") {
-      val pm = appContext.reactContext?.packageManager ?: return@Function false
-      listOf("com.whatsapp", "com.whatsapp.w4b").any { estInstalle(pm, it) }
+    /** Versions de WhatsApp installées (Business d'abord). */
+    Function("applications") {
+      val pm = appContext.reactContext?.packageManager ?: return@Function emptyList<String>()
+      PAQUETS.filter { estInstalle(pm, it) }
     }
   }
 

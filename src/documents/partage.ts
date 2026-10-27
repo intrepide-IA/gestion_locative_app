@@ -24,14 +24,29 @@ async function genererPdf(html: string, nomFichier: string): Promise<string> {
  * avec le message en légende. Sans WhatsApp, ouvre au moins la discussion avec le message (wa.me).
  * Renvoie « pdf » si le fichier part avec le message, « texte » si seul le message a pu être préparé.
  */
-export async function envoyerPdfWhatsApp(html: string, nomFichier: string, numero: string, message: string): Promise<'pdf' | 'texte'> {
+export async function envoyerPdfWhatsApp(
+  html: string,
+  nomFichier: string,
+  numero: string,
+  message: string,
+  application: string | null = null
+): Promise<'pdf' | 'texte'> {
   if (PartageWhatsApp) {
     const fichier = await genererPdf(html, nomFichier);
     const contenu = await FileSystem.getContentUriAsync(fichier);
-    if (await PartageWhatsApp.envoyer(contenu, 'application/pdf', numero, message)) return 'pdf';
+    if (await PartageWhatsApp.envoyer(contenu, 'application/pdf', numero, message, application)) return 'pdf';
   }
   await Linking.openURL(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`);
   return 'texte';
+}
+
+/** Versions de WhatsApp installées sur le téléphone (Business d'abord). */
+export function applicationsWhatsApp(): string[] {
+  try {
+    return PartageWhatsApp?.applications() ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function partagerPdf(html: string, nomFichier: string, titre: string): Promise<void> {

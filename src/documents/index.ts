@@ -6,11 +6,12 @@ import { getDatabase } from '../db/client';
 import { aujourdhui } from '../domain/format';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
 import { donneesAvisElectricite, donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
-import { messageAvisElectricite, messageFactureElectricite, messageFactureLoyer, messageRecu } from '../domain/messages';
+import { messageAvisElectricite, messageContrat, messageEtatDesLieux, messageFactureElectricite, messageFactureLoyer, messageRecu } from '../domain/messages';
 import { donneesContrat, htmlContrat } from './contrat';
 import { donneesEtatDesLieux, htmlEtatDesLieux, sectionEtatDesLieux } from './etatDesLieux';
 import { htmlAvisElectricite, htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
-import { envoyerPdfWhatsApp, partagerPdf } from './partage';
+import { applicationsWhatsApp, envoyerPdfWhatsApp, partagerPdf } from './partage';
+
 import { numeroWhatsApp } from '../domain/whatsapp';
 
 export interface DocumentPdf {
@@ -104,12 +105,38 @@ export async function preparerContrat(contratId: number): Promise<DocumentPdf> {
   const d = await donneesContrat(db, contratId);
   const edl = await donneesEtatDesLieux(db, contratId, aujourdhui());
   const annexe = edl.entree || edl.sortie ? sectionEtatDesLieux(edl) : '';
-  return { html: htmlContrat(d, annexe), nomFichier: `Contrat-bail-${d.locataire.nom}`, titre: `Contrat de bail — ${d.locataire.nom}` };
+  return {
+    html: htmlContrat(d, annexe),
+    nomFichier: `Contrat-bail-${d.locataire.nom}`,
+    titre: `Contrat de bail — ${d.locataire.nom}`,
+    whatsapp: {
+      telephone: d.locataire.telephone,
+      message: messageContrat({ nom: d.locataire.nom, logement: d.logement, signe: !!d.bail.signe_le, proprietaire: d.bailleur.nom }),
+    },
+  };
 }
 
 export async function preparerEtatDesLieux(contratId: number): Promise<DocumentPdf> {
-  const d = await donneesEtatDesLieux(await getDatabase(), contratId, aujourdhui());
-  return { html: htmlEtatDesLieux(d), nomFichier: `Etat-des-lieux-${d.locataire}`, titre: `État des lieux — ${d.locataire}` };
+  const db = await getDatabase();
+  const d = await donneesEtatDesLieux(db, contratId, aujourdhui());
+  const tel = await db.get<{ telephone: string | null }>(
+    'SELECT t.telephone FROM contrats c JOIN locataires t ON t.id = c.locataire_id WHERE c.id = ?',
+    [contratId]
+  );
+  return {
+    html: htmlEtatDesLieux(d),
+    nomFichier: `Etat-des-lieux-${d.locataire}`,
+    titre: `État des lieux — ${d.locataire}`,
+    whatsapp: {
+      telephone: tel?.telephone ?? null,
+      message: messageEtatDesLieux({
+        nom: d.locataire,
+        logement: d.logement,
+        type: d.entree && d.sortie ? 'les deux' : d.sortie ? 'sortie' : 'entree',
+        proprietaire: d.proprietaire,
+      }),
+    },
+  };
 }
 
 export function partagerDocument(doc: DocumentPdf): Promise<void> {
@@ -120,8 +147,13 @@ export function partagerDocument(doc: DocumentPdf): Promise<void> {
 export const numeroWhatsAppDocument = (doc: DocumentPdf) => numeroWhatsApp(doc.whatsapp?.telephone);
 
 /** Envoie le PDF et son message directement au numéro WhatsApp du locataire. */
-export function envoyerDocumentWhatsApp(doc: DocumentPdf): Promise<'pdf' | 'texte'> {
+export function envoyerDocumentWhatsApp(
+  doc: DocumentPdf,
+  message = doc.whatsapp?.message ?? '',
+  application: string | null = null
+): Promise<'pdf' | 'texte'> {
   const numero = numeroWhatsAppDocument(doc);
   if (!numero || !doc.whatsapp) return Promise.reject(new Error('Aucun numéro WhatsApp valide pour ce locataire.'));
-  return envoyerPdfWhatsApp(doc.html, doc.nomFichier, numero, doc.whatsapp.message);
+  return envoyerPdfWhatsApp(doc.html, doc.nomFichier, numero, message, application);
 }
+export { applicationsWhatsApp };

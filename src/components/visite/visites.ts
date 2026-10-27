@@ -95,6 +95,12 @@ export const VISITES = v({
   ],
   apercu: [
     {
+      cible: 'apercu.message',
+      titre: 'Un message déjà écrit',
+      texte: 'Chaque document part avec un message adapté (loyer, électricité, contrat…). Modifiez-le si vous voulez avant d’envoyer.',
+      nouveau: true,
+    },
+    {
       cible: 'apercu.whatsapp',
       titre: 'Envoyer sur WhatsApp',
       texte: 'Le document et un message déjà rédigé partent directement dans la discussion du locataire, même si son numéro n’est pas enregistré.',

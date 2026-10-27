@@ -1,12 +1,14 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Modal, Pressable, View } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Modal, Pressable, TextInput, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageCircle, Share2, X } from 'lucide-react-native';
+import { Copy, MessageCircle, Share2, X } from 'lucide-react-native';
 
 import { informer } from '../ui/confirmer';
 import { Bouton } from '../ui/kit';
 import { Text } from '../ui/Text';
-import { envoyerDocumentWhatsApp, numeroWhatsAppDocument, partagerDocument, type DocumentPdf } from '../../documents';
+import { applicationsWhatsApp, envoyerDocumentWhatsApp, numeroWhatsAppDocument, partagerDocument, type DocumentPdf } from '../../documents';
+import { ecrirePreferences, lirePreferences } from '../../services/preferences';
 import { messageErreur } from '../../domain/erreurs';
 import { colors } from '../../theme/colors';
 import { Cible, useVisiteSi } from '../visite/Visite';
@@ -31,12 +33,30 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
   const [etat, setEtat] = useState<{ doc: DocumentPdf | null; action?: ActionApercu } | null>(null);
   const [partage, setPartage] = useState(false);
   const [envoiWhatsApp, setEnvoiWhatsApp] = useState(false);
+  // Message qui accompagne le document : prérédigé, modifiable avant l'envoi.
+  const [message, setMessage] = useState('');
+  // WhatsApp ou WhatsApp Business : choix retenu sur l'appareil (Business par défaut s'il est installé).
+  const [applis] = useState(applicationsWhatsApp);
+  const [appli, setAppli] = useState<string | null>(null);
+  useEffect(() => {
+    lirePreferences().then((p) => {
+      const choisie = typeof p['whatsapp.application'] === 'string' ? (p['whatsapp.application'] as string) : null;
+      setAppli(choisie && applis.includes(choisie) ? choisie : (applis[0] ?? null));
+    });
+  }, [applis]);
+  const choisirAppli = (a: string) => {
+    setAppli(a);
+    void lirePreferences().then((p) => ecrirePreferences({ ...p, 'whatsapp.application': a }));
+  };
   const insets = useSafeAreaInsets();
 
   const ouvrir = useCallback<Ouvrir>((charger, action) => {
     setEtat({ doc: null, action });
     charger().then(
-      (doc) => setEtat({ doc, action }),
+      (doc) => {
+        setMessage(doc.whatsapp?.message ?? '');
+        setEtat({ doc, action });
+      },
       (error: unknown) => {
         setEtat(null);
         informer(
@@ -67,7 +87,9 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
     if (!etat?.doc) return;
     setEnvoiWhatsApp(true);
     try {
-      const resultat = await envoyerDocumentWhatsApp(etat.doc);
+      // Copié aussi : si WhatsApp n'affiche pas la légende avec le PDF, il suffit de coller le message.
+      await Clipboard.setStringAsync(message).catch(() => undefined);
+      const resultat = await envoyerDocumentWhatsApp(etat.doc, message, appli);
       if (resultat === 'texte') {
         informer('Message préparé', 'WhatsApp n’a pas pu recevoir le PDF directement : le message est ouvert. Joignez le PDF avec « Partager (PDF) ».');
       }
@@ -121,6 +143,53 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
               {whatsapp ? (
                 numero ? (
                   <>
+                    <Cible id="apercu.message">
+                    <View className="bg-white border border-border rounded-xl px-3 pt-2 pb-1">
+                      <View className="flex-row items-center">
+                        <Text className="flex-1 text-xs font-bold text-muted uppercase tracking-wider">Message envoyé avec le document</Text>
+                        <Pressable
+                          onPress={() =>
+                            Clipboard.setStringAsync(message).then(
+                              () => informer('Message copié', 'Vous pouvez le coller dans n’importe quelle discussion.'),
+                              () => undefined
+                            )
+                          }
+                          accessibilityRole="button"
+                          accessibilityLabel="Copier le message"
+                          hitSlop={8}
+                          className="flex-row items-center"
+                        >
+                          <Copy size={14} color={colors.primary} />
+                          <Text className="text-primary text-xs font-semibold ml-1">Copier</Text>
+                        </Pressable>
+                      </View>
+                      <TextInput
+                        value={message}
+                        onChangeText={setMessage}
+                        multiline
+                        accessibilityLabel="Message WhatsApp, modifiable"
+                        style={{ maxHeight: 120, minHeight: 64, color: colors.ink, fontSize: 14, paddingVertical: 6, textAlignVertical: 'top' }}
+                      />
+                    </View>
+                    </Cible>
+                    {applis.length > 1 ? (
+                      <View className="flex-row items-center gap-2">
+                        <Text className="text-xs text-muted">Envoyer avec :</Text>
+                        {applis.map((a) => (
+                          <Pressable
+                            key={a}
+                            onPress={() => choisirAppli(a)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: appli === a }}
+                            className={`px-3 py-1.5 rounded-full border ${appli === a ? 'bg-primary border-primary' : 'bg-white border-border'}`}
+                          >
+                            <Text className={`text-xs font-semibold ${appli === a ? 'text-white' : 'text-ink'}`}>
+                              {a === 'com.whatsapp.w4b' ? 'WhatsApp Business' : 'WhatsApp'}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
                     <Cible id="apercu.whatsapp">
                     <Bouton
                       titre={`Envoyer sur WhatsApp (+${numero})`}
@@ -131,7 +200,8 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                     />
                     </Cible>
                     <Text className="text-muted text-xs text-center">
-                      Le PDF et le message partent directement dans la discussion de ce numéro, même s’il n’est pas dans vos contacts.
+                      Le PDF et ce message partent dans la discussion de ce numéro, même s’il n’est pas dans vos contacts. Le message est aussi
+                      copié : collez-le si WhatsApp ne l’affiche pas.
                     </Text>
                   </>
                 ) : (

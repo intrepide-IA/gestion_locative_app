@@ -1,5 +1,5 @@
 import { avisElectricite } from '../electricite';
-import { messageAvisElectricite, messageFactureLoyer, messageRecu } from '../messages';
+import { messageAvisElectricite, messageContrat, messageEtatDesLieux, messageFactureLoyer, messageRecu } from '../messages';
 import { lienWhatsApp, numeroWhatsApp } from '../whatsapp';
 
 describe('numéro WhatsApp', () => {
@@ -36,7 +36,7 @@ describe('numéro WhatsApp', () => {
 });
 
 describe('messages rédigés', () => {
-  test('reçu : montant, mois réglés, reste et signature', () => {
+  test('reçu : remerciement, mois réglés, situation et signature', () => {
     const m = messageRecu({
       nom: 'Awa Koffi',
       numero: 'REC-2026-00003',
@@ -47,20 +47,36 @@ describe('messages rédigés', () => {
       proprietaire: 'Imdad Adenon',
     });
     expect(m).toBe(
-      'Bonjour Awa Koffi,\nJ’ai bien reçu votre paiement de 25 000 FCFA du 5 oct. 2026 (loyer octobre 2026). Merci.\nVous êtes à jour.\nJe vous envoie le reçu n° REC-2026-00003.\n\nImdad Adenon'
+      'Bonjour Awa Koffi,\nMerci, j’ai bien reçu vos 25 000 FCFA pour le loyer de octobre 2026.\nVous êtes à jour, merci beaucoup.\nJe vous envoie votre reçu (n° REC-2026-00003). Bonne journée !\n\nImdad Adenon'
     );
   });
 
-  test('facture de loyer à régler', () => {
-    const m = messageFactureLoyer({
-      nom: 'Awa',
-      numero: 'FAC-2026-00001',
-      periode: { annee: 2026, mois: 11 },
-      dateEcheance: '2026-11-05',
-      reste: 25000,
-      proprietaire: 'Imdad',
-    });
-    expect(m).toContain('loyer de novembre 2026 : 25 000 FCFA à régler avant le 5 nov. 2026');
+  const facture = { nom: 'Awa', numero: 'FAC-2026-00001', periode: { annee: 2026, mois: 11 }, dateEcheance: '2026-11-05', proprietaire: 'Imdad' };
+
+  test('facture de loyer à venir : montant, échéance, remerciement', () => {
+    const m = messageFactureLoyer({ ...facture, reste: 25000, aujourdhui: '2026-10-28' });
+    expect(m).toContain('la facture du loyer de novembre 2026 : 25 000 FCFA.');
+    expect(m).toContain('La prochaine échéance est le 5 nov. 2026.');
+    expect(m).toContain('Merci pour votre fidélité');
+  });
+
+  test('facture de loyer en retard : relance polie', () => {
+    const m = messageFactureLoyer({ ...facture, reste: 25000, aujourdhui: '2026-11-10' });
+    expect(m).toContain('Petit rappel : le loyer de novembre 2026 (25 000 FCFA) était attendu le 5 nov. 2026');
+  });
+
+  test('facture déjà réglée', () => {
+    expect(messageFactureLoyer({ ...facture, reste: 0 })).toContain('Elle est déjà réglée');
+  });
+
+  test('contrat signé ou à lire, état des lieux', () => {
+    expect(messageContrat({ nom: 'Awa', logement: 'Chambre 1', signe: true, proprietaire: 'Imdad' })).toContain(
+      'Voici votre contrat de location pour Chambre 1, signé par nous deux.'
+    );
+    expect(messageContrat({ nom: 'Awa', logement: 'Chambre 1', signe: false, proprietaire: 'Imdad' })).toContain('Prenez le temps de le lire');
+    expect(messageEtatDesLieux({ nom: 'Awa', logement: 'Chambre 1', type: 'sortie', proprietaire: 'Imdad' })).toContain(
+      'Je vous envoie l’état des lieux de sortie de Chambre 1.'
+    );
   });
 });
 
@@ -71,8 +87,8 @@ describe('avis d’électricité', () => {
     const a = avisElectricite({ ...base, stock: -6.4, index_coupure: 1023.6 }, 5, '2026-10-30');
     expect(a).toMatchObject({ cas: 'depasse', depasseKwh: 6.4, montantDu: 1600, resteKwh: 0, dateLimite: '2026-10-30', indexCoupure: 1023.6 });
     const m = messageAvisElectricite(a, 'Awa', 'Imdad');
-    expect(m).toContain('consommé 6,4 kWh sans crédit, soit 1 600 FCFA');
-    expect(m).toContain('avant le 30 oct. 2026, sinon le courant sera coupé');
+    expect(m).toContain('Ça fait 6,4 kWh consommés en plus, soit 1 600 FCFA.');
+    expect(m).toContain('Merci de régler ça avant le 30 oct. 2026');
   });
 
   test('montant arrondi au franc supérieur', () => {
@@ -87,7 +103,8 @@ describe('avis d’électricité', () => {
   test('crédit en cours ou bientôt épuisé : index de coupure, sans date limite', () => {
     const bientot = avisElectricite({ ...base, stock: 3, index_coupure: 1033, epuisement_estime: '2026-11-01' }, 5, '2026-10-30');
     expect(bientot).toMatchObject({ cas: 'bientot', resteKwh: 3, dateLimite: null, epuisementEstime: '2026-11-01' });
-    expect(messageAvisElectricite(bientot, 'Awa', 'Imdad')).toContain('il vous reste 3 kWh, à peu près jusqu’au 1 nov. 2026');
+    expect(messageAvisElectricite(bientot, 'Awa', 'Imdad', '2026-10-30')).toContain('Il vous reste à peu près 3 kWh d’électricité, ça peut finir d’ici 2 jours.');
+    expect(messageAvisElectricite({ ...bientot, epuisementEstime: '2026-10-31' }, 'Awa', 'Imdad', '2026-10-30')).toContain('ça peut finir demain');
     expect(avisElectricite({ ...base, stock: 40, index_coupure: 1070 }, 5, '2026-10-30').cas).toBe('credit');
   });
 });

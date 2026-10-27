@@ -3,6 +3,10 @@
  * après un traitement asynchrone). Le bouton « Imprimer » permet d'en faire un PDF.
  */
 /** Aperçu web : pas de fichier à joindre, on ouvre la discussion WhatsApp avec le message. */
+export function applicationsWhatsApp(): string[] {
+  return [];
+}
+
 export async function envoyerPdfWhatsApp(_html: string, _nomFichier: string, numero: string, message: string): Promise<'pdf' | 'texte'> {
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   return 'texte';
