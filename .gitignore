@@ -26,8 +26,8 @@ dist-ssr
 .env
 
 # Expo (Continuous Native Generation : android/ et ios/ sont régénérés)
-android/
-ios/
+/android/
+/ios/
 coverage/
 *.apk
 *.aab
