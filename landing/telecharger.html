@@ -113,15 +113,11 @@
       <aside aria-labelledby="installer">
         <h2 id="installer" style="font-size:24px;margin-bottom:16px">Installer en 3 étapes</h2>
         <ol class="etapes">
-          <li><div><b>Téléchargez le fichier une seule fois</b><span>Environ 80 Mo. Ne touchez pas le bouton plusieurs fois.</span></div></li>
-          <li><div><b>Confirmez dans Chrome</b><span>Chrome demande « Télécharger quand même » ou « Conserver » pour un fichier .apk. Sans cette réponse, il reste bloqué sur « Téléchargement en cours » même à 100 %. Si vous ne voyez pas la question : menu ⋮ de Chrome → <b>Téléchargements</b>.</span></div></li>
+          <li><div><b>Téléchargez le fichier</b><span>Restez sur cette page jusqu’à la fin de la barre (environ 80 Mo). Une coupure de réseau est reprise automatiquement.</span></div></li>
+          <li><div><b>Confirmez si Chrome le demande</b><span>Pour un fichier .apk, Chrome peut demander « Télécharger quand même » ou « Conserver ».</span></div></li>
           <li><div><b>Ouvrez « onile-…apk »</b><span>Dans Chrome → Téléchargements, ou l’application Fichiers → Téléchargements.</span></div></li>
           <li><div><b>Autorisez puis installez</b><span>Si Android le demande : « Paramètres » → « Autoriser cette source », puis « Installer ».</span></div></li>
         </ol>
-        <div class="alerte" style="margin-bottom:12px">
-          <b>Page ouverte depuis Telegram ou WhatsApp ?</b> Le bouton ouvre le téléchargement dans l’application Chrome. Si le
-          téléchargement reste bloqué à 100 %, annulez-le puis touchez ⋮ → « Ouvrir dans Chrome » et recommencez.
-        </div>
         <div class="alerte">
           <b>Déjà installée ?</b> Installez simplement la nouvelle version par-dessus : vos données sont conservées. Ne désinstallez pas
           l’application avant d’avoir fait une sauvegarde.
@@ -136,16 +132,20 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
+    // Le fichier est servi par le site lui-même (/api/apk), par morceaux : on ne quitte jamais la page,
+    // la progression est réelle et un morceau coupé est simplement redemandé.
     const API = 'https://onile-api.onrender.com';
-    // Secours si l'API ne répond pas : dernière version publiée sur GitHub.
     const RELEASES = 'https://api.github.com/repos/intrepide-IA/gestion_locative_app/releases/latest';
-    let secours = false;
+    const MORCEAU = 4 * 1024 * 1024;
     const $ = (id) => document.getElementById(id);
     const mo = (o) => (o / 1048576).toFixed(1).replace('.', ',');
     const estAndroid = /Android/i.test(navigator.userAgent);
     const estIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const dateFr = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     let info = null;
+    let lienGitHub = null;
     let controleur = null;
+    let enCours = false;
 
     function etat(message, type) {
       const e = $('etat');
@@ -153,47 +153,39 @@
       e.innerHTML = message;
     }
 
+    function afficher(i) {
+      $('version').textContent = i.version;
+      $('taille').textContent = i.taille ? `${mo(i.taille)} Mo` : '≈ 80 Mo';
+      $('date').textContent = i.publiee_le ? dateFr(i.publiee_le) : '—';
+      if (i.notes) {
+        $('notes').textContent = `Nouveautés : ${i.notes}`;
+        $('notes').hidden = false;
+      }
+      $('libelle').textContent = `Télécharger la version ${i.version}`;
+    }
+
     async function charger() {
-      // Render peut mettre ~30 s à se réveiller : on prévient l'utilisateur.
-      const attente = setTimeout(() => ($('libelle').textContent = 'Connexion au serveur…'), 2500);
       try {
-        const r = await fetch(`${API}/api/version`);
-        clearTimeout(attente);
+        const r = await fetch('/api/apk?info=1', { cache: 'no-store' });
         if (!r.ok) throw new Error();
         info = await r.json();
-        $('version').textContent = info.version;
-        $('date').textContent = new Date(info.publiee_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-        if (info.notes) {
-          $('notes').textContent = `Nouveautés : ${info.notes}`;
-          $('notes').hidden = false;
-        }
-        const tete = await fetch(`${API}/apk`, { method: 'HEAD' }).catch(() => null);
-        const taille = Number(tete?.headers.get('content-length'));
-        $('taille').textContent = taille ? `${mo(taille)} Mo` : '≈ 80 Mo';
-        $('libelle').textContent = `Télécharger la version ${info.version}`;
-        $('bouton').disabled = false;
+        afficher(info);
       } catch {
-        clearTimeout(attente);
+        // Relais du site indisponible : on lit au moins la version sur GitHub (lien direct en dernier recours).
         try {
           const g = await fetch(RELEASES);
-          if (!g.ok) throw new Error();
           const rel = await g.json();
           const apk = rel.assets.find((a) => a.name.endsWith('.apk'));
-          if (!apk) throw new Error();
-          secours = true;
-          info = { version: rel.tag_name.replace(/^v/, ''), url_apk: apk.browser_download_url };
-          $('version').textContent = info.version;
-          $('taille').textContent = `${mo(apk.size)} Mo`;
-          $('date').textContent = new Date(rel.published_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-          $('libelle').textContent = `Télécharger la version ${info.version}`;
+          lienGitHub = apk.browser_download_url;
+          afficher({ version: rel.tag_name.replace(/^v/, ''), taille: apk.size, publiee_le: rel.published_at, notes: rel.body });
         } catch {
           $('libelle').textContent = 'Télécharger';
           $('version').textContent = 'dernière';
           $('taille').textContent = '≈ 80 Mo';
           $('date').textContent = '—';
         }
-        $('bouton').disabled = false;
       }
+      $('bouton').disabled = false;
       if (estIos) {
         etat('Onílé n’existe que sur Android pour le moment : ce fichier ne s’installe pas sur iPhone.', 'erreur');
       } else if (!estAndroid && window.QRCode) {
@@ -202,96 +194,118 @@
       }
     }
 
-    /** Lien « intent » qui ouvre l'adresse dans Chrome (repli : navigateur par défaut si Chrome est absent). */
-    function versChrome(url) {
-      const u = new URL(url);
-      return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    /** Un morceau, lu au fil de l'eau pour faire avancer la barre ; jusqu'à 5 essais. */
+    async function lireMorceau(debut, fin, avancer) {
+      for (let essai = 1; ; essai++) {
+        let recuMorceau = 0;
+        try {
+          const r = await fetch(`/api/apk?debut=${debut}&fin=${fin}`, { signal: controleur.signal, cache: 'no-store' });
+          if (r.status !== 206 || !r.body) throw new Error(`HTTP ${r.status}`);
+          const lecteur = r.body.getReader();
+          const parts = [];
+          for (;;) {
+            const { done, value } = await lecteur.read();
+            if (done) break;
+            parts.push(value);
+            recuMorceau += value.length;
+            avancer(value.length);
+          }
+          if (recuMorceau !== fin - debut + 1) throw new Error('Morceau incomplet');
+          return new Blob(parts);
+        } catch (e) {
+          avancer(-recuMorceau);
+          if (e.name === 'AbortError' || essai >= 5) throw e;
+          $('vitesse').textContent = `Connexion instable, nouvel essai (${essai}/4)…`;
+          await pause(1500 * essai);
+        }
+      }
     }
 
-    function telechargementDirect() {
-      // Repli : le navigateur télécharge lui-même (progression dans sa barre de notifications).
+    function enregistrer(blob) {
+      const nom = info?.nom ?? `onile-${info?.version ?? 'derniere'}.apk`;
+      const lien = URL.createObjectURL(new Blob([blob], { type: 'application/vnd.android.package-archive' }));
       const a = document.createElement('a');
-      const url = secours && info?.url_apk ? info.url_apk : `${API}/telecharger`;
-      // Android : on ouvre le téléchargement dans l'application Chrome elle-même. Les onglets intégrés
-      // (lien touché dans Telegram, WhatsApp…) restent bloqués à 100 % sur un fichier .apk.
-      a.href = estAndroid ? versChrome(url) : url;
-      a.rel = 'noopener';
+      a.href = lien;
+      a.download = nom;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      // Un seul téléchargement à la fois : plusieurs clics créent plusieurs fichiers incomplets.
-      $('bouton').disabled = true;
-      $('libelle').textContent = 'Téléchargement lancé';
-      setTimeout(() => {
-        $('bouton').disabled = false;
-        $('libelle').textContent = 'Relancer le téléchargement';
-      }, 120000);
-      etat(
-        `<b>Téléchargement lancé (≈ 80 Mo).</b><br>
-        Le téléchargement s’ouvre dans l’application <b>Chrome</b>.<br>
-        1. Chrome va demander <b>« Télécharger quand même »</b> ou <b>« Conserver »</b> : touchez-le. Sinon le téléchargement reste bloqué à 100 %.<br>
-        2. Question invisible ou notification bloquée ? Menu <b>⋮</b> de Chrome → <b>Téléchargements</b> → touchez le fichier ou « Conserver ».<br>
-        3. Touchez <b>onile-${info?.version ?? ''}.apk</b> puis <b>Installer</b>.`,
-        'ok'
-      );
+      setTimeout(() => URL.revokeObjectURL(lien), 120000);
+      return nom;
     }
 
     async function telecharger() {
-      // Serveur indisponible : le navigateur télécharge directement depuis GitHub.
-      if (secours || estAndroid) return telechargementDirect();
+      if (enCours) return;
+      if (!info) return telechargementDirect();
+      enCours = true;
       $('bouton').disabled = true;
       $('etat').className = 'etat';
       $('progression').classList.add('visible');
       $('libelle').textContent = 'Téléchargement en cours…';
       controleur = new AbortController();
+      const total = info.taille;
       const debut = performance.now();
+      let recu = 0;
+      const avancer = (n) => {
+        recu += n;
+        const secondes = (performance.now() - debut) / 1000;
+        const debit = recu / Math.max(secondes, 0.1);
+        const pct = Math.min(100, Math.round((recu / total) * 100));
+        $('remplissage').style.width = `${pct}%`;
+        $('barre').setAttribute('aria-valuenow', String(pct));
+        $('pourcent').textContent = `${pct} %`;
+        $('detail').textContent = `${mo(recu)} Mo sur ${mo(total)} Mo`;
+        const reste = (total - recu) / Math.max(debit, 1);
+        $('vitesse').textContent = `${mo(debit)} Mo/s${reste > 1 ? ` · encore ${reste > 60 ? `${Math.round(reste / 60)} min` : `${Math.round(reste)} s`}` : ''}`;
+      };
       try {
-        const r = await fetch(`${API}/apk`, { signal: controleur.signal });
-        if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
-        const total = Number(r.headers.get('content-length')) || 0;
-        const lecteur = r.body.getReader();
         const morceaux = [];
-        let recu = 0;
-        for (;;) {
-          const { done, value } = await lecteur.read();
-          if (done) break;
-          morceaux.push(value);
-          recu += value.length;
-          const secondes = (performance.now() - debut) / 1000;
-          const debit = recu / Math.max(secondes, 0.1);
-          const pct = total ? Math.min(100, Math.round((recu / total) * 100)) : 0;
-          $('remplissage').style.width = `${pct}%`;
-          $('barre').setAttribute('aria-valuenow', String(pct));
-          $('pourcent').textContent = total ? `${pct} %` : `${mo(recu)} Mo`;
-          $('detail').textContent = total ? `${mo(recu)} Mo sur ${mo(total)} Mo` : `${mo(recu)} Mo reçus`;
-          const reste = total ? (total - recu) / debit : 0;
-          $('vitesse').textContent = `${mo(debit)} Mo/s${total && reste > 1 ? ` · encore ${reste > 60 ? `${Math.round(reste / 60)} min` : `${Math.round(reste)} s`}` : ''}`;
-        }
-        const nom = `onile-${info?.version ?? 'derniere'}.apk`;
-        const lien = URL.createObjectURL(new Blob(morceaux, { type: 'application/vnd.android.package-archive' }));
-        const a = document.createElement('a');
-        a.href = lien;
-        a.download = nom;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(lien), 60000);
+        for (let d = 0; d < total; d += MORCEAU) morceaux.push(await lireMorceau(d, Math.min(d + MORCEAU, total) - 1, avancer));
+        const fichier = new Blob(morceaux);
+        if (fichier.size !== total) throw new Error('Fichier incomplet');
+        const nom = enregistrer(fichier);
         $('progression').classList.remove('visible');
         $('libelle').textContent = 'Télécharger à nouveau';
-        etat(`<b>Téléchargement terminé.</b> Ouvrez « ${nom} » (notification ou application Fichiers) puis touchez « Installer ».`, 'ok');
+        etat(
+          `<b>Téléchargement terminé (${mo(total)} Mo).</b><br>
+          1. Si Chrome demande « Télécharger quand même » ou « Conserver », touchez-le.<br>
+          2. Ouvrez <b>${nom}</b> : notification de téléchargement, ou Chrome ⋮ → Téléchargements, ou l’application Fichiers.<br>
+          3. Touchez <b>Installer</b> (ou « Mettre à jour » : vos données sont conservées).`,
+          'ok'
+        );
+        // Comptage anonyme pour les statistiques (jamais bloquant).
+        fetch(`${API}/api/telechargement`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version: info.version, source: 'site' }),
+        }).catch(() => undefined);
       } catch (e) {
         $('progression').classList.remove('visible');
-        $('libelle').textContent = `Télécharger la version ${info?.version ?? ''}`.trim();
-        if (e.name === 'AbortError') {
-          etat('Téléchargement annulé.', 'erreur');
-        } else {
-          telechargementDirect();
-        }
+        $('libelle').textContent = `Télécharger la version ${info.version}`;
+        if (e.name === 'AbortError') etat('Téléchargement annulé.', 'erreur');
+        else telechargementDirect();
       } finally {
-        // Après un repli sur le téléchargement direct, le bouton reste bloqué 2 minutes (voir plus haut).
-        if ($('libelle').textContent !== 'Téléchargement lancé') $('bouton').disabled = false;
+        enCours = false;
+        $('bouton').disabled = false;
         controleur = null;
       }
+    }
+
+    /** Repli : le navigateur télécharge lui-même le fichier, depuis le site (sans quitter la page). */
+    function telechargementDirect() {
+      const a = document.createElement('a');
+      a.href = info ? '/api/apk' : lienGitHub ?? '/api/apk';
+      a.download = info?.nom ?? 'onile.apk';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      etat(
+        `<b>Le téléchargement continue dans la barre de notifications.</b><br>
+        À la fin, touchez « Télécharger quand même » ou « Conserver » si Chrome le demande, puis ouvrez le fichier et touchez <b>Installer</b>.`,
+        'ok'
+      );
     }
 
     $('bouton').addEventListener('click', telecharger);

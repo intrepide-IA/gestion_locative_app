@@ -261,7 +261,7 @@ const serveur = createServer(async (req, res) => {
 
     if (req.method === 'POST' && url.pathname === '/api/telechargement') {
       const corps = await lireJson(req).catch(() => ({}));
-      compterTelechargement('application', typeof corps.version === 'string' ? corps.version.slice(0, 20) : null);
+      compterTelechargement(corps.source === 'site' ? 'site' : 'application', typeof corps.version === 'string' ? corps.version.slice(0, 20) : null);
       return repondre(res, 202, { ok: true }, entetes);
     }
 
