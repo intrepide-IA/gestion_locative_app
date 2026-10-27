@@ -10,6 +10,7 @@ import { Feuille } from '../../components/ui/Feuille';
 import { informer } from '../../components/ui/confirmer';
 import { DemandeMotif } from '../../components/ui/DemandeMotif';
 import { Badge, Bouton, Carte, Champ, EnTete, EtatErreur, Filtres, LigneInfo } from '../../components/ui/kit';
+import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -132,7 +133,7 @@ export function FinancesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <EnTete titre="Finances" />
+      <EnTete titre="Finances" outils={<OutilsEnTete />} />
       <ScrollView
         ref={attacherDefilement}
         onScroll={suivreDefilement}

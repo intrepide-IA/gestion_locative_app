@@ -90,6 +90,11 @@ export function FournisseurVisite({ children }: { children: ReactNode }) {
       if (occupee.current) return;
       occupee.current = true;
       const v = await chargerVues();
+      // Option réservée aux captures d'écran du site : aucune visite.
+      if ((await lirePreferences())['visite.desactivee'] === true) {
+        occupee.current = false;
+        return;
+      }
       const aMontrer = etapes.filter((e) => !v.has(cleEtape(nom, e)) && cibles.current.has(e.cible));
       if (!aMontrer.length) {
         occupee.current = false;

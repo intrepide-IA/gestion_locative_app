@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, Compass, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, Compass, MessageSquareHeart, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion, telechargerEtInstaller, type VersionPubliee } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -13,6 +13,7 @@ import { informer } from '../../components/ui/confirmer';
 import { Bouton, BoutonRetour, Champ, EnTete } from '../../components/ui/kit';
 import { Cible, useDefilementVisite, useReinitialiserVisite, useVisite } from '../../components/visite/Visite';
 import { VISITES } from '../../components/visite/visites';
+import { AvisForm } from './AvisForm';
 import { Text } from '../../components/ui/Text';
 import { APP_VERSION } from '../../constants';
 import { getDatabase } from '../../db/client';
@@ -37,6 +38,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const [profil, setProfil] = useState(false);
   const [pin, setPin] = useState(false);
   const [signature, setSignature] = useState(false);
+  const [avis, setAvis] = useState(false);
   const [journal, setJournal] = useState(false);
   const [maisons, setMaisons] = useState(false);
   const { active: maisonActive } = useMaisons();
@@ -154,8 +156,14 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
         </Groupe>
         </Cible>
 
-        <Cible id="parametres.visite">
+        <Cible id="parametres.aide">
           <Groupe titre="Aide">
+            <Ligne
+              icone={<MessageSquareHeart size={18} color={colors.primary} />}
+              libelle="Avis et suggestions"
+              detail="Écrivez-nous"
+              onPress={() => setAvis(true)}
+            />
             <Ligne
               icone={<Compass size={18} color={colors.primary} />}
               libelle="Revoir la visite guidée"
@@ -238,6 +246,9 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
       </Feuille>
       <Feuille ouverte={maisons} onFermer={() => setMaisons(false)} titre="Mes maisons">
         <ListeMaisons onChange={() => setMaisons(false)} />
+      </Feuille>
+      <Feuille ouverte={avis} onFermer={() => setAvis(false)} titre="Avis et suggestions">
+        <AvisForm nom={proprietaire?.nom} telephone={proprietaire?.telephone} onEnvoye={() => setAvis(false)} />
       </Feuille>
       <Feuille ouverte={journal} onFermer={() => setJournal(false)} titre="Journal des modifications">
         <Journal />

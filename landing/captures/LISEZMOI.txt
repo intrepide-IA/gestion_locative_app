@@ -1,1 +1,1 @@
-Captures générées le 2026-10-15T10:05:35.448Z par scripts/captures-landing.mjs (données de démonstration).
+Captures générées le 2026-10-27T23:35:25.824Z par scripts/captures-landing.mjs (données de démonstration).

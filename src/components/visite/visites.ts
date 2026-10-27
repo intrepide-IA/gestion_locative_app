@@ -39,6 +39,12 @@ export const VISITES = v({
     { fixe: true, cible: 'onglet.Finances', titre: 'Finances', texte: 'Toutes les entrées et dépenses, et l’argent disponible.' },
   ],
   logements: [
+    {
+      cible: 'logements.outils',
+      titre: 'Notifications et paramètres partout',
+      texte: 'Ces deux boutons sont maintenant en haut de chaque onglet : plus besoin de revenir à l’accueil.',
+      nouveau: true,
+    },
     { cible: 'logements.ajouter', titre: 'Ajouter un logement', texte: 'Créez ici chaque chambre ou appartement de la maison, avec son loyer.' },
     { cible: 'logements.filtres', titre: 'Occupés ou libres', texte: 'Affichez seulement les logements occupés, ou ceux qui sont libres.' },
     {
@@ -112,6 +118,11 @@ export const VISITES = v({
     { cible: 'parametres.maisons', titre: 'Mes maisons', texte: 'Ajoutez ou renommez vos maisons. Chaque maison garde ses données séparées.' },
     { cible: 'parametres.documents', titre: 'Signature et contrat', texte: 'Votre signature est apposée sur les contrats, factures et reçus. Le modèle de contrat se modifie ici.' },
     { cible: 'parametres.gestion', titre: 'Sauvegarde et synchronisation', texte: 'Exportez une copie de vos données, ou synchronisez-les avec votre compte pour les retrouver sur un autre téléphone.' },
-    { cible: 'parametres.visite', titre: 'Revoir la visite', texte: 'Relancez cette visite guidée à tout moment.', nouveau: true },
+    {
+      cible: 'parametres.aide',
+      titre: 'Aide et avis',
+      texte: 'Donnez votre avis ou proposez une idée : votre message nous arrive par e-mail. Vous pouvez aussi relancer cette visite guidée.',
+      nouveau: true,
+    },
   ],
 });

@@ -118,16 +118,30 @@ export function PastilleIcone({ children, ton = 'vert' }: { children: ReactNode;
 
 /* ---------- En-tête d'écran ---------- */
 
-export function EnTete({ titre, sousTitre, droite }: { titre: string; sousTitre?: string; droite?: ReactNode }) {
+export function EnTete({
+  titre,
+  sousTitre,
+  droite,
+  outils,
+}: {
+  titre: string;
+  sousTitre?: string;
+  droite?: ReactNode;
+  /** Boutons en haut à droite (notifications, paramètres) ; `droite` passe alors en dessous. */
+  outils?: ReactNode;
+}) {
   return (
-    <View className="flex-row items-end justify-between px-5 pt-4 pb-3">
-      <View className="flex-1">
-        <Text className="text-2xl font-bold text-ink" accessibilityRole="header">
-          {titre}
-        </Text>
-        {sousTitre ? <Text className="text-muted mt-0.5">{sousTitre}</Text> : null}
+    <View className="px-5 pt-4 pb-3">
+      <View className={`flex-row justify-between ${outils ? 'items-center' : 'items-end'}`}>
+        <View className="flex-1">
+          <Text className="text-2xl font-bold text-ink" accessibilityRole="header">
+            {titre}
+          </Text>
+          {sousTitre ? <Text className="text-muted mt-0.5">{sousTitre}</Text> : null}
+        </View>
+        {outils ?? droite}
       </View>
-      {droite}
+      {outils && droite ? <View className="flex-row mt-3">{droite}</View> : null}
     </View>
   );
 }

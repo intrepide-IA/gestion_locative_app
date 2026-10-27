@@ -18,6 +18,7 @@ import {
 } from '../../components/ui/kit';
 import { Cible, useVisite } from '../../components/visite/Visite';
 import { VISITES } from '../../components/visite/visites';
+import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -121,6 +122,7 @@ export function LoyersScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <EnTete
+        outils={<OutilsEnTete />}
         titre="Loyers"
         droite={
           <Cible id="loyers.mois">

@@ -17,6 +17,7 @@ import {
 } from '../../components/ui/kit';
 import { Cible, useVisite } from '../../components/visite/Visite';
 import { VISITES } from '../../components/visite/visites';
+import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
 import { Text } from '../../components/ui/Text';
 import { messageErreur } from '../../domain/erreurs';
 import { formatDate, formatFCFA, initiales } from '../../domain/format';
@@ -51,7 +52,7 @@ export function LocatairesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <EnTete titre="Locataires" sousTitre={locataires.length ? `${actifs} locataire(s) actif(s)` : undefined} />
+      <EnTete outils={<OutilsEnTete />} titre="Locataires" sousTitre={locataires.length ? `${actifs} locataire(s) actif(s)` : undefined} />
       {locataires.length > 0 ? (
         <>
           <Cible id="locataires.recherche">

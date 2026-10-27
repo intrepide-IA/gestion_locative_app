@@ -1,6 +1,6 @@
 import { avisElectricite } from '../electricite';
 import { messageAvisElectricite, messageContrat, messageEtatDesLieux, messageFactureLoyer, messageRecu } from '../messages';
-import { lienWhatsApp, numeroWhatsApp } from '../whatsapp';
+import { lienWhatsApp, numeroLisible, numeroWhatsApp } from '../whatsapp';
 
 describe('numéro WhatsApp', () => {
   test('numéro béninois à 10 chiffres, avec ou sans espaces', () => {
@@ -107,4 +107,9 @@ describe('avis d’électricité', () => {
     expect(messageAvisElectricite({ ...bientot, epuisementEstime: '2026-10-31' }, 'Awa', 'Imdad', '2026-10-30')).toContain('ça peut finir demain');
     expect(avisElectricite({ ...base, stock: 40, index_coupure: 1070 }, 5, '2026-10-30').cas).toBe('credit');
   });
+});
+
+test('numéro lisible', () => {
+  expect(numeroLisible('2290162000002')).toBe('+229 01 62 00 00 02');
+  expect(numeroLisible('33612345678')).toBe('+33612345678');
 });

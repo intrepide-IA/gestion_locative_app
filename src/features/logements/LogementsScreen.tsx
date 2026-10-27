@@ -22,6 +22,7 @@ import {
   LigneInfo,
   PastilleIcone,
 } from '../../components/ui/kit';
+import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -91,6 +92,7 @@ export function LogementsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <EnTete
+        outils={<OutilsEnTete cible="logements.outils" />}
         titre="Logements"
         sousTitre={logements.length ? `${logements.length} logement(s) · ${occupes} occupé(s) · ${logements.length - occupes} libre(s)` : undefined}
       />

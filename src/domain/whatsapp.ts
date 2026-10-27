@@ -36,3 +36,9 @@ export function salutation(nom: string): string {
   const complet = nom.trim().replace(/\s+/g, ' ');
   return complet ? `Bonjour ${complet},` : 'Bonjour,';
 }
+
+/** « 2290162000002 » → « +229 01 62 00 00 02 » (autres pays : « +33612345678 »). */
+export function numeroLisible(numero: string): string {
+  if (numero.startsWith('229') && numero.length === 13) return `+229 ${numero.slice(3).replace(/(\d{2})(?=\d)/g, '$1 ')}`;
+  return `+${numero}`;
+}

@@ -9,6 +9,7 @@ import { Bouton } from '../ui/kit';
 import { Text } from '../ui/Text';
 import { applicationsWhatsApp, envoyerDocumentWhatsApp, numeroWhatsAppDocument, partagerDocument, type DocumentPdf } from '../../documents';
 import { ecrirePreferences, lirePreferences } from '../../services/preferences';
+import { numeroLisible } from '../../domain/whatsapp';
 import { messageErreur } from '../../domain/erreurs';
 import { colors } from '../../theme/colors';
 import { Cible, useVisiteSi } from '../visite/Visite';
@@ -192,7 +193,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                     ) : null}
                     <Cible id="apercu.whatsapp">
                     <Bouton
-                      titre={`Envoyer sur WhatsApp (+${numero})`}
+                      titre={`Envoyer sur WhatsApp · ${numeroLisible(numero)}`}
                       icone={<MessageCircle size={18} color={colors.white} />}
                       onPress={envoyerWhatsApp}
                       chargement={envoiWhatsApp}
