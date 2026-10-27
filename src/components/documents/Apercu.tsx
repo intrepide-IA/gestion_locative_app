@@ -1,14 +1,13 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageCircle, Share2, X } from 'lucide-react-native';
 
 import { informer } from '../ui/confirmer';
 import { Bouton } from '../ui/kit';
 import { Text } from '../ui/Text';
-import { partagerDocument, type DocumentPdf } from '../../documents';
+import { envoyerDocumentWhatsApp, numeroWhatsAppDocument, partagerDocument, type DocumentPdf } from '../../documents';
 import { messageErreur } from '../../domain/erreurs';
-import { lienWhatsApp } from '../../domain/whatsapp';
 import { colors } from '../../theme/colors';
 import { VueHtml } from './VueHtml';
 
@@ -29,6 +28,7 @@ const Contexte = createContext<Ouvrir | null>(null);
 export function FournisseurApercu({ children }: { children: ReactNode }) {
   const [etat, setEtat] = useState<{ doc: DocumentPdf | null; action?: ActionApercu } | null>(null);
   const [partage, setPartage] = useState(false);
+  const [envoiWhatsApp, setEnvoiWhatsApp] = useState(false);
   const insets = useSafeAreaInsets();
 
   const ouvrir = useCallback<Ouvrir>((charger, action) => {
@@ -59,10 +59,20 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
   };
 
   const whatsapp = etat?.doc?.whatsapp;
-  const lien = whatsapp ? lienWhatsApp(whatsapp.telephone, whatsapp.message) : null;
-  const ouvrirWhatsApp = () => {
-    if (!lien) return;
-    Linking.openURL(lien).catch(() => informer('WhatsApp indisponible', 'Impossible d’ouvrir WhatsApp sur cet appareil.'));
+  const numero = etat?.doc ? numeroWhatsAppDocument(etat.doc) : null;
+  const envoyerWhatsApp = async () => {
+    if (!etat?.doc) return;
+    setEnvoiWhatsApp(true);
+    try {
+      const resultat = await envoyerDocumentWhatsApp(etat.doc);
+      if (resultat === 'texte') {
+        informer('Message préparé', 'WhatsApp n’a pas pu recevoir le PDF directement : le message est ouvert. Joignez le PDF avec « Partager (PDF) ».');
+      }
+    } catch (error) {
+      informer('Envoi impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
+    } finally {
+      setEnvoiWhatsApp(false);
+    }
   };
 
   return (
@@ -106,17 +116,17 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                 />
               ) : null}
               {whatsapp ? (
-                lien ? (
+                numero ? (
                   <>
                     <Bouton
-                      titre="Écrire sur WhatsApp"
-                      variante="secondaire"
-                      icone={<MessageCircle size={18} color={colors.primary} />}
-                      onPress={ouvrirWhatsApp}
+                      titre={`Envoyer sur WhatsApp (+${numero})`}
+                      icone={<MessageCircle size={18} color={colors.white} />}
+                      onPress={envoyerWhatsApp}
+                      chargement={envoiWhatsApp}
+                      desactive={!etat?.doc}
                     />
                     <Text className="text-muted text-xs text-center">
-                      Le message s’ouvre déjà rédigé, même si le numéro n’est pas dans vos contacts. Revenez ensuite sur « Partager (PDF) » :
-                      la discussion sera en haut de la liste WhatsApp.
+                      Le PDF et le message partent directement dans la discussion de ce numéro, même s’il n’est pas dans vos contacts.
                     </Text>
                   </>
                 ) : (
@@ -127,8 +137,8 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
               ) : null}
               <Bouton
                 titre="Partager (PDF)"
-                variante={etat?.action ? 'secondaire' : 'action'}
-                icone={<Share2 size={18} color={etat?.action ? colors.primary : colors.ink} />}
+                variante={etat?.action || numero ? 'secondaire' : 'action'}
+                icone={<Share2 size={18} color={etat?.action || numero ? colors.primary : colors.ink} />}
                 onPress={partager}
                 chargement={partage}
                 desactive={!etat?.doc}

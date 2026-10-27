@@ -9,6 +9,7 @@ import {
   versBase64,
   type Aes,
 } from '../../domain/chiffrementSauvegarde';
+import { creerClientElectricite, situationElectricite } from '../electriciteRepository';
 import { creerLogement, listerLogements } from '../logementRepository';
 import { entrerLocataire } from '../locataireRepository';
 import { enregistrerPaiement, genererEcheances, situationLocataire } from '../loyerRepository';
@@ -117,4 +118,26 @@ test('réinitialisation : données de gestion effacées, profil et paramètres c
   expect(p?.nom).toBe('Moussa');
   const n = await db.get<{ n: number }>('SELECT count(*) AS n FROM categories_financieres');
   expect(n?.n).toBeGreaterThan(10);
+});
+
+test('client « électricité seule » : conservé par l’export et la restauration', async () => {
+  const { db } = await maisonRemplie();
+  const { contratId } = await creerClientElectricite(db, { nom_complet: 'Mama', prix_kwh: 250, releve_initial: 100, date_debut: '2026-10-01' });
+  const autre = await createMigratedDatabase();
+  await restaurerSauvegarde(autre, JSON.parse(JSON.stringify(await exporterSauvegarde(db))));
+  expect(await situationElectricite(autre, contratId)).toMatchObject({ type_contrat: 'electricite', locataire_nom: 'Mama', dernier_index: 100 });
+  expect((await listerLogements(autre)).map((l) => l.reference)).toEqual(['Chambre 1']);
+});
+
+test('sauvegarde d’une version précédente (avant les clients électricité) : restaurée, tout reste en location', async () => {
+  const { db, locataireId } = await maisonRemplie();
+  const ancienne = JSON.parse(JSON.stringify(await exporterSauvegarde(db)));
+  ancienne.schema = 7;
+  for (const c of ancienne.tables.contrats) delete c.type;
+  for (const l of ancienne.tables.logements) delete l.usage;
+  const autre = await createMigratedDatabase();
+  await restaurerSauvegarde(autre, ancienne);
+  expect(await situationLocataire(autre, locataireId)).toEqual(await situationLocataire(db, locataireId));
+  expect(await autre.get('SELECT type FROM contrats')).toEqual({ type: 'bail' });
+  expect((await listerLogements(autre)).map((l) => l.reference)).toEqual(['Chambre 1']);
 });

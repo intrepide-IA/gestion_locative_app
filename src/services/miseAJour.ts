@@ -43,11 +43,19 @@ async function derniereReleaseGitHub(): Promise<VersionPubliee | null> {
   try {
     const r = await fetch(RELEASES, { headers: { Accept: 'application/vnd.github+json' } });
     if (!r.ok) return null;
-    const rel = (await r.json()) as { tag_name: string; body: string | null; html_url: string; assets: { name: string; browser_download_url: string }[] };
+    const rel = (await r.json()) as {
+      tag_name: string;
+      name: string | null;
+      body: string | null;
+      html_url: string;
+      assets: { name: string; browser_download_url: string }[];
+    };
     const version = rel.tag_name.replace(/^v/, '');
+    const code = /\((\d+)\)\s*$/.exec(rel.name ?? '');
     const apk = rel.assets.find((a) => a.name.endsWith('.apk'));
-    if (!apk || !versionPlusRecente(version, APP_VERSION)) return null;
-    return { version, version_code: 0, notes: rel.body || null, url_apk: apk.browser_download_url, lien: rel.html_url };
+    if (!apk) return null;
+    if (code ? Number(code[1]) <= APP_VERSION_CODE : !versionPlusRecente(version, APP_VERSION)) return null;
+    return { version, version_code: code ? Number(code[1]) : 0, notes: rel.body || null, url_apk: apk.browser_download_url, lien: rel.html_url };
   } catch {
     return null;
   }

@@ -106,13 +106,74 @@ function lireJson(req) {
   return lireCorps(req, 200_000).then((t) => (t ? JSON.parse(t) : {}));
 }
 
+/** « 1.0.11 » > « 1.0.9 » : comparaison chiffre par chiffre. */
+function plusRecente(a, b) {
+  const x = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+  const y = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+  return false;
+}
+
+const RELEASES = 'https://api.github.com/repos/intrepide-IA/gestion_locative_app/releases/latest';
+let cacheGitHub = { quand: 0, release: null };
+
+/** Dernière release GitHub (gardée 5 minutes) : version, versionCode (dans le titre « Onílé 1.0.11 (21) ») et APK. */
+async function derniereReleaseGitHub() {
+  if (Date.now() - cacheGitHub.quand < 300_000) return cacheGitHub.release;
+  let release = null;
+  try {
+    const r = await fetch(RELEASES, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'onile-api' } });
+    if (r.ok) {
+      const rel = await r.json();
+      const apk = (rel.assets ?? []).find((a) => a.name.endsWith('.apk'));
+      const code = /\((\d+)\)\s*$/.exec(rel.name ?? '');
+      if (apk) {
+        release = {
+          version: String(rel.tag_name).replace(/^v/, ''),
+          version_code: code ? Number(code[1]) : null,
+          url_apk: apk.browser_download_url,
+          notes: rel.body || null,
+          publiee_le: rel.published_at,
+        };
+      }
+    }
+  } catch (e) {
+    console.error('GitHub indisponible', e.message);
+  }
+  cacheGitHub = { quand: Date.now(), release };
+  return release;
+}
+
+/**
+ * Version à proposer : la plus récente entre celle enregistrée (Supabase) et la dernière release GitHub.
+ * Si GitHub est en avance (enregistrement manqué pendant une panne), elle est enregistrée au passage.
+ */
 async function derniereVersion() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/versions_app?select=version,version_code,url_apk,notes,publiee_le&order=version_code.desc&limit=1`, {
-    headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
-  });
-  if (!r.ok) throw new Error(`Supabase : ${r.status}`);
-  const [v] = await r.json();
-  return v ?? null;
+  let enregistree = null;
+  let erreur = null;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/versions_app?select=version,version_code,url_apk,notes,publiee_le&order=version_code.desc&limit=1`, {
+      headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+    });
+    if (r.ok) [enregistree = null] = await r.json();
+    else erreur = new Error(`Supabase : ${r.status}`);
+  } catch (e) {
+    erreur = e;
+  }
+  const gh = await derniereReleaseGitHub();
+  if (!gh || (enregistree && !plusRecente(gh.version, enregistree.version))) {
+    if (erreur && !enregistree) throw erreur;
+    return enregistree;
+  }
+  const v = { ...gh, version_code: gh.version_code ?? (enregistree ? enregistree.version_code + 1 : 1) };
+  if (SERVICE) {
+    supabase('/rest/v1/versions_app', {
+      method: 'POST',
+      body: JSON.stringify({ version: v.version, version_code: v.version_code, url_apk: v.url_apk, notes: v.notes }),
+      headers: { Prefer: 'return=minimal' },
+    }).catch((e) => console.error('Enregistrement automatique impossible', e.message));
+  }
+  return v;
 }
 
 function memeJeton(a, b) {

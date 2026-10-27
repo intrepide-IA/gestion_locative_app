@@ -2,6 +2,12 @@
  * Aperçu web : affiche le document en surimpression (les navigateurs bloquent l'ouverture d'un onglet
  * après un traitement asynchrone). Le bouton « Imprimer » permet d'en faire un PDF.
  */
+/** Aperçu web : pas de fichier à joindre, on ouvre la discussion WhatsApp avec le message. */
+export async function envoyerPdfWhatsApp(_html: string, _nomFichier: string, numero: string, message: string): Promise<'pdf' | 'texte'> {
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+  return 'texte';
+}
+
 export async function partagerPdf(html: string): Promise<void> {
   document.getElementById('onile-apercu-document')?.remove();
   const calque = document.createElement('div');

@@ -10,7 +10,8 @@ import { messageAvisElectricite, messageFactureElectricite, messageFactureLoyer,
 import { donneesContrat, htmlContrat } from './contrat';
 import { donneesEtatDesLieux, htmlEtatDesLieux, sectionEtatDesLieux } from './etatDesLieux';
 import { htmlAvisElectricite, htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
-import { partagerPdf } from './partage';
+import { envoyerPdfWhatsApp, partagerPdf } from './partage';
+import { numeroWhatsApp } from '../domain/whatsapp';
 
 export interface DocumentPdf {
   html: string;
@@ -113,4 +114,14 @@ export async function preparerEtatDesLieux(contratId: number): Promise<DocumentP
 
 export function partagerDocument(doc: DocumentPdf): Promise<void> {
   return partagerPdf(doc.html, doc.nomFichier, doc.titre);
+}
+
+/** Numéro WhatsApp du destinataire du document (format international), ou null. */
+export const numeroWhatsAppDocument = (doc: DocumentPdf) => numeroWhatsApp(doc.whatsapp?.telephone);
+
+/** Envoie le PDF et son message directement au numéro WhatsApp du locataire. */
+export function envoyerDocumentWhatsApp(doc: DocumentPdf): Promise<'pdf' | 'texte'> {
+  const numero = numeroWhatsAppDocument(doc);
+  if (!numero || !doc.whatsapp) return Promise.reject(new Error('Aucun numéro WhatsApp valide pour ce locataire.'));
+  return envoyerPdfWhatsApp(doc.html, doc.nomFichier, numero, doc.whatsapp.message);
 }

@@ -114,7 +114,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: Onílé ${{ steps.version.outputs.version }}
+          # Le versionCode entre parenthèses sert au secours GitHub (site, API et application).
+          name: Onílé ${{ steps.version.outputs.version }} (${{ steps.version.outputs.code }})
           body: ${{ github.event.inputs.notes || format('Onílé {0}', steps.version.outputs.version) }}
           files: ${{ runner.temp }}/onile-${{ steps.version.outputs.version }}.apk
           make_latest: true
@@ -140,4 +141,5 @@ jobs:
             if [ "$STATUT" = "201" ]; then echo "Version publiée : $URL"; exit 0; fi
             echo "Tentative $i : HTTP $STATUT"; sleep 20
           done
-          cat /tmp/reponse; exit 1
+          cat /tmp/reponse
+          echo "::warning::API injoignable : version non enregistrée. La release GitHub sera proposée par le secours (site, API et application)." 
