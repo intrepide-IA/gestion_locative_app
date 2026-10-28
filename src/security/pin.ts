@@ -7,8 +7,11 @@ export const PIN_MIN_LENGTH = 4;
 export const PIN_MAX_LENGTH = 6;
 /** Échecs autorisés avant le premier blocage. */
 export const MAX_ATTEMPTS_BEFORE_LOCK = 5;
-export const FIRST_LOCK_SECONDS = 30;
-export const MAX_LOCK_SECONDS = 60 * 60;
+/** Paliers de blocage, en minutes, comme sur un iPhone : 5 min, 10 min, 15 min… jusqu'à 3 h. */
+export const LOCK_STEPS_MINUTES = [5, 10, 15, 30, 60, 180] as const;
+export const MAX_LOCK_SECONDS = LOCK_STEPS_MINUTES[LOCK_STEPS_MINUTES.length - 1] * 60;
+/** Échecs à partir desquels le blocage de 3 h a été atteint : la récupération des données est proposée. */
+export const FAILURES_FOR_RECOVERY = MAX_ATTEMPTS_BEFORE_LOCK + LOCK_STEPS_MINUTES.length - 1;
 
 /** Stockage clé/valeur sécurisé (expo-secure-store sur le téléphone, mémoire dans les tests). */
 export interface SecureKeyValueStore {
@@ -62,11 +65,11 @@ export const PIN_FORMAT_MESSAGES: Record<PinFormatError, string> = {
   trop_simple: 'Code trop simple (suite ou chiffres identiques) : choisissez-en un autre.',
 };
 
-/** Durée de blocage après `failures` échecs consécutifs : 0 avant le 5e, puis 30 s doublées à chaque échec. */
+/** Durée de blocage après `failures` échecs consécutifs : 0 avant le 5e, puis les paliers, plafonnés à 3 h. */
 export function lockSecondsAfter(failures: number): number {
   if (failures < MAX_ATTEMPTS_BEFORE_LOCK) return 0;
-  const doublings = failures - MAX_ATTEMPTS_BEFORE_LOCK;
-  return Math.min(FIRST_LOCK_SECONDS * 2 ** doublings, MAX_LOCK_SECONDS);
+  const palier = Math.min(failures - MAX_ATTEMPTS_BEFORE_LOCK, LOCK_STEPS_MINUTES.length - 1);
+  return LOCK_STEPS_MINUTES[palier] * 60;
 }
 
 export type VerifyResult =
@@ -118,6 +121,20 @@ export function createPinService(deps: PinDependencies) {
     async currentLock(): Promise<number | null> {
       const { lockedUntil } = await readAttempts();
       return lockedUntil > now() ? lockedUntil : null;
+    },
+
+    /**
+     * Code oublié : après le blocage de 3 h, la personne peut récupérer ses données
+     * (confirmation par le verrouillage du téléphone, puis export chiffré).
+     */
+    async recoveryAvailable(): Promise<boolean> {
+      const { failures, lockedUntil } = await readAttempts();
+      return failures >= FAILURES_FOR_RECOVERY && lockedUntil <= now();
+    },
+
+    /** Déverrouillage par empreinte ou visage réussi : les erreurs de code sont oubliées. */
+    async resetAttempts(): Promise<void> {
+      await writeAttempts({ failures: 0, lockedUntil: 0 });
     },
 
     /** Premier lancement uniquement : refuse d'écraser un PIN existant. */

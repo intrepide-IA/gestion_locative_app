@@ -49,9 +49,11 @@ interface PinPadProps {
   onSubmit?: () => void;
   canSubmit?: boolean;
   shakeStyle?: ReturnType<typeof useAnimatedStyle>;
+  /** Touche en bas à gauche (ex. empreinte), active même pendant un blocage du code. */
+  toucheSpeciale?: { icone: ReactNode; accessibilityLabel: string; onPress: () => void };
 }
 
-export function PinPad({ value, onChange, length, disabled, onSubmit, canSubmit, shakeStyle }: PinPadProps) {
+export function PinPad({ value, onChange, length, disabled, onSubmit, canSubmit, shakeStyle, toucheSpeciale }: PinPadProps) {
   const press = (digit: string) => {
     if (!disabled && value.length < length) onChange(value + digit);
   };
@@ -66,6 +68,8 @@ export function PinPad({ value, onChange, length, disabled, onSubmit, canSubmit,
   );
   const gauche = onSubmit ? (
     <Key label={<Check size={30} color={colors.accent} />} accessibilityLabel="Valider" onPress={onSubmit} disabled={disabled || !canSubmit} />
+  ) : toucheSpeciale ? (
+    <Key label={toucheSpeciale.icone} accessibilityLabel={toucheSpeciale.accessibilityLabel} onPress={toucheSpeciale.onPress} />
   ) : (
     <View style={styles.touche} />
   );

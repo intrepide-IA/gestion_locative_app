@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, Compass, MessageSquareHeart, FileText, History, Home, Cloud, Database, Download, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, ChevronRight, Compass, MessageSquareHeart, FileText, History, Home, Cloud, Database, Download, Fingerprint, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion, telechargerEtInstaller, type VersionPubliee } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -26,12 +26,14 @@ import { importerImage } from '../../services/images';
 import { formatDelay } from '../../security/format';
 import { definirNotificationsActives, notificationsActives } from '../../repositories/rappelsRepository';
 import { demanderPermissionNotifications, envoyerNotificationTest, etatRappels, synchroniserNotifications } from '../../services/notifications';
+import { authentifierBiometrie, biometrieActivee, biometrieDisponible, definirBiometrie } from '../../security/biometrie';
 import { pinService } from '../../security/native';
 import { PIN_FORMAT_MESSAGES, PIN_MAX_LENGTH, PIN_MIN_LENGTH, validateNewPin } from '../../security/pin';
 import { colors } from '../../theme/colors';
 
 const lireMiseAJour = () => nouvelleVersion();
 const lireEtatRappels = () => synchroniserNotifications().then(etatRappels);
+const lireBiometrie = async () => ({ disponible: await biometrieDisponible(), activee: await biometrieActivee() });
 
 export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => void; onRetour: () => void }) {
   const { donnees: proprietaire, rafraichir } = useRessource(getProprietaire, null);
@@ -45,6 +47,14 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
   const notifs = useRessource(notificationsActives, true);
   const rappels = useRessource(lireEtatRappels, null);
+  const biometrie = useRessource(lireBiometrie, { disponible: false, activee: false });
+
+  const basculerBiometrie = async (activee: boolean) => {
+    // L'activation est confirmée par l'empreinte elle-même : on vérifie qu'elle fonctionne.
+    if (activee && !(await authentifierBiometrie())) return;
+    await definirBiometrie(activee);
+    biometrie.rafraichir();
+  };
 
   const testerNotification = async () => {
     try {
@@ -217,6 +227,27 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
         </Groupe>
 
         <Groupe titre="Sécurité">
+          <View className="flex-row items-center px-4 py-4 border-b border-border">
+            <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3">
+              <Fingerprint size={18} color={colors.primary} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base text-ink">Empreinte ou visage</Text>
+              <Text className="text-muted text-xs">
+                {biometrie.donnees.disponible
+                  ? 'Ouvrir Onílé avec ce qui est enregistré sur le téléphone'
+                  : 'Aucune empreinte ni visage enregistrés sur ce téléphone'}
+              </Text>
+            </View>
+            <Switch
+              value={biometrie.donnees.activee}
+              onValueChange={basculerBiometrie}
+              disabled={!biometrie.donnees.disponible}
+              trackColor={{ true: colors.secondary, false: colors.border }}
+              thumbColor={colors.white}
+              accessibilityLabel="Déverrouiller avec l’empreinte ou le visage"
+            />
+          </View>
           <Ligne icone={<Shield size={18} color={colors.primary} />} libelle="Modifier le code PIN" onPress={() => setPin(true)} />
           <Ligne icone={<History size={18} color={colors.primary} />} libelle="Journal des modifications" onPress={() => setJournal(true)} />
           <Ligne icone={<Lock size={18} color={colors.primary} />} libelle="Verrouiller maintenant" onPress={onVerrouiller} dernier />

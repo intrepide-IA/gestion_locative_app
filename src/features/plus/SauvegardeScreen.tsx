@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Download, ShieldAlert, Upload } from 'lucide-react-native';
+import { Check, Circle, Download, ShieldAlert, Upload } from 'lucide-react-native';
 
 import { confirmer, informer } from '../../components/ui/confirmer';
 import { Bouton, BoutonRetour, Carte, Champ, EnTete, LigneInfo } from '../../components/ui/kit';
@@ -12,10 +12,53 @@ import { formatDate } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
 import type { ResumeSauvegarde } from '../../repositories/sauvegardeRepository';
 import { pinService } from '../../security/native';
-import { choisirSauvegarde, derniereSauvegarde, exporterEtPartager, preparerRestauration, reinitialiser, restaurer } from '../../services/sauvegarde';
+import {
+  choisirSauvegarde,
+  derniereSauvegarde,
+  exporterEtPartager,
+  preparerRestauration,
+  reinitialiser,
+  restaurer,
+  type EtapeRestauration,
+} from '../../services/sauvegarde';
 import { colors } from '../../theme/colors';
 
 const lireDerniere = () => derniereSauvegarde();
+
+const LIBELLES: Record<EtapeRestauration, string> = {
+  dechiffrement: 'Vérification du mot de passe et déchiffrement',
+  extraction: 'Extraction des données',
+  verification: 'Contrôle du contenu de la sauvegarde',
+  remplacement: 'Remplacement des données du téléphone',
+  rappels: 'Mise à jour des rappels',
+};
+const OUVERTURE: EtapeRestauration[] = ['dechiffrement', 'extraction', 'verification'];
+const APPLICATION: EtapeRestauration[] = ['remplacement', 'rappels'];
+
+/** Étapes en cours : faites (coche), en cours (roue), à venir (cercle). */
+function Progression({ etapes, actuelle }: { etapes: EtapeRestauration[]; actuelle: EtapeRestauration }) {
+  const rang = etapes.indexOf(actuelle);
+  return (
+    <View className="bg-primary/5 border border-primary/20 rounded-2xl p-4 gap-3" accessibilityLiveRegion="polite">
+      {etapes.map((e, i) => (
+        <View key={e} className="flex-row items-center gap-3">
+          {i < rang ? (
+            <Check size={18} color={colors.secondary} />
+          ) : i === rang ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Circle size={18} color={colors.border} />
+          )}
+          <Text className={i === rang ? 'text-ink font-semibold flex-1' : i < rang ? 'text-muted flex-1' : 'text-muted/60 flex-1'}>
+            {LIBELLES[e]}
+            {i === rang ? '…' : ''}
+          </Text>
+        </View>
+      ))}
+      <Text className="text-xs text-muted">Patientez, ne quittez pas l’application.</Text>
+    </View>
+  );
+}
 
 export function SauvegardeScreen({ onRetour }: { onRetour: () => void }) {
   const derniere = useRessource(lireDerniere, null as string | null);
@@ -84,6 +127,7 @@ function Restauration() {
   const [preparee, setPreparee] = useState<{ contenu: unknown; resume: ResumeSauvegarde } | null>(null);
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
+  const [progression, setProgression] = useState<{ etapes: EtapeRestauration[]; actuelle: EtapeRestauration } | null>(null);
 
   const recommencer = () => {
     setFichier(null);
@@ -101,8 +145,11 @@ function Restauration() {
       setErreur(messageErreur(error, error instanceof Error ? error.message : 'Opération impossible.'));
     } finally {
       setEnCours(false);
+      setProgression(null);
     }
   };
+
+  const suivre = (etapes: EtapeRestauration[]) => (actuelle: EtapeRestauration) => setProgression({ etapes, actuelle });
 
   const choisir = () =>
     etape(async () => {
@@ -110,10 +157,10 @@ function Restauration() {
       if (!f) return;
       setFichier(f);
       setPreparee(null);
-      if (!f.chiffree) setPreparee(await preparerRestauration(f.brut, null));
+      if (!f.chiffree) setPreparee(await preparerRestauration(f.brut, null, suivre(['verification'])));
     });
 
-  const ouvrir = () => etape(async () => setPreparee(await preparerRestauration(fichier!.brut, mdp)));
+  const ouvrir = () => etape(async () => setPreparee(await preparerRestauration(fichier!.brut, mdp, suivre(OUVERTURE))));
 
   const confirmerRestauration = () =>
     etape(async () => {
@@ -124,7 +171,7 @@ function Restauration() {
         true
       );
       if (!ok) return;
-      const r = await restaurer(preparee!.contenu);
+      const r = await restaurer(preparee!.contenu, suivre(APPLICATION));
       informer('Restauration terminée', `${r.logements} logement(s), ${r.locataires} locataire(s) et ${r.paiements} paiement(s) restaurés.`);
       recommencer();
     });
@@ -143,13 +190,14 @@ function Restauration() {
       ) : (
         <>
           <LigneInfo libelle="Fichier" valeur={fichier.nom} />
-          {fichier.chiffree && !preparee ? (
+          {fichier.chiffree && !preparee && !progression ? (
             <>
               <Champ libelle="Mot de passe de la sauvegarde" value={mdp} onChangeText={setMdp} secureTextEntry autoCapitalize="none" />
               <Bouton titre="Ouvrir la sauvegarde" onPress={ouvrir} chargement={enCours} />
             </>
           ) : null}
-          {preparee ? (
+          {progression ? <Progression etapes={progression.etapes} actuelle={progression.actuelle} /> : null}
+          {preparee && !progression ? (
             <>
               <LigneInfo libelle="Créée le" valeur={formatDate(preparee.resume.exportee_le)} />
               {preparee.resume.proprietaire ? <LigneInfo libelle="Propriétaire" valeur={preparee.resume.proprietaire} /> : null}

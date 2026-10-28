@@ -11,6 +11,8 @@ import { BarreOnglets } from './components/navigation/BarreOnglets';
 import { FournisseurApercu } from './components/documents/Apercu';
 import { FournisseurMaisons } from './components/maisons/Maisons';
 import { FournisseurVisite } from './components/visite/Visite';
+import { useOuvertureDepuisNotification } from './components/navigation/OuvertureNotification';
+import { programmerVerificationMiseAJour, signalerMiseAJour } from './services/alerteMiseAJour';
 import { StatusBar } from 'expo-status-bar';
 import { loadFonts } from './theme/fonts';
 import { installerDemo } from './dev/installerDemo';
@@ -57,6 +59,7 @@ const navigationTheme: Theme = {
 
 /** Cinq onglets au plus ; le reste (paramètres, électricité, sauvegarde) s'ouvre depuis l'accueil. */
 function MainTabs() {
+  useOuvertureDepuisNotification();
   return (
     <Tab.Navigator tabBar={(props) => <BarreOnglets {...props} />} screenOptions={{ headerShown: false }}>
       <Tab.Screen
@@ -145,6 +148,7 @@ function useAccess(ready: boolean) {
       if (state === 'background') {
         backgroundSince.current = Date.now();
       } else if (state === 'active') {
+        void signalerMiseAJour();
         if (shouldLockOnResume(backgroundSince.current, Date.now())) {
           setAccess((current) => (current === 'unlocked' ? 'locked' : current));
         }
@@ -161,6 +165,12 @@ export default function App() {
   const fontsLoaded = useFontsReady();
   const database = useDatabaseReady();
   const { access, unlock, lock } = useAccess(database.status === 'ready');
+
+  // Nouvelle version : notification à l'ouverture, puis vérification régulière en arrière-plan.
+  useEffect(() => {
+    void signalerMiseAJour();
+    void programmerVerificationMiseAJour();
+  }, []);
 
   if (database.status === 'error') {
     return (

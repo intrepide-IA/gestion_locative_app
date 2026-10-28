@@ -70,29 +70,65 @@ export async function choisirSauvegarde(): Promise<{ nom: string; brut: unknown;
   return { nom: f.nom, brut, chiffree: estFichierChiffre(brut) };
 }
 
+/** Étapes annoncées à l'écran pendant l'ouverture et la restauration d'une sauvegarde. */
+export type EtapeRestauration = 'dechiffrement' | 'extraction' | 'verification' | 'remplacement' | 'rappels';
+
+/** Laisse l'écran afficher l'étape avant un calcul long (le déchiffrement occupe le processeur). */
+const laisserAfficher = () => new Promise((resolve) => setTimeout(resolve, 60));
+
 /** Étape 2 : déchiffrer (si besoin) et valider ; renvoie le résumé à montrer avant confirmation. */
-export async function preparerRestauration(brut: unknown, motDePasse: string | null): Promise<{ contenu: unknown; resume: ResumeSauvegarde }> {
+export async function preparerRestauration(
+  brut: unknown,
+  motDePasse: string | null,
+  onEtape: (etape: EtapeRestauration) => void = () => undefined
+): Promise<{ contenu: unknown; resume: ResumeSauvegarde }> {
   let contenu = brut;
   if (estFichierChiffre(brut)) {
     if (!motDePasse) throw new ErreurMetier('Saisissez le mot de passe de la sauvegarde.');
+    onEtape('dechiffrement');
+    await laisserAfficher();
     const clair = await dechiffrerSauvegarde(brut, motDePasse, aesExpo);
+    onEtape('extraction');
+    await laisserAfficher();
     try {
       contenu = lireTexteSauvegarde(clair);
     } catch {
       throw new ErreurMetier('Le contenu déchiffré de cette sauvegarde est illisible.');
     }
   }
+  onEtape('verification');
+  await laisserAfficher();
   const { resume } = await validerSauvegarde(await getDatabase(), contenu);
   return { contenu, resume };
 }
 
 /** Étape 3 : remplacement atomique des données, puis rappels recalculés. */
-export async function restaurer(contenu: unknown): Promise<ResumeSauvegarde> {
+export async function restaurer(contenu: unknown, onEtape: (etape: EtapeRestauration) => void = () => undefined): Promise<ResumeSauvegarde> {
+  onEtape('remplacement');
+  await laisserAfficher();
   // Les rappels de l'ancienne version des données sont annulés avant d'être recalculés.
   await annulerRappelsDeLaMaison();
   const resume = await restaurerSauvegarde(await getDatabase(), contenu);
+  onEtape('rappels');
+  await laisserAfficher();
   await synchroniserNotifications();
   return resume;
+}
+
+/**
+ * Code PIN oublié : chaque maison est exportée dans un fichier chiffré par le nouveau mot de passe,
+ * à garder hors du téléphone avant de désinstaller puis réinstaller l'application.
+ */
+export async function exporterPourRecuperation(motDePasse: string, onMaison: (nom: string, rang: number, total: number) => void): Promise<number> {
+  const liste = await maisons.lister();
+  for (const [i, maison] of liste.entries()) {
+    onMaison(maison.nom, i + 1, liste.length);
+    await laisserAfficher();
+    const json = JSON.stringify(await exporterSauvegarde(await maisons.basePour(maison)));
+    const fichier = await chiffrerSauvegarde(json, motDePasse, aesExpo);
+    await partagerFichierTexte(JSON.stringify(fichier), `Onile-${maison.nom}-${aujourdhui()}.json`, 'application/json', `Enregistrer la sauvegarde « ${maison.nom} »`);
+  }
+  return liste.length;
 }
 
 export async function reinitialiser(): Promise<void> {

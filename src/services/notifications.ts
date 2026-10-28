@@ -36,7 +36,8 @@ const planificateur: Planificateur = {
   planifier: async (r) => {
     await preparerCanal();
     return Notifications.scheduleNotificationAsync({
-      content: { title: r.titre, body: r.corps },
+      // Toucher le rappel de sauvegarde ouvre directement l'écran Sauvegarde.
+      content: { title: r.titre, body: r.corps, data: r.type === 'sauvegarde' ? { ecran: 'Sauvegarde' } : {} },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.date, channelId: CANAL },
     });
   },

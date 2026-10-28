@@ -114,7 +114,7 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
     cle: `sauvegarde-${moisSuivant.getFullYear()}-${String(moisSuivant.getMonth() + 1).padStart(2, '0')}`,
     type: 'sauvegarde',
     titre: 'Onílé',
-    corps: 'Pensez à sauvegarder vos données ce mois-ci (Paramètres → Sauvegarde).',
+    corps: 'C’est le moment de sauvegarder vos données : si le téléphone est perdu ou volé, la sauvegarde est le seul moyen de tout récupérer. Touchez ici.',
     date: moisSuivant,
   });
 

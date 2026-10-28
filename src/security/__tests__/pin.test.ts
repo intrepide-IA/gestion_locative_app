@@ -39,9 +39,9 @@ describe('format du PIN', () => {
   });
 });
 
-test('blocage : rien avant 5 échecs, puis 30 s doublées, plafonné à 1 h', () => {
-  expect([1, 4, 5, 6, 7].map(lockSecondsAfter)).toEqual([0, 0, 30, 60, 120]);
-  expect(lockSecondsAfter(50)).toBe(3600);
+test('blocage : rien avant 5 échecs, puis 5, 10, 15, 30, 60 min, plafonné à 3 h', () => {
+  expect([1, 4, 5, 6, 7, 8, 9, 10].map((n) => lockSecondsAfter(n) / 60)).toEqual([0, 0, 5, 10, 15, 30, 60, 180]);
+  expect(lockSecondsAfter(50)).toBe(3 * 3600);
 });
 
 describe('service PIN', () => {
@@ -67,7 +67,7 @@ describe('service PIN', () => {
     await expect(service.createPin('3691')).rejects.toThrow(/existe déjà/);
   });
 
-  test('5 erreurs bloquent 30 s, le bon code est refusé pendant le blocage, puis accepté', async () => {
+  test('5 erreurs bloquent 5 min, le bon code est refusé pendant le blocage, puis accepté', async () => {
     const { service, advance } = setup();
     await service.createPin('2580');
     for (let i = 0; i < 4; i++) {
@@ -76,19 +76,35 @@ describe('service PIN', () => {
     const fifth = await service.verify('0000');
     expect(fifth).toMatchObject({ status: 'wrong', remainingBeforeLock: 0 });
     expect(await service.verify('2580')).toMatchObject({ status: 'locked' });
-    advance(30_001);
+    advance(5 * 60_000 + 1);
     expect(await service.verify('2580')).toEqual({ status: 'ok' });
     expect(await service.currentLock()).toBeNull();
   });
 
-  test('le blocage double à chaque nouvel échec et survit à un redémarrage', async () => {
+  test('le blocage s’allonge à chaque nouvel échec et survit à un redémarrage', async () => {
     const { service, advance, now } = setup();
     await service.createPin('2580');
     for (let i = 0; i < 5; i++) await service.verify('0000');
-    advance(30_001);
+    advance(5 * 60_000 + 1);
     const sixth = await service.verify('0000');
-    expect(sixth.status === 'wrong' && sixth.lockedUntil! - now()).toBe(60_000);
-    expect(await service.currentLock()).toBe(now() + 60_000);
+    expect(sixth.status === 'wrong' && sixth.lockedUntil! - now()).toBe(10 * 60_000);
+    expect(await service.currentLock()).toBe(now() + 10 * 60_000);
+  });
+
+  test('code oublié : la récupération n’est proposée qu’après le blocage de 3 h', async () => {
+    const { service, advance } = setup();
+    await service.createPin('2580');
+    for (let i = 0; i < 10; i++) {
+      expect(await service.recoveryAvailable()).toBe(false);
+      await service.verify('0000');
+      advance(3 * 3600_000 - 1);
+    }
+    expect(await service.recoveryAvailable()).toBe(false);
+    advance(2);
+    expect(await service.recoveryAvailable()).toBe(true);
+    await service.resetAttempts();
+    expect(await service.recoveryAvailable()).toBe(false);
+    expect(await service.verify('2580')).toEqual({ status: 'ok' });
   });
 
   test('changer le PIN exige l’ancien code', async () => {

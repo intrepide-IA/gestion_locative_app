@@ -9,7 +9,6 @@ import {
   Database,
   House,
   KeyRound,
-  PiggyBank,
   Receipt,
   Settings,
   UserPlus,
@@ -30,7 +29,6 @@ import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatFCFA, formatMois, initiales } from '../../domain/format';
 import type { Alerte } from '../../domain/rappels';
 import { useRessource } from '../../hooks/useRessource';
-import { soldeTresorerie } from '../../repositories/financesRepository';
 import { listerLogements } from '../../repositories/logementRepository';
 import { listerLocataires } from '../../repositories/locataireRepository';
 import { genererEcheances, syntheseDuMois, type SyntheseMois } from '../../repositories/loyerRepository';
@@ -47,7 +45,6 @@ interface Synthese {
   occupes: number;
   locatairesActifs: number;
   loyers: SyntheseMois;
-  tresorerie: number;
   periode: { annee: number; mois: number };
   alertes: Alerte[];
 }
@@ -57,12 +54,11 @@ const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
   await genererEcheances(db, jour);
   void synchroniserNotifications();
   const periode = { annee: Number(jour.slice(0, 4)), mois: Number(jour.slice(5, 7)) };
-  const [proprietaire, logements, locataires, loyers, tresorerie, alertes] = await Promise.all([
+  const [proprietaire, logements, locataires, loyers, alertes] = await Promise.all([
     getProprietaire(db),
     listerLogements(db),
     listerLocataires(db),
     syntheseDuMois(db, periode.annee, periode.mois, jour),
-    soldeTresorerie(db),
     listerAlertes(db, jour),
   ]);
   return {
@@ -71,7 +67,6 @@ const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
     occupes: logements.filter((l) => l.contrat_id !== null).length,
     locatairesActifs: locataires.filter((l) => l.contrat_statut === 'actif').length,
     loyers,
-    tresorerie,
     periode,
     alertes,
   };
@@ -83,7 +78,6 @@ const VIDE: Synthese = {
   occupes: 0,
   locatairesActifs: 0,
   loyers: { attendu: 0, regle: 0, reste: 0, encaisse: 0, enRetard: 0 },
-  tresorerie: 0,
   periode: { annee: 2026, mois: 1 },
   alertes: [],
 };
@@ -180,21 +174,6 @@ export function AccueilScreen() {
             onPress={() => navigation.navigate('Tenants')}
           />
         </View>
-        <Pressable
-          onPress={() => navigation.navigate('Finances')}
-          accessibilityRole="button"
-          className="bg-white border border-border rounded-2xl p-4 flex-row items-center active:bg-background"
-        >
-          <View className="w-10 h-10 rounded-xl bg-accent/20 items-center justify-center">
-            <PiggyBank size={20} color="#8A6500" />
-          </View>
-          <View className="flex-1 ml-3">
-            <Text className="text-muted text-xs">Trésorerie disponible</Text>
-            <Text className="text-ink font-bold text-lg">{formatFCFA(s.tresorerie)}</Text>
-          </View>
-          <Text className="text-primary font-medium text-sm mr-1">Finances</Text>
-          <ChevronRight size={16} color={colors.primary} />
-        </Pressable>
 
         <View className="flex-row items-center justify-between mt-1">
           <Text className="text-xs font-bold text-muted uppercase tracking-wider">À traiter</Text>

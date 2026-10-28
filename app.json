@@ -3,14 +3,14 @@
     "name": "Onílé",
     "slug": "onile",
     "scheme": "onile",
-    "version": "1.0.17",
+    "version": "1.0.18",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#FBF6EF",
     "android": {
       "package": "com.onile.app",
-      "versionCode": 27,
+      "versionCode": 28,
       "adaptiveIcon": {
         "backgroundColor": "#0F6B4F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -94,7 +94,8 @@
             ]
           }
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "extra": {
       "eas": {

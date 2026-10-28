@@ -7,3 +7,14 @@ export function versionPlusRecente(candidate: string, actuelle: string): boolean
   }
   return false;
 }
+
+/** Texte de la notification : ce qui a été corrigé ou ajouté, puis l'invitation à mettre à jour. */
+export function texteMiseAJour(notes: string | null): string {
+  const propres = (notes ?? '')
+    .split('\n')
+    .map((l) => l.replace(/^[-*•\s]+/, '').trim())
+    .filter(Boolean)
+    .join(' · ');
+  const resume = propres.length > 280 ? `${propres.slice(0, 277)}…` : propres;
+  return `${resume ? `Nouveautés : ${resume}` : 'Corrections et améliorations.'}\nTouchez pour mettre à jour.`;
+}
