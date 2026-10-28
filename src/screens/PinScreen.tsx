@@ -123,7 +123,7 @@ export function PinScreen({ onSuccess }: PinScreenProps) {
     if (length && value.length === length) submit(value);
   };
 
-  if (recuperation) return <RecuperationScreen onRetour={() => setRecuperation(false)} />;
+  if (recuperation) return <RecuperationScreen onRetour={() => setRecuperation(false)} onDeverrouille={onSuccess} />;
 
   const locked = lockedUntil !== null && lockedUntil > now;
 

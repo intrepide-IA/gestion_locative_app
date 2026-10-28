@@ -107,6 +107,21 @@ describe('service PIN', () => {
     expect(await service.verify('2580')).toEqual({ status: 'ok' });
   });
 
+  test('code oublié : nouveau code seulement une fois la récupération ouverte', async () => {
+    const { service, advance } = setup();
+    await service.createPin('2580');
+    await expect(service.replaceForgottenPin('3691')).rejects.toThrow();
+    for (let i = 0; i < 10; i++) {
+      await service.verify('0000');
+      advance(3 * 3600_000 + 1);
+    }
+    await expect(service.replaceForgottenPin('1111')).rejects.toThrow(/trop simple/);
+    await service.replaceForgottenPin('3691');
+    expect(await service.recoveryAvailable()).toBe(false);
+    expect(await service.verify('2580')).toMatchObject({ status: 'wrong' });
+    expect(await service.verify('3691')).toEqual({ status: 'ok' });
+  });
+
   test('changer le PIN exige l’ancien code', async () => {
     const { service } = setup();
     await service.createPin('2580');

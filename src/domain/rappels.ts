@@ -109,14 +109,18 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
     });
   }
 
-  const moisSuivant = new Date(maintenant.getFullYear(), maintenant.getMonth() + 1, 1, 10, 0, 0, 0);
-  rappels.push({
-    cle: `sauvegarde-${moisSuivant.getFullYear()}-${String(moisSuivant.getMonth() + 1).padStart(2, '0')}`,
-    type: 'sauvegarde',
-    titre: 'Onílé',
-    corps: 'C’est le moment de sauvegarder vos données : si le téléphone est perdu ou volé, la sauvegarde est le seul moyen de tout récupérer. Touchez ici.',
-    date: moisSuivant,
-  });
+  // Chaque 1er du mois à 10 h, programmé 3 mois à l'avance : le rappel arrive même si l'application
+  // n'est pas ouverte pendant un moment. Libre à la personne de l'ignorer.
+  for (let n = 1; n <= 3; n++) {
+    const mois = new Date(maintenant.getFullYear(), maintenant.getMonth() + n, 1, 10, 0, 0, 0);
+    rappels.push({
+      cle: `sauvegarde-${mois.getFullYear()}-${String(mois.getMonth() + 1).padStart(2, '0')}`,
+      type: 'sauvegarde',
+      titre: 'Sauvegarde du mois',
+      corps: 'Téléphone perdu, volé ou en panne : sans sauvegarde, vos données sont perdues. Faites votre sauvegarde du mois. Touchez ici.',
+      date: mois,
+    });
+  }
 
   return rappels;
 }

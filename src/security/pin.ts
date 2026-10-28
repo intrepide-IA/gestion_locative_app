@@ -132,6 +132,15 @@ export function createPinService(deps: PinDependencies) {
       return failures >= FAILURES_FOR_RECOVERY && lockedUntil <= now();
     },
 
+    /**
+     * Code oublié, après le blocage de 3 h et la confirmation par le verrouillage du téléphone :
+     * un nouveau code remplace l'ancien. Refusé tant que la récupération n'est pas ouverte.
+     */
+    async replaceForgottenPin(newPin: string): Promise<void> {
+      if (!(await this.recoveryAvailable())) throw new Error('La récupération n’est pas encore possible.');
+      await savePin(newPin);
+    },
+
     /** Déverrouillage par empreinte ou visage réussi : les erreurs de code sont oubliées. */
     async resetAttempts(): Promise<void> {
       await writeAttempts({ failures: 0, lockedUntil: 0 });

@@ -55,13 +55,13 @@ test('synchronisation : programmée une seule fois, annulée quand le loyer est 
   const maintenant = new Date(2026, 9, 1, 8);
 
   const premier = await synchroniserRappels(db, p, maintenant, '2026-10-01');
-  expect(premier.programmes).toBe(4); // J-3, J, J+3 + rappel de sauvegarde
+  expect(premier.programmes).toBe(6); // J-3, J, J+3 + rappels de sauvegarde des 3 prochains mois
   expect((await synchroniserRappels(db, p, maintenant, '2026-10-01')).programmes).toBe(0);
 
   await enregistrerPaiement(db, { locataireId, montant: 26000, mode: 'especes', datePaiement: '2026-10-01' });
   const bilan = await synchroniserRappels(db, p, maintenant, '2026-10-01');
   expect(bilan).toEqual({ programmes: 0, annules: 3 });
-  expect(cles(p)).toEqual(['sauvegarde-2026-11']);
+  expect(cles(p)).toEqual(['sauvegarde-2026-11', 'sauvegarde-2026-12', 'sauvegarde-2027-01']);
 });
 
 test('stock électrique bas : une seule alerte par situation', async () => {
@@ -86,7 +86,7 @@ test('notifications désactivées : tous les rappels à venir sont annulés', as
   await synchroniserRappels(db, p, new Date(2026, 9, 1, 8), '2026-10-01');
   await definirNotificationsActives(db, false);
   const bilan = await synchroniserRappels(db, p, new Date(2026, 9, 1, 8), '2026-10-01');
-  expect(bilan.annules).toBe(4);
+  expect(bilan.annules).toBe(6);
   expect(p.programmes.size).toBe(0);
 });
 
