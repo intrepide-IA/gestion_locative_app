@@ -6,6 +6,7 @@ import {
   dechiffrerSauvegarde,
   depuisBase64,
   estFichierChiffre,
+  lireTexteSauvegarde,
   versBase64,
   type Aes,
 } from '../../domain/chiffrementSauvegarde';
@@ -140,4 +141,16 @@ test('sauvegarde d’une version précédente (avant les clients électricité) 
   expect(await situationLocataire(autre, locataireId)).toEqual(await situationLocataire(db, locataireId));
   expect(await autre.get('SELECT type FROM contrats')).toEqual({ type: 'bail' });
   expect((await listerLogements(autre)).map((l) => l.reference)).toEqual(['Chambre 1']);
+});
+
+test('fichier transféré avec BOM et retours à la ligne : relu puis déchiffré', async () => {
+  const { db } = await maisonRemplie();
+  const json = JSON.stringify(await exporterSauvegarde(db));
+  const fichier = await chiffrerSauvegarde(json, 'secret-maison', aesNode, 10);
+  const transfere = `\uFEFF\r\n${JSON.stringify(fichier)}\r\n`;
+  expect(() => JSON.parse(transfere)).toThrow();
+  const relu = lireTexteSauvegarde(transfere);
+  expect(estFichierChiffre(relu)).toBe(true);
+  expect(await dechiffrerSauvegarde(relu as typeof fichier, 'secret-maison', aesNode)).toBe(json);
+  expect(() => lireTexteSauvegarde('pas une sauvegarde')).toThrow();
 });

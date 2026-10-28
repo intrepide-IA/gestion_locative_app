@@ -51,7 +51,7 @@ export async function partagerPdf(html: string): Promise<void> {
 
 /** Aperçu web : téléchargement direct du fichier. */
 export async function partagerFichierTexte(contenu: string, nomFichier: string, mimeType: string): Promise<void> {
-  const url = URL.createObjectURL(new Blob([`\uFEFF${contenu}`], { type: mimeType }));
+  const url = URL.createObjectURL(new Blob([mimeType.includes('csv') ? `\uFEFF${contenu}` : contenu], { type: mimeType }));
   const lien = document.createElement('a');
   lien.href = url;
   lien.download = nomFichier;

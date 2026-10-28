@@ -85,3 +85,15 @@ export async function dechiffrerSauvegarde(fichier: FichierChiffre, motDePasse: 
     throw new ErreurMetier('Mot de passe incorrect ou fichier endommagé.');
   }
 }
+
+/**
+ * Lit le texte d'un fichier de sauvegarde. Tolère ce que les transferts ajoutent parfois :
+ * marque d'ordre des octets (BOM), espaces ou retours à la ligne autour du JSON.
+ */
+export function lireTexteSauvegarde(texte: string): unknown {
+  const propre = texte.replace(/^\uFEFF/, '').trim();
+  const debut = propre.indexOf('{');
+  const fin = propre.lastIndexOf('}');
+  if (debut === -1 || fin < debut) throw new Error('Pas de JSON');
+  return JSON.parse(propre.slice(debut, fin + 1));
+}

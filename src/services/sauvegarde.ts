@@ -10,6 +10,7 @@ import {
   chiffrerSauvegarde,
   dechiffrerSauvegarde,
   estFichierChiffre,
+  lireTexteSauvegarde,
   type Aes,
 } from '../domain/chiffrementSauvegarde';
 import { ErreurMetier } from '../domain/erreurs';
@@ -62,7 +63,7 @@ export async function choisirSauvegarde(): Promise<{ nom: string; brut: unknown;
   if (!f) return null;
   let brut: unknown;
   try {
-    brut = JSON.parse(f.contenu);
+    brut = lireTexteSauvegarde(f.contenu);
   } catch {
     throw new ErreurMetier('Ce fichier n’est pas une sauvegarde Onílé (contenu illisible).');
   }
