@@ -75,7 +75,12 @@ export async function preparerRestauration(brut: unknown, motDePasse: string | n
   let contenu = brut;
   if (estFichierChiffre(brut)) {
     if (!motDePasse) throw new ErreurMetier('Saisissez le mot de passe de la sauvegarde.');
-    contenu = JSON.parse(await dechiffrerSauvegarde(brut, motDePasse, aesExpo));
+    const clair = await dechiffrerSauvegarde(brut, motDePasse, aesExpo);
+    try {
+      contenu = lireTexteSauvegarde(clair);
+    } catch {
+      throw new ErreurMetier('Le contenu déchiffré de cette sauvegarde est illisible.');
+    }
   }
   const { resume } = await validerSauvegarde(await getDatabase(), contenu);
   return { contenu, resume };

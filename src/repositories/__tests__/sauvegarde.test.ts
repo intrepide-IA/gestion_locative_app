@@ -4,6 +4,7 @@ import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
 import {
   chiffrerSauvegarde,
   dechiffrerSauvegarde,
+  depuisUtf8,
   depuisBase64,
   estFichierChiffre,
   lireTexteSauvegarde,
@@ -153,4 +154,14 @@ test('fichier transféré avec BOM et retours à la ligne : relu puis déchiffr�
   expect(estFichierChiffre(relu)).toBe(true);
   expect(await dechiffrerSauvegarde(relu as typeof fichier, 'secret-maison', aesNode)).toBe(json);
   expect(() => lireTexteSauvegarde('pas une sauvegarde')).toThrow();
+});
+
+test('contenu déchiffré renvoyé comme vue partielle d’un tampon plus grand (téléphone) : relu', async () => {
+  const json = JSON.stringify({ nom: 'Kossi Agbéssi', note: 'Électricité 💡' });
+  const octets = new TextEncoder().encode(json);
+  const tampon = new Uint8Array(octets.length + 24).fill(0xa7);
+  tampon.set(octets, 8);
+  const vue = tampon.subarray(8, 8 + octets.length);
+  expect(depuisUtf8(vue)).toBe(json);
+  expect(lireTexteSauvegarde(`${json}\u0000\u0000`)).toEqual(JSON.parse(json));
 });

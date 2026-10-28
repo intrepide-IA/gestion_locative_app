@@ -50,6 +50,42 @@ export function depuisBase64(texte: string): Uint8Array {
 
 const encodeur = new TextEncoder();
 
+/**
+ * Décodage UTF-8 écrit à la main : le TextDecoder du téléphone (Hermes) peut lire au-delà
+ * d'une vue Uint8Array renvoyée par le module natif et ajouter des octets parasites.
+ */
+export function depuisUtf8(vue: Uint8Array): string {
+  const o = Uint8Array.from(vue);
+  let s = '';
+  let morceau: number[] = [];
+  for (let i = 0; i < o.length; ) {
+    const c = o[i];
+    let point: number;
+    if (c < 0x80) {
+      point = c;
+      i += 1;
+    } else if (c >= 0xc0 && c < 0xe0) {
+      point = ((c & 0x1f) << 6) | (o[i + 1] & 0x3f);
+      i += 2;
+    } else if (c >= 0xe0 && c < 0xf0) {
+      point = ((c & 0x0f) << 12) | ((o[i + 1] & 0x3f) << 6) | (o[i + 2] & 0x3f);
+      i += 3;
+    } else if (c >= 0xf0) {
+      point = ((c & 0x07) << 18) | ((o[i + 1] & 0x3f) << 12) | ((o[i + 2] & 0x3f) << 6) | (o[i + 3] & 0x3f);
+      i += 4;
+    } else {
+      point = 0xfffd;
+      i += 1;
+    }
+    morceau.push(point);
+    if (morceau.length >= 8192) {
+      s += String.fromCodePoint(...morceau);
+      morceau = [];
+    }
+  }
+  return s + String.fromCodePoint(...morceau);
+}
+
 export function deriverCle(motDePasse: string, sel: Uint8Array, iterations = ITERATIONS): Uint8Array {
   return pbkdf2Sha256(encodeur.encode(motDePasse), sel, iterations, 32);
 }
@@ -80,7 +116,7 @@ export async function dechiffrerSauvegarde(fichier: FichierChiffre, motDePasse: 
   const cle = deriverCle(motDePasse, depuisBase64(fichier.kdf.sel), fichier.kdf.iterations);
   try {
     const clair = await aes.dechiffrer(cle, depuisBase64(fichier.iv), depuisBase64(fichier.donnees));
-    return new TextDecoder().decode(clair);
+    return depuisUtf8(clair);
   } catch {
     throw new ErreurMetier('Mot de passe incorrect ou fichier endommagé.');
   }
@@ -91,7 +127,11 @@ export async function dechiffrerSauvegarde(fichier: FichierChiffre, motDePasse: 
  * marque d'ordre des octets (BOM), espaces ou retours à la ligne autour du JSON.
  */
 export function lireTexteSauvegarde(texte: string): unknown {
-  const propre = texte.replace(/^\uFEFF/, '').trim();
+  // Caract\u00E8res de contr\u00F4le (octets nuls\u2026) : jamais pr\u00E9sents tels quels dans un JSON valide.
+  const propre = texte
+    .replace(/^\uFEFF/, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .trim();
   const debut = propre.indexOf('{');
   const fin = propre.lastIndexOf('}');
   if (debut === -1 || fin < debut) throw new Error('Pas de JSON');
