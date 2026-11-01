@@ -120,16 +120,35 @@ export function htmlLivre(l: LivreDeTenue): string {
 
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Livre de tenue — ${e(l.maison)} — ${e(p.libelle)}</title>
 <style>
-  @page { margin: 16mm 14mm; }
+  @page { size: A4 portrait; margin: 16mm 14mm 18mm; @bottom-center { content: "${e(l.maison)} · Livre de tenue · page " counter(page) " / " counter(pages); font-size: 9px; color: ${colors.muted}; } }
+  @page :first { @bottom-center { content: none; } }
   * { box-sizing: border-box; }
   body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; color: ${colors.ink}; margin: 0; font-size: 11.5px; line-height: 1.45; }
-  .couverture { height: 255mm; display: flex; flex-direction: column; justify-content: space-between; padding: 18mm 8mm 10mm; border-left: 10px solid ${colors.primary}; }
-  .couverture .sur { letter-spacing: 4px; text-transform: uppercase; color: ${colors.muted}; font-size: 12px; margin-top: 22px; }
-  .couverture h1 { font-size: 46px; margin: 8px 0 6px; color: ${colors.primary}; line-height: 1.05; }
-  .couverture .periode { font-size: 18px; font-weight: 600; }
-  .couverture .bande { height: 6px; width: 120px; background: ${colors.accent}; border-radius: 3px; margin: 22px 0; }
-  .couverture .bas { border-top: 1px solid ${colors.border}; padding-top: 14px; display: flex; justify-content: space-between; color: ${colors.muted}; }
-  .couverture .bas b { color: ${colors.ink}; font-size: 14px; display: block; }
+  /* Page de garde : pleine page A4, sans marges, positions fixes (rendu identique à l'impression). */
+  @page :first { margin: 0; }
+  .couverture { position: relative; width: 210mm; height: 296mm; overflow: hidden; page-break-after: always; background: #fff; }
+  .couverture .bandeau { position: absolute; left: 0; top: 0; right: 0; height: 132mm; background: ${colors.primary}; overflow: hidden; }
+  .couverture .rond { position: absolute; border-radius: 50%; }
+  .couverture .logo { position: absolute; left: 20mm; top: 20mm; width: 22mm; height: 22mm; background: #fff; border-radius: 6mm; display: flex; align-items: center; justify-content: center; }
+  .couverture .marque { position: absolute; left: 46mm; top: 23mm; color: #fff; font-size: 17px; font-weight: 800; letter-spacing: .5px; }
+  .couverture .marque small { display: block; font-size: 10px; font-weight: 500; opacity: .8; letter-spacing: 0; margin-top: 2px; }
+  .couverture .titres { position: absolute; left: 20mm; right: 20mm; top: 62mm; color: #fff; }
+  .couverture .sur { font-size: 11px; letter-spacing: 3.5px; text-transform: uppercase; opacity: .85; }
+  .couverture h1 { margin: 4mm 0 0; font-size: 40px; line-height: 1.08; font-weight: 800; }
+  .couverture .periode { margin-top: 5mm; display: inline-block; background: ${colors.accent}; color: #3D2E00; font-weight: 700; font-size: 13px; padding: 2mm 4mm; border-radius: 2mm; }
+  .couverture .corps { position: absolute; left: 20mm; right: 20mm; top: 148mm; }
+  .couverture .intro { font-size: 13px; color: ${colors.ink}; max-width: 150mm; line-height: 1.55; margin: 0 0 9mm; }
+  .couverture .chiffres { display: flex; gap: 5mm; margin-bottom: 11mm; }
+  .couverture .chiffre { flex: 1; border: 1px solid ${colors.border}; border-top: 3px solid ${colors.primary}; border-radius: 2.5mm; padding: 4mm 4.5mm; }
+  .couverture .chiffre span { display: block; font-size: 10px; color: ${colors.muted}; text-transform: uppercase; letter-spacing: .6px; }
+  .couverture .chiffre b { display: block; font-size: 20px; margin-top: 1.5mm; color: ${colors.ink}; }
+  .couverture .fiche { display: flex; gap: 10mm; }
+  .couverture .fiche > div { flex: 1; }
+  .couverture .fiche h5 { margin: 0 0 2.5mm; font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: ${colors.primary}; border-bottom: 1px solid ${colors.border}; padding-bottom: 1.5mm; }
+  .couverture .fiche p { margin: 0 0 1.4mm; font-size: 12px; display: flex; justify-content: space-between; gap: 4mm; }
+  .couverture .fiche p span { color: ${colors.muted}; }
+  .couverture .fiche p b { text-align: right; font-weight: 600; }
+  .couverture .pied-garde { position: absolute; left: 20mm; right: 20mm; bottom: 14mm; border-top: 1px solid ${colors.border}; padding-top: 4mm; display: flex; justify-content: space-between; font-size: 10px; color: ${colors.muted}; }
   .saut { page-break-before: always; }
   .sommaire li { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dotted ${colors.border}; font-size: 13px; }
   .sommaire ol { list-style: none; padding: 0; margin: 18px 0 0; counter-reset: s; }
@@ -165,19 +184,42 @@ export function htmlLivre(l: LivreDeTenue): string {
 </style></head><body>
 
 <section class="couverture">
-  <div>${SYMBOLE.replace('width="44" height="44"', 'width="88" height="88"')}
-    <div class="sur">Livre de tenue de la maison</div>
-    <h1>${e(l.maison)}</h1>
-    <div class="periode">${e(p.libelle)}</div>
-    <div class="muted">du ${formatDate(p.debut)} au ${formatDate(p.fin)}</div>
-    <div class="bande"></div>
-    <div style="font-size:13px;max-width:120mm">Loyers, paiements chambre par chambre, électricité, recettes et dépenses : l’état complet de la maison sur la période.</div>
+  <div class="bandeau">
+    <div class="rond" style="width:120mm;height:120mm;right:-38mm;top:-46mm;background:rgba(255,255,255,.06)"></div>
+    <div class="rond" style="width:70mm;height:70mm;right:22mm;bottom:-34mm;background:rgba(244,183,40,.16)"></div>
+    <div class="logo">${SYMBOLE.replace('width="44" height="44"', 'width="64" height="64"')}</div>
+    <div class="marque">Onílé<small>Gérer aujourd’hui, habiter demain</small></div>
+    <div class="titres">
+      <div class="sur">Livre de tenue de la maison</div>
+      <h1>${e(l.maison)}</h1>
+      <div class="periode">${e(p.libelle)} · du ${formatDate(p.debut)} au ${formatDate(p.fin)}</div>
+    </div>
   </div>
-  <div class="bas"><div><span>Propriétaire</span><b>${e(l.proprietaire.nom)}</b>${e([l.proprietaire.telephone, l.proprietaire.adresse].filter(Boolean).join(' · '))}</div>
-  <div style="text-align:right"><span>Établi le</span><b>${formatDate(l.genereLe)}</b>avec Onílé</div></div>
+  <div class="corps">
+    <p class="intro">Ce livre retrace la gestion de la maison sur la période : les loyers et les paiements chambre par chambre, les occupants, les situations à régulariser, l’électricité, les recettes et les dépenses.</p>
+    <div class="chiffres">
+      <div class="chiffre"><span>Loyers encaissés</span><b>${F(s.loyersEncaisses)}</b></div>
+      <div class="chiffre"><span>Recouvrement</span><b>${s.tauxRecouvrement} %</b></div>
+      <div class="chiffre"><span>Chambres occupées</span><b>${s.occupees} / ${s.chambres}</b></div>
+    </div>
+    <div class="fiche">
+      <div><h5>Propriétaire</h5>
+        <p><span>Nom</span><b>${e(l.proprietaire.nom || '—')}</b></p>
+        <p><span>Téléphone</span><b>${e(l.proprietaire.telephone || '—')}</b></p>
+        <p><span>Adresse</span><b>${e(l.proprietaire.adresse || '—')}</b></p>
+      </div>
+      <div><h5>Document</h5>
+        <p><span>Période</span><b>${e(p.libelle)}</b></p>
+        <p><span>Locataires actifs</span><b>${s.locatairesActifs}</b></p>
+        <p><span>Paiements reçus</span><b>${l.paiements.length}</b></p>
+        <p><span>Établi le</span><b>${formatDate(l.genereLe)}</b></p>
+      </div>
+    </div>
+  </div>
+  <div class="pied-garde"><span>Document établi avec Onílé</span><span>Usage du propriétaire · confidentiel</span></div>
 </section>
 
-<section class="saut sommaire"><h2>Sommaire</h2><ol>${sections
+<section class="sommaire"><h2>Sommaire</h2><ol>${sections
     .map((t, i) => `<li><span><b style="color:${colors.primary}">${i + 1}.</b> ${e(t)}</span><span class="muted">${i === 3 ? `${l.chambres.length} chambre(s)` : ''}</span></li>`)
     .join('')}</ol></section>
 

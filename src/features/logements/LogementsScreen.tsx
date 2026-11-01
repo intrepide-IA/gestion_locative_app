@@ -23,7 +23,7 @@ import {
   PastilleIcone,
 } from '../../components/ui/kit';
 import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
-import { Lisere, PastillesSituation } from '../../components/ui/Situation';
+import { PastillesSituation } from '../../components/ui/Situation';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -257,7 +257,6 @@ function CarteLogement({
   return (
     <Cible id={premierOccupe ? 'logements.carte' : `logements.carte.${logement.id}`}>
     <View className="bg-white rounded-2xl border border-border overflow-hidden">
-      <Lisere niveau={situation?.niveau} />
       <Pressable onPress={onPress} accessibilityRole="button" className="p-4 active:bg-background">
         <View className="flex-row items-center">
           <PastilleIcone ton={occupe ? 'vert' : 'jaune'}>

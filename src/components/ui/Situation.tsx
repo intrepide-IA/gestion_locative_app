@@ -7,10 +7,10 @@ import type { NiveauSituation, SituationContrat } from '../../domain/rappels';
 import { colors } from '../../theme/colors';
 
 /** Vert : à jour ; ambre : échéance proche ou stock bas ; rouge : retard, crédit épuisé ou consommé sans payer. */
-export const COULEURS_SITUATION: Record<NiveauSituation, { fond: string; texte: string; trait: string }> = {
-  ok: { fond: '#E7F4EC', texte: '#1E7A46', trait: '#2E9E5B' },
-  attention: { fond: '#FFF4D6', texte: '#8A6500', trait: '#E0A800' },
-  retard: { fond: '#FDECEA', texte: colors.danger, trait: colors.danger },
+export const COULEURS_SITUATION: Record<NiveauSituation, { fond: string; texte: string }> = {
+  ok: { fond: '#E7F4EC', texte: '#1E7A46' },
+  attention: { fond: '#FFF4D6', texte: '#8A6500' },
+  retard: { fond: '#FDECEA', texte: colors.danger },
 };
 
 function Pastille({ niveau, icone, libelle }: { niveau: NiveauSituation; icone: 'loyer' | 'electricite'; libelle: string }) {
@@ -64,17 +64,5 @@ export function PastillesSituation({ situation }: { situation: SituationContrat 
       {loyer ? <Pastille niveau={loyer[0]} icone="loyer" libelle={loyer[1]} /> : null}
       {electricite ? <Pastille niveau={electricite[0]} icone="electricite" libelle={electricite[1]} /> : null}
     </View>
-  );
-}
-
-/** Liseré coloré à gauche d'une carte : se repère d'un coup d'œil en faisant défiler. */
-export function Lisere({ niveau }: { niveau: NiveauSituation | undefined }) {
-  if (!niveau) return null;
-  return (
-    <View
-      style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: COULEURS_SITUATION[niveau].trait }}
-      accessibilityElementsHidden
-      importantForAccessibility="no"
-    />
   );
 }

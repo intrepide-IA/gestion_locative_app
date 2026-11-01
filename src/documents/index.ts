@@ -3,14 +3,14 @@
  * puis partagé en PDF depuis cet aperçu.
  */
 import { getDatabase, maisons } from '../db/client';
-import { aujourdhui } from '../domain/format';
+import { aujourdhui, formatMois } from '../domain/format';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
 import { donneesAvisElectricite, donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
 import { messageAvisElectricite, messageContrat, messageEtatDesLieux, messageFactureElectricite, messageFactureLoyer, messageRecu } from '../domain/messages';
 import { donneesContrat, htmlContrat } from './contrat';
 import { donneesEtatDesLieux, htmlEtatDesLieux, sectionEtatDesLieux } from './etatDesLieux';
 import { htmlAvisElectricite, htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
-import { applicationsWhatsApp, envoyerPdfWhatsApp, partagerFichierBinaire, partagerPdf } from './partage';
+import { applicationsWhatsApp, envoyerPdfWhatsApp, ouvrirDiscussionWhatsApp, partagerFichierBinaire, partagerPdf } from './partage';
 import { htmlLivre, xlsxLivre } from './livre';
 import { donneesLivre, type PeriodeLivre } from '../repositories/livreRepository';
 
@@ -25,11 +25,29 @@ export interface DocumentPdf {
   whatsapp?: { telephone: string | null; message: string };
 }
 
+/**
+ * Noms de fichiers lisibles dans WhatsApp sans ouvrir le PDF : type, mois concerné, locataire, numéro.
+ * Ex. « Facture-loyer-septembre-2026-Awa-Houngbo-FAC-2026-00012 ».
+ */
+export function nomDocument(...parties: (string | number | null | undefined)[]): string {
+  return parties
+    .filter((p) => p !== null && p !== undefined && p !== '')
+    .map((p) => String(p).trim().replace(/\s+/g, '-'))
+    .join('-');
+}
+
+const moisDe = (lignes: { annee: number; mois: number }[]) =>
+  lignes.length === 0
+    ? 'avance'
+    : lignes.length === 1
+      ? formatMois(lignes[0].mois, lignes[0].annee)
+      : `${formatMois(lignes[0].mois, lignes[0].annee).split(' ')[0]}-a-${formatMois(lignes[lignes.length - 1].mois, lignes[lignes.length - 1].annee)}`;
+
 export async function preparerRecu(paiementId: number): Promise<DocumentPdf> {
   const d = await donneesRecu(await getDatabase(), paiementId);
   return {
     html: htmlRecu(d),
-    nomFichier: `Recu-${d.numero}`,
+    nomFichier: nomDocument('Recu-loyer', moisDe(d.lignes), d.destinataire.nom, d.numero),
     titre: `Reçu ${d.numero}`,
     whatsapp: {
       telephone: d.destinataire.telephone,
@@ -54,7 +72,7 @@ export async function preparerFactureEcheance(echeanceId: number): Promise<Docum
   const d = await donneesFacture(db, numero);
   return {
     html: htmlFacture(d),
-    nomFichier: `Facture-${numero}`,
+    nomFichier: nomDocument('Facture-loyer', formatMois(d.periode.mois, d.periode.annee), d.destinataire.nom, numero),
     titre: `Facture ${numero}`,
     whatsapp: {
       telephone: d.destinataire.telephone,
@@ -74,7 +92,7 @@ export async function preparerFactureElectricite(achatId: number): Promise<Docum
   const d = await donneesFactureElectricite(await getDatabase(), achatId);
   return {
     html: htmlFactureElectricite(d),
-    nomFichier: `Facture-${d.numero}`,
+    nomFichier: nomDocument('Facture-electricite', `${d.kwh}kWh`, 'du', d.date.split('-').reverse().join('-'), d.destinataire.nom, d.numero),
     titre: `Facture ${d.numero}`,
     whatsapp: {
       telephone: d.destinataire.telephone,
@@ -95,7 +113,7 @@ export async function preparerAvisElectricite(contratId: number, dateLimite: str
   const d = await donneesAvisElectricite(await getDatabase(), contratId, aujourdhui(), dateLimite);
   return {
     html: htmlAvisElectricite(d),
-    nomFichier: `Avis-electricite-${d.destinataire.nom}-${d.date}`,
+    nomFichier: nomDocument('Avis-electricite', 'du', d.date.split('-').reverse().join('-'), d.destinataire.nom),
     titre: `Avis d’électricité — ${d.destinataire.nom}`,
     whatsapp: { telephone: d.destinataire.telephone, message: messageAvisElectricite(d.avis, d.destinataire.nom, d.emetteur.nom) },
   };
@@ -159,6 +177,13 @@ export function envoyerDocumentWhatsApp(
   return envoyerPdfWhatsApp(doc.html, doc.nomFichier, numero, message, application);
 }
 export { applicationsWhatsApp };
+
+/** Ouvre la discussion WhatsApp du destinataire avec le message (sans le PDF). */
+export function ouvrirDiscussionDocument(doc: DocumentPdf, message = doc.whatsapp?.message ?? '', application: string | null = null): Promise<void> {
+  const numero = numeroWhatsAppDocument(doc);
+  if (!numero) return Promise.reject(new Error('Aucun numéro WhatsApp valide pour ce locataire.'));
+  return ouvrirDiscussionWhatsApp(numero, message, application);
+}
 
 /** Livre de tenue de la maison active : PDF (document relié) ou classeur Excel, puis feuille de partage. */
 export async function exporterLivre(periode: PeriodeLivre, format: 'pdf' | 'excel'): Promise<void> {

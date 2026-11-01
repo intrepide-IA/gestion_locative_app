@@ -209,8 +209,10 @@ export function Filtres<T extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      className="mb-3 flex-grow-0"
-      contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+      className="mb-3"
+      // Hauteur réservée à la rangée : sans elle, Android peut rogner le bas du texte des pastilles.
+      style={{ flexGrow: 0, flexShrink: 0, minHeight: 46 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 3, gap: 8, alignItems: 'center' }}
     >
       {options.map((o) => {
         const actif = o.valeur === valeur;
@@ -220,9 +222,16 @@ export function Filtres<T extends string>({
             onPress={() => onChange(o.valeur)}
             accessibilityRole="button"
             accessibilityState={{ selected: actif }}
-            className={`px-4 py-2 rounded-full border ${actif ? 'bg-primary border-primary' : 'bg-white border-border'}`}
+            style={{ minHeight: 40, justifyContent: 'center' }}
+            className={`px-4 rounded-full border ${actif ? 'bg-primary border-primary' : 'bg-white border-border'}`}
           >
-            <Text className={`text-sm font-medium ${actif ? 'text-white' : 'text-ink'}`}>{o.libelle}</Text>
+            <Text
+              className={`text-sm font-medium ${actif ? 'text-white' : 'text-ink'}`}
+              style={{ lineHeight: 20, includeFontPadding: false }}
+              numberOfLines={1}
+            >
+              {o.libelle}
+            </Text>
           </Pressable>
         );
       })}

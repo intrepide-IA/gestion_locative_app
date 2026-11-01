@@ -7,7 +7,14 @@ import { Copy, MessageCircle, Share2, X } from 'lucide-react-native';
 import { informer } from '../ui/confirmer';
 import { Bouton } from '../ui/kit';
 import { Text } from '../ui/Text';
-import { applicationsWhatsApp, envoyerDocumentWhatsApp, numeroWhatsAppDocument, partagerDocument, type DocumentPdf } from '../../documents';
+import {
+  applicationsWhatsApp,
+  envoyerDocumentWhatsApp,
+  numeroWhatsAppDocument,
+  ouvrirDiscussionDocument,
+  partagerDocument,
+  type DocumentPdf,
+} from '../../documents';
 import { ecrirePreferences, lirePreferences } from '../../services/preferences';
 import { numeroLisible } from '../../domain/whatsapp';
 import { messageErreur } from '../../domain/erreurs';
@@ -98,6 +105,15 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
       informer('Envoi impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
     } finally {
       setEnvoiWhatsApp(false);
+    }
+  };
+
+  const ecrireDirectement = async () => {
+    if (!etat?.doc) return;
+    try {
+      await ouvrirDiscussionDocument(etat.doc, message, appli);
+    } catch (error) {
+      informer('Ouverture impossible', messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.'));
     }
   };
 
@@ -193,7 +209,7 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                     ) : null}
                     <Cible id="apercu.whatsapp">
                     <Bouton
-                      titre={`Envoyer sur WhatsApp · ${numeroLisible(numero)}`}
+                      titre="Envoyer le PDF sur WhatsApp"
                       icone={<MessageCircle size={18} color={colors.white} />}
                       onPress={envoyerWhatsApp}
                       chargement={envoiWhatsApp}
@@ -201,8 +217,19 @@ export function FournisseurApercu({ children }: { children: ReactNode }) {
                     />
                     </Cible>
                     <Text className="text-muted text-xs text-center">
-                      Le PDF et ce message partent dans la discussion de ce numéro, même s’il n’est pas dans vos contacts. Le message est aussi
-                      copié : collez-le si WhatsApp ne l’affiche pas.
+                      WhatsApp affiche la liste de vos discussions : choisissez celle de {numeroLisible(numero)}, puis envoyez. Le message
+                      accompagne le PDF et il est aussi copié, pour le coller si besoin.
+                    </Text>
+                    <Bouton
+                      titre={`Écrire directement à ${numeroLisible(numero)}`}
+                      variante="discret"
+                      icone={<MessageCircle size={18} color={colors.primary} />}
+                      onPress={ecrireDirectement}
+                      desactive={!etat?.doc}
+                    />
+                    <Text className="text-muted text-xs text-center -mt-1">
+                      Ouvre directement sa discussion avec le message, même s’il n’est pas dans vos contacts (sans le PDF). Sa discussion
+                      apparaît alors en haut de la liste quand vous envoyez le PDF.
                     </Text>
                   </>
                 ) : (

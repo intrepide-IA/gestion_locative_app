@@ -12,6 +12,10 @@ export async function envoyerPdfWhatsApp(_html: string, _nomFichier: string, num
   return 'texte';
 }
 
+export async function ouvrirDiscussionWhatsApp(numero: string, message: string): Promise<void> {
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+}
+
 export async function partagerPdf(html: string): Promise<void> {
   document.getElementById('onile-apercu-document')?.remove();
   const calque = document.createElement('div');

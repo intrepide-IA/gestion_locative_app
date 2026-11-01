@@ -109,7 +109,7 @@ export const VISITES = v({
     {
       cible: 'apercu.whatsapp',
       titre: 'Envoyer sur WhatsApp',
-      texte: 'Le document et un message déjà rédigé partent directement dans la discussion du locataire, même si son numéro n’est pas enregistré.',
+      texte: 'Le PDF part sur WhatsApp avec le message : choisissez la discussion du locataire. « Écrire directement » ouvre sa discussion même si son numéro n’est pas enregistré.',
       nouveau: true,
     },
     { cible: 'apercu.partager', titre: 'Partager autrement', texte: 'Envoyez le PDF par une autre application, ou enregistrez-le.' },

@@ -19,7 +19,7 @@ import {
 import { Cible, useVisite } from '../../components/visite/Visite';
 import { VISITES } from '../../components/visite/visites';
 import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
-import { Lisere, PastillesSituation } from '../../components/ui/Situation';
+import { PastillesSituation } from '../../components/ui/Situation';
 import { Text } from '../../components/ui/Text';
 import { messageErreur } from '../../domain/erreurs';
 import { aujourdhui, formatDate, formatFCFA, initiales } from '../../domain/format';
@@ -151,8 +151,7 @@ export function LocatairesScreen() {
 function CarteLocataire({ locataire, situation, onPress }: { locataire: LocataireAvecContrat; situation?: SituationContrat; onPress: () => void }) {
   const actif = locataire.contrat_statut === 'actif';
   return (
-    <Carte onPress={onPress} className="overflow-hidden">
-      <Lisere niveau={situation?.niveau} />
+    <Carte onPress={onPress}>
       <View className="flex-row items-center">
         <View className={`w-11 h-11 rounded-full items-center justify-center ${actif ? 'bg-primary' : 'bg-border'}`}>
           <Text className={`font-bold ${actif ? 'text-white' : 'text-muted'}`}>{initiales(locataire.nom_complet)}</Text>

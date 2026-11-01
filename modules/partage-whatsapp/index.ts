@@ -2,6 +2,8 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 
 interface ModulePartage {
   envoyer(contentUri: string, mimeType: string, numero: string, message: string, prefere: string | null): Promise<boolean>;
+  /** Ouvre la discussion du numéro avec le message (sans fichier). */
+  ouvrirDiscussion(numero: string, message: string, prefere: string | null): Promise<boolean>;
   /** Versions installées : « com.whatsapp.w4b » (Business) et/ou « com.whatsapp ». */
   applications(): string[];
 }

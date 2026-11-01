@@ -45,6 +45,23 @@ class PartageWhatsAppModule : Module() {
       }
     }
 
+    // Ouvre directement la discussion du numéro (même absent des contacts) avec le message déjà écrit.
+    // WhatsApp ne permet pas d'y joindre un fichier : le PDF s'envoie ensuite avec « envoyer ».
+    AsyncFunction("ouvrirDiscussion") { numero: String, message: String, prefere: String? ->
+      val activite = appContext.currentActivity ?: throw Exceptions.MissingActivity()
+      val pm = activite.packageManager
+      val paquet = (if (prefere != null && estInstalle(pm, prefere)) prefere else null)
+        ?: PAQUETS.firstOrNull { estInstalle(pm, it) }
+        ?: return@AsyncFunction false
+      val lien = Uri.parse("https://api.whatsapp.com/send?phone=$numero&text=${Uri.encode(message)}")
+      try {
+        activite.startActivity(Intent(Intent.ACTION_VIEW, lien).setPackage(paquet))
+        true
+      } catch (e: ActivityNotFoundException) {
+        false
+      }
+    }
+
     /** Versions de WhatsApp installées (Business d'abord). */
     Function("applications") {
       val pm = appContext.reactContext?.packageManager ?: return@Function emptyList<String>()

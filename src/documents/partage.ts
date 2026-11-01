@@ -12,7 +12,8 @@ import { versBase64 } from '../domain/chiffrementSauvegarde';
 
 /** Génère le PDF dans un dossier neuf (l'application qui reçoit ne peut pas resservir un ancien fichier). */
 async function genererPdf(html: string, nomFichier: string): Promise<string> {
-  const { uri } = await Print.printToFileAsync({ html });
+  // A4 portrait (595 × 842 points) : le format des imprimantes au Bénin (Letter par défaut sinon).
+  const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
   const dossier = `${FileSystem.cacheDirectory}partage-${Date.now()}/`;
   await FileSystem.makeDirectoryAsync(dossier, { intermediates: true });
   const destination = `${dossier}${nomFichier.normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\w.-]+/g, '-')}.pdf`;
@@ -39,6 +40,12 @@ export async function envoyerPdfWhatsApp(
   }
   await Linking.openURL(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`);
   return 'texte';
+}
+
+/** Ouvre directement la discussion du numéro avec le message (WhatsApp ne permet pas d'y joindre le PDF). */
+export async function ouvrirDiscussionWhatsApp(numero: string, message: string, application: string | null = null): Promise<void> {
+  if (PartageWhatsApp && (await PartageWhatsApp.ouvrirDiscussion(numero, message, application))) return;
+  await Linking.openURL(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`);
 }
 
 /** Versions de WhatsApp installées sur le téléphone (Business d'abord). */
