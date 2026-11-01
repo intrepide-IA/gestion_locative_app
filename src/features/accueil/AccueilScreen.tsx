@@ -180,6 +180,18 @@ export function AccueilScreen() {
           />
         </View>
 
+        <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-1">Actions rapides</Text>
+        <Cible id="accueil.actions">
+        <View className="flex-row flex-wrap justify-between" style={{ rowGap: 12 }}>
+          <Raccourci icone={<Wallet size={22} color={colors.primary} />} libelle="Encaisser un loyer" onPress={() => navigation.navigate('Invoices')} />
+          <Raccourci icone={<Receipt size={22} color={colors.primary} />} libelle="Ajouter une dépense" onPress={() => navigation.navigate('Finances')} />
+          <Raccourci icone={<Zap size={22} color={colors.primary} />} libelle="Électricité" onPress={() => navigation.navigate('Electricite')} />
+          <Raccourci icone={<KeyRound size={22} color={colors.primary} />} libelle="Ajouter un logement" onPress={() => setNouveauLogement(true)} />
+          <Raccourci icone={<UserPlus size={22} color={colors.primary} />} libelle="Nouveau locataire" onPress={() => setNouveauLocataire(true)} />
+          <Raccourci icone={<Database size={22} color={colors.primary} />} libelle="Sauvegarde" onPress={() => navigation.navigate('Sauvegarde')} />
+        </View>
+        </Cible>
+
         <View className="flex-row items-center justify-between mt-1">
           <Text className="text-xs font-bold text-muted uppercase tracking-wider">À traiter</Text>
           {s.alertes.length ? (
@@ -200,18 +212,6 @@ export function AccueilScreen() {
             ))}
           </View>
         )}
-
-        <Text className="text-xs font-bold text-muted uppercase tracking-wider mt-1">Actions rapides</Text>
-        <Cible id="accueil.actions">
-        <View className="flex-row flex-wrap justify-between" style={{ rowGap: 12 }}>
-          <Raccourci icone={<Wallet size={22} color={colors.primary} />} libelle="Encaisser un loyer" onPress={() => navigation.navigate('Invoices')} />
-          <Raccourci icone={<Receipt size={22} color={colors.primary} />} libelle="Ajouter une dépense" onPress={() => navigation.navigate('Finances')} />
-          <Raccourci icone={<Zap size={22} color={colors.primary} />} libelle="Électricité" onPress={() => navigation.navigate('Electricite')} />
-          <Raccourci icone={<KeyRound size={22} color={colors.primary} />} libelle="Ajouter un logement" onPress={() => setNouveauLogement(true)} />
-          <Raccourci icone={<UserPlus size={22} color={colors.primary} />} libelle="Nouveau locataire" onPress={() => setNouveauLocataire(true)} />
-          <Raccourci icone={<Database size={22} color={colors.primary} />} libelle="Sauvegarde" onPress={() => navigation.navigate('Sauvegarde')} />
-        </View>
-        </Cible>
       </ScrollView>
 
       <LogementForm
