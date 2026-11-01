@@ -118,6 +118,28 @@ const RELEASES = 'https://api.github.com/repos/intrepide-IA/gestion_locative_app
 let cacheGitHub = { quand: 0, release: null };
 
 /** Dernière release GitHub (gardée 5 minutes) : version, versionCode (dans le titre « Onílé 1.0.11 (21) ») et APK. */
+async function derniereReleasePage() {
+  try {
+    const r = await fetch(RELEASES.replace('api.github.com/repos', 'github.com'), { headers: { 'User-Agent': 'onile-api' }, redirect: 'follow' });
+    if (!r.ok) return null;
+    const html = await r.text();
+    const titre = /Onílé\s+([\d.]+)\s+\((\d+)\)/.exec(html);
+    const tag = /\/releases\/tag\/v([\d.]+)/.exec(r.url) ?? (titre ? [null, titre[1]] : null);
+    if (!tag) return null;
+    const version = tag[1];
+    return {
+      version,
+      version_code: titre && titre[1] === version ? Number(titre[2]) : null,
+      url_apk: `https://github.com/intrepide-IA/gestion_locative_app/releases/download/v${version}/onile-${version}.apk`,
+      notes: null,
+      publiee_le: null,
+    };
+  } catch (e) {
+    console.error('Page GitHub indisponible', e.message);
+    return null;
+  }
+}
+
 async function derniereReleaseGitHub() {
   if (Date.now() - cacheGitHub.quand < 300_000) return cacheGitHub.release;
   let release = null;
@@ -140,6 +162,9 @@ async function derniereReleaseGitHub() {
   } catch (e) {
     console.error('GitHub indisponible', e.message);
   }
+  // L'API GitHub limite les appels par adresse IP (partagée chez Render) : la page publique
+  // « releases/latest » donne aussi le numéro de version, sans cette limite.
+  if (!release) release = await derniereReleasePage();
   cacheGitHub = { quand: Date.now(), release };
   return release;
 }

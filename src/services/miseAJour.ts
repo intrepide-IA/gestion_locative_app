@@ -29,7 +29,8 @@ export async function nouvelleVersion(): Promise<VersionPubliee | null> {
       const r = await fetch(`${URL_API}/api/version`);
       if (r.ok) {
         const v = (await r.json()) as { version: string; version_code: number; notes: string | null; url_apk: string };
-        return v.version_code > APP_VERSION_CODE ? { ...v, lien: `${URL_API}/telecharger` } : null;
+        if (v.version_code > APP_VERSION_CODE) return { ...v, lien: `${URL_API}/telecharger` };
+        // L'API peut être en retard (registre pas à jour) : GitHub fait foi pour la toute dernière version.
       }
     } catch {
       // API injoignable : on passe au secours GitHub.
