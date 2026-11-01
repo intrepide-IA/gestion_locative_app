@@ -1,0 +1,7 @@
+{
+  "name": "lecture-texte",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Module local Onílé : lire le texte d'une photo ou d'un PDF (reconnaissance ML Kit sur le téléphone).",
+  "main": "index.ts"
+}

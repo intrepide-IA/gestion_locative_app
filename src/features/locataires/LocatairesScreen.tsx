@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Users } from 'lucide-react-native';
@@ -18,27 +19,55 @@ import {
 import { Cible, useVisite } from '../../components/visite/Visite';
 import { VISITES } from '../../components/visite/visites';
 import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
+import { Lisere, PastillesSituation } from '../../components/ui/Situation';
 import { Text } from '../../components/ui/Text';
 import { messageErreur } from '../../domain/erreurs';
-import { formatDate, formatFCFA, initiales } from '../../domain/format';
+import { aujourdhui, formatDate, formatFCFA, initiales } from '../../domain/format';
+import type { SituationContrat } from '../../domain/rappels';
+import type { SqlDatabase } from '../../db/types';
+import { listerSituations } from '../../repositories/rappelsRepository';
 import { useRessource } from '../../hooks/useRessource';
 import { listerLocataires, type LocataireAvecContrat } from '../../repositories/locataireRepository';
 import { colors } from '../../theme/colors';
 import { EntreeLocataireForm } from './EntreeLocataireForm';
 import { LocataireDetail } from './LocataireDetail';
 
-type Filtre = 'actifs' | 'partis' | 'tous';
+type Filtre = 'actifs' | 'retard' | 'attention' | 'partis' | 'tous';
 
 const AUCUN: LocataireAvecContrat[] = [];
+const AUCUNE_SITUATION = new Map<number, SituationContrat>();
+const lireSituations = (db: SqlDatabase) => listerSituations(db, aujourdhui());
 
 export function LocatairesScreen() {
-  const { donnees: locataires, chargement, erreur, rafraichir } = useRessource(listerLocataires, AUCUN);
+  const { donnees: locataires, chargement, erreur, rafraichir: rafraichirLocataires } = useRessource(listerLocataires, AUCUN);
+  const { donnees: situations, rafraichir: rafraichirSituations } = useRessource(lireSituations, AUCUNE_SITUATION);
+  const rafraichir = () => {
+    rafraichirLocataires();
+    rafraichirSituations();
+  };
+  const situationDe = (l: LocataireAvecContrat) =>
+    l.contrat_statut === 'actif' && l.contrat_id !== null ? situations.get(l.contrat_id) : undefined;
   const [recherche, setRecherche] = useState('');
   const [filtre, setFiltre] = useState<Filtre>('actifs');
   const [entree, setEntree] = useState(false);
   const [selection, setSelection] = useState<number | null>(null);
 
+  // Ouverture directe d'une fiche depuis une notification.
+  const route = useRoute();
+  const navigation = useNavigation();
+  const ouvrir = (route.params as { ouvrir?: number } | undefined)?.ouvrir;
+  const [dejaOuvert, setDejaOuvert] = useState<number | undefined>();
+  if (ouvrir !== dejaOuvert) {
+    setDejaOuvert(ouvrir);
+    if (ouvrir) setSelection(ouvrir);
+  }
+  useEffect(() => {
+    if (ouvrir) navigation.setParams({ ouvrir: undefined } as never);
+  }, [ouvrir, navigation]);
+
   const actifs = locataires.filter((l) => l.contrat_statut === 'actif').length;
+  const enRetard = locataires.filter((l) => situationDe(l)?.niveau === 'retard').length;
+  const aSurveiller = locataires.filter((l) => situationDe(l)?.niveau === 'attention').length;
   useVisite('locataires', VISITES.locataires, { pret: !chargement });
   const visibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -46,13 +75,15 @@ export function LocatairesScreen() {
       const actif = l.contrat_statut === 'actif';
       if (filtre === 'actifs' && !actif) return false;
       if (filtre === 'partis' && actif) return false;
+      if ((filtre === 'retard' || filtre === 'attention') && situationDe(l)?.niveau !== filtre) return false;
       return !q || l.nom_complet.toLowerCase().includes(q) || (l.logement_reference ?? '').toLowerCase().includes(q);
     });
-  }, [locataires, recherche, filtre]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locataires, recherche, filtre, situations]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <EnTete outils={<OutilsEnTete />} titre="Locataires" sousTitre={locataires.length ? `${actifs} locataire(s) actif(s)` : undefined} />
+      <EnTete outils={<OutilsEnTete />} titre="Locataires" sousTitre={locataires.length ? `${actifs} locataire(s) actif(s)${enRetard ? ` · ${enRetard} en retard` : ''}` : undefined} />
       {locataires.length > 0 ? (
         <>
           <Cible id="locataires.recherche">
@@ -61,6 +92,8 @@ export function LocatairesScreen() {
           <Filtres
             options={[
               { valeur: 'actifs', libelle: `Actifs (${actifs})` },
+              { valeur: 'retard', libelle: `En retard (${enRetard})` },
+              { valeur: 'attention', libelle: `À surveiller (${aSurveiller})` },
               { valeur: 'partis', libelle: `Partis (${locataires.length - actifs})` },
               { valeur: 'tous', libelle: 'Tous' },
             ]}
@@ -93,7 +126,7 @@ export function LocatairesScreen() {
           }
           renderItem={({ item, index }) => (
             <Cible id={index === 0 ? 'locataires.carte' : `locataires.carte.${item.id}`}>
-              <CarteLocataire locataire={item} onPress={() => setSelection(item.id)} />
+              <CarteLocataire locataire={item} situation={situationDe(item)} onPress={() => setSelection(item.id)} />
             </Cible>
           )}
         />
@@ -115,10 +148,11 @@ export function LocatairesScreen() {
   );
 }
 
-function CarteLocataire({ locataire, onPress }: { locataire: LocataireAvecContrat; onPress: () => void }) {
+function CarteLocataire({ locataire, situation, onPress }: { locataire: LocataireAvecContrat; situation?: SituationContrat; onPress: () => void }) {
   const actif = locataire.contrat_statut === 'actif';
   return (
-    <Carte onPress={onPress}>
+    <Carte onPress={onPress} className="overflow-hidden">
+      <Lisere niveau={situation?.niveau} />
       <View className="flex-row items-center">
         <View className={`w-11 h-11 rounded-full items-center justify-center ${actif ? 'bg-primary' : 'bg-border'}`}>
           <Text className={`font-bold ${actif ? 'text-white' : 'text-muted'}`}>{initiales(locataire.nom_complet)}</Text>
@@ -137,6 +171,7 @@ function CarteLocataire({ locataire, onPress }: { locataire: LocataireAvecContra
         </View>
         <Badge libelle={actif ? 'Actif' : 'Parti'} ton={actif ? 'succes' : 'neutre'} />
       </View>
+      <PastillesSituation situation={situation} />
     </Carte>
   );
 }

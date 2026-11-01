@@ -24,9 +24,9 @@ const lire = async (db: Parameters<typeof listerSituationsElectricite>[0]) => {
   return situations;
 };
 
-export function ElectriciteScreen({ onRetour }: { onRetour?: () => void }) {
+export function ElectriciteScreen({ onRetour, ouvrir }: { onRetour?: () => void; /** Compteur à ouvrir directement. */ ouvrir?: number }) {
   const { donnees, chargement, erreur, rafraichir } = useRessource(lire, AUCUNE);
-  const [selection, setSelection] = useState<number | null>(null);
+  const [selection, setSelection] = useState<number | null>(ouvrir ?? null);
   const [creation, setCreation] = useState(false);
   const alertes = donnees.filter((s) => s.etat !== 'ok' && s.achetes > 0).length;
   useVisite('electricite', VISITES.electricite, { pret: !chargement });

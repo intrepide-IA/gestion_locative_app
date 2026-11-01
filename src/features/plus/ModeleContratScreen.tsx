@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Eye, FileUp, RotateCcw, Save } from 'lucide-react-native';
+import { Camera, ChevronRight, Eye, FileText, FileUp, Images, RotateCcw, Save, ScanText } from 'lucide-react-native';
 
 import { useApercu } from '../../components/documents/Apercu';
 import { confirmer, informer } from '../../components/ui/confirmer';
+import { Feuille } from '../../components/ui/Feuille';
+import { PhotosDocument } from '../../components/ui/PhotosDocument';
 import { Bouton, BoutonRetour, Carte, Chargement, EnTete } from '../../components/ui/kit';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
@@ -14,6 +16,8 @@ import { messageErreur } from '../../domain/erreurs';
 import { MODELE_PAR_DEFAUT, VARIABLES_MODELE, variablesInconnues } from '../../domain/modeleContrat';
 import { useRessource } from '../../hooks/useRessource';
 import { choisirFichierTexte } from '../../services/fichiers';
+import { choisirPdf, choisirPhotos, lirePdf, lirePhotos, PAGES_MAX } from '../../services/lectureContrat';
+import type { ContratReconnu } from '../../domain/miseEnFormeContrat';
 import { colors } from '../../theme/colors';
 
 const erreurTexte = (error: unknown) => messageErreur(error, error instanceof Error ? error.message : 'Erreur inconnue.');
@@ -41,6 +45,10 @@ function Editeur({ initial }: { initial: string | null }) {
   const [forcee, setForcee] = useState<{ start: number; end: number } | undefined>(undefined);
   const [personnalise, setPersonnalise] = useState(initial !== null);
   const [enCours, setEnCours] = useState(false);
+  const [choixImport, setChoixImport] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [lecture, setLecture] = useState<string | null>(null);
+  const [reconnu, setReconnu] = useState<ContratReconnu | null>(null);
   const ouvrirApercu = useApercu();
   const inconnues = variablesInconnues(texte);
 
@@ -52,7 +60,43 @@ function Editeur({ initial }: { initial: string | null }) {
     setForcee({ start: fin, end: fin });
   };
 
+  /** Lit les photos ou le PDF, puis met le contrat reconnu dans l'éditeur (pas encore enregistré). */
+  const lire = async (travail: () => Promise<ContratReconnu>) => {
+    setChoixImport(false);
+    setLecture('Lecture du contrat…');
+    try {
+      const r = await travail();
+      setTexte(r.texte);
+      setReconnu(r);
+    } catch (error) {
+      informer('Lecture impossible', erreurTexte(error));
+    } finally {
+      setLecture(null);
+    }
+  };
+
+  const suivrePages = (rang: number, total: number) => setLecture(`Lecture de la page ${rang} sur ${total}…`);
+
+  const depuisPhotos = async () => {
+    try {
+      const uris = await choisirPhotos();
+      if (uris) await lire(() => lirePhotos(uris, suivrePages));
+    } catch (error) {
+      informer('Import impossible', erreurTexte(error));
+    }
+  };
+
+  const depuisPdf = async () => {
+    try {
+      const uri = await choisirPdf();
+      if (uri) await lire(() => lirePdf(uri));
+    } catch (error) {
+      informer('Import impossible', erreurTexte(error));
+    }
+  };
+
   const importer = async () => {
+    setChoixImport(false);
     try {
       const f = await choisirFichierTexte();
       if (!f) return;
@@ -64,6 +108,7 @@ function Editeur({ initial }: { initial: string | null }) {
         );
       }
       setTexte(f.contenu.replace(/\r\n?/g, '\n'));
+      setReconnu(null);
       informer('Modèle importé', `« ${f.nom} » est chargé. Ajoutez les informations à remplir avec les boutons, puis enregistrez.`);
     } catch (error) {
       informer('Import impossible', erreurTexte(error));
@@ -99,10 +144,20 @@ function Editeur({ initial }: { initial: string | null }) {
           automatiquement pour chaque locataire. Une ligne « # … » devient le titre, « Article … » un intertitre, « - … » une puce. Les
           signatures et la photo de la pièce sont ajoutées à la fin.
         </Text>
+        <Text className="text-muted text-sm mt-2">
+          Vous avez déjà un contrat papier ? Touchez « Importer » : photographiez-le ou choisissez un PDF, Onílé le transforme en
+          modèle à vérifier.
+        </Text>
       </Carte>
 
       <View className="flex-row gap-3">
-        <Bouton titre="Importer (.txt)" variante="secondaire" className="flex-1" icone={<FileUp size={18} color={colors.primary} />} onPress={importer} />
+        <Bouton
+          titre="Importer"
+          variante="secondaire"
+          className="flex-1"
+          icone={<FileUp size={18} color={colors.primary} />}
+          onPress={() => setChoixImport(true)}
+        />
         <Bouton
           titre="Aperçu"
           variante="secondaire"
@@ -111,6 +166,30 @@ function Editeur({ initial }: { initial: string | null }) {
           onPress={() => ouvrirApercu(async () => ({ html: htmlApercuModele(texte), nomFichier: 'Modele-contrat', titre: 'Aperçu du modèle' }))}
         />
       </View>
+
+      {lecture ? (
+        <View className="flex-row items-center gap-3 rounded-2xl p-4 bg-primary/5 border border-primary/20" accessibilityLiveRegion="polite">
+          <ActivityIndicator color={colors.primary} />
+          <Text className="flex-1 text-ink font-medium">{lecture}</Text>
+        </View>
+      ) : null}
+
+      {reconnu && !lecture ? (
+        <View className="rounded-2xl p-4 bg-accent/15 border border-accent/40 gap-1">
+          <Text className="text-ink font-semibold">Contrat reconnu : relisez-le avant d’enregistrer</Text>
+          <Text className="text-ink text-sm">
+            {reconnu.variables
+              ? `${reconnu.variables} information(s) placée(s) automatiquement (noms, loyer, caution…). `
+              : ''}
+            {reconnu.aCompleter
+              ? `${reconnu.aCompleter} espace(s) à compléter, marqué(s) « …… » : placez le curseur dessus et touchez l’information qui convient.`
+              : 'Ajoutez les informations à remplir avec les boutons ci-dessous.'}
+          </Text>
+          <Text className="text-muted text-xs">
+            La lecture peut confondre quelques lettres. Les titres, articles, paragraphes et puces sont remis en forme ; utilisez « Aperçu » pour voir le résultat.
+          </Text>
+        </View>
+      ) : null}
 
       <View>
         <Text className="text-sm font-medium text-ink mb-1.5">Insérer une information (à l’endroit du curseur)</Text>
@@ -158,6 +237,47 @@ function Editeur({ initial }: { initial: string | null }) {
       {personnalise ? (
         <Bouton titre="Revenir au modèle Onílé" variante="discret" icone={<RotateCcw size={18} color={colors.primary} />} onPress={reinitialiser} />
       ) : null}
+
+      <Feuille ouverte={choixImport} onFermer={() => setChoixImport(false)} titre="Importer mon contrat">
+        <Text className="text-muted">
+          Onílé lit votre contrat et le transforme en modèle numérique : titres, articles, paragraphes. Le texte actuel de l’éditeur est
+          remplacé (rien n’est enregistré avant que vous touchiez « Enregistrer »).
+        </Text>
+        <ChoixImport
+          icone={<Camera size={20} color={colors.primary} />}
+          titre="Photographier le contrat papier"
+          detail={`Une photo par page, jusqu’à ${PAGES_MAX} pages`}
+          onPress={() => {
+            setChoixImport(false);
+            setCamera(true);
+          }}
+        />
+        <ChoixImport icone={<Images size={20} color={colors.primary} />} titre="Choisir des photos" detail="Photos déjà prises, dans l’ordre des pages" onPress={depuisPhotos} />
+        <ChoixImport icone={<FileText size={20} color={colors.primary} />} titre="Importer un PDF" detail="Contrat scanné ou enregistré en PDF" onPress={depuisPdf} />
+        <ChoixImport icone={<ScanText size={20} color={colors.primary} />} titre="Importer un fichier texte (.txt)" detail="Depuis Word : Enregistrer sous → Texte brut" onPress={importer} />
+      </Feuille>
+
+      <PhotosDocument
+        ouverte={camera}
+        onFermer={() => setCamera(false)}
+        onTermine={(uris) => {
+          setCamera(false);
+          void lire(() => lirePhotos(uris, suivrePages));
+        }}
+      />
     </ScrollView>
+  );
+}
+
+function ChoixImport({ icone, titre, detail, onPress }: { icone: ReactNode; titre: string; detail: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" className="flex-row items-center bg-white rounded-2xl border border-border p-4 active:bg-background">
+      <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mr-3">{icone}</View>
+      <View className="flex-1">
+        <Text className="text-base text-ink font-medium">{titre}</Text>
+        <Text className="text-xs text-muted">{detail}</Text>
+      </View>
+      <ChevronRight size={18} color={colors.muted} />
+    </Pressable>
   );
 }

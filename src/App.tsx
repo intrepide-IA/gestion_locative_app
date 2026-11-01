@@ -209,7 +209,11 @@ export default function App() {
                   {({ navigation }) => <PlusScreen onVerrouiller={lock} onRetour={navigation.goBack} />}
                 </Stack.Screen>
                 <Stack.Screen name="Notifications">{({ navigation }) => <NotificationsScreen onRetour={navigation.goBack} />}</Stack.Screen>
-                <Stack.Screen name="Electricite">{({ navigation }) => <ElectriciteScreen onRetour={navigation.goBack} />}</Stack.Screen>
+                <Stack.Screen name="Electricite">
+                  {({ navigation, route }) => (
+                    <ElectriciteScreen onRetour={navigation.goBack} ouvrir={(route.params as { ouvrir?: number } | undefined)?.ouvrir} />
+                  )}
+                </Stack.Screen>
                 <Stack.Screen name="Sauvegarde">{({ navigation }) => <SauvegardeScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="Synchronisation">{({ navigation }) => <SynchronisationScreen onRetour={navigation.goBack} />}</Stack.Screen>
                 <Stack.Screen name="ModeleContrat">{({ navigation }) => <ModeleContratScreen onRetour={navigation.goBack} />}</Stack.Screen>

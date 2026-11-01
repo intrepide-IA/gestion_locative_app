@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, BellRing, ChevronRight, Compass, MessageSquareHeart, FileText, History, Home, Cloud, Database, Download, Fingerprint, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
+import { Bell, BellRing, BookOpen, ChevronRight, Compass, MessageSquareHeart, FileText, History, Home, Cloud, Database, Download, Fingerprint, Lock, PenLine, Shield, Zap } from 'lucide-react-native';
 import { nouvelleVersion, telechargerEtInstaller, type VersionPubliee } from '../../services/miseAJour';
 import { useNavigation } from '@react-navigation/native';
 
@@ -14,6 +14,7 @@ import { Bouton, BoutonRetour, Champ, EnTete } from '../../components/ui/kit';
 import { Cible, useDefilementVisite, useReinitialiserVisite, useVisite } from '../../components/visite/Visite';
 import { VISITES } from '../../components/visite/visites';
 import { AvisForm } from './AvisForm';
+import { LivreForm } from './LivreForm';
 import { Text } from '../../components/ui/Text';
 import { APP_VERSION } from '../../constants';
 import { getDatabase } from '../../db/client';
@@ -42,6 +43,7 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
   const [signature, setSignature] = useState(false);
   const [avis, setAvis] = useState(false);
   const [journal, setJournal] = useState(false);
+  const [livre, setLivre] = useState(false);
   const [maisons, setMaisons] = useState(false);
   const { active: maisonActive } = useMaisons();
   const navigation = useNavigation<{ navigate: (ecran: string) => void }>();
@@ -144,6 +146,12 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
             libelle="Modèle de contrat"
             detail="Modifier / importer"
             onPress={() => navigation.navigate('ModeleContrat')}
+          />
+          <Ligne
+            icone={<BookOpen size={18} color={colors.primary} />}
+            libelle="Livre de tenue de la maison"
+            detail="PDF ou Excel"
+            onPress={() => setLivre(true)}
             dernier
           />
         </Groupe>
@@ -280,6 +288,9 @@ export function PlusScreen({ onVerrouiller, onRetour }: { onVerrouiller: () => v
       </Feuille>
       <Feuille ouverte={avis} onFermer={() => setAvis(false)} titre="Avis et suggestions">
         <AvisForm nom={proprietaire?.nom} telephone={proprietaire?.telephone} onEnvoye={() => setAvis(false)} />
+      </Feuille>
+      <Feuille ouverte={livre} onFermer={() => setLivre(false)} titre="Livre de tenue">
+        <LivreForm />
       </Feuille>
       <Feuille ouverte={journal} onFermer={() => setJournal(false)} titre="Journal des modifications">
         <Journal />

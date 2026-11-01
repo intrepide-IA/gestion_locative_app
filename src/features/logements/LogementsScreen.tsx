@@ -23,6 +23,7 @@ import {
   PastilleIcone,
 } from '../../components/ui/kit';
 import { OutilsEnTete } from '../../components/navigation/OutilsEnTete';
+import { Lisere, PastillesSituation } from '../../components/ui/Situation';
 import { Text } from '../../components/ui/Text';
 import { getDatabase } from '../../db/client';
 import type { SqlDatabase } from '../../db/types';
@@ -36,6 +37,8 @@ import {
   type LogementAvecOccupant,
 } from '../../repositories/logementRepository';
 import { echeancierDuLocataire, situationLocataire } from '../../repositories/loyerRepository';
+import { listerSituations } from '../../repositories/rappelsRepository';
+import type { SituationContrat } from '../../domain/rappels';
 import { colors } from '../../theme/colors';
 import { ElectriciteDetail } from '../electricite/ElectriciteDetail';
 import { EntreeLocataireForm } from '../locataires/EntreeLocataireForm';
@@ -43,12 +46,20 @@ import { LocataireDetail } from '../locataires/LocataireDetail';
 import { PaiementForm } from '../loyers/PaiementForm';
 import { LogementForm } from './LogementForm';
 
-type Filtre = 'tous' | 'occupes' | 'libres';
+type Filtre = 'tous' | 'occupes' | 'libres' | 'retard' | 'attention';
 
 const AUCUN: LogementAvecOccupant[] = [];
+const AUCUNE_SITUATION = new Map<number, SituationContrat>();
+const lireSituations = (db: SqlDatabase) => listerSituations(db, aujourdhui());
 
 export function LogementsScreen() {
-  const { donnees: logements, chargement, erreur, rafraichir } = useRessource(listerLogements, AUCUN);
+  const { donnees: logements, chargement, erreur, rafraichir: rafraichirLogements } = useRessource(listerLogements, AUCUN);
+  const { donnees: situations, rafraichir: rafraichirSituations } = useRessource(lireSituations, AUCUNE_SITUATION);
+  const rafraichir = () => {
+    rafraichirLogements();
+    rafraichirSituations();
+  };
+  const niveau = (l: LogementAvecOccupant) => (l.contrat_id !== null ? situations.get(l.contrat_id)?.niveau : undefined);
   const [recherche, setRecherche] = useState('');
   const [filtre, setFiltre] = useState<Filtre>('tous');
   const [creation, setCreation] = useState(false);
@@ -61,15 +72,19 @@ export function LogementsScreen() {
   const [electricite, setElectricite] = useState<number | null>(null);
 
   const occupes = logements.filter((l) => l.contrat_id !== null).length;
+  const enRetard = logements.filter((l) => niveau(l) === 'retard').length;
+  const aSurveiller = logements.filter((l) => niveau(l) === 'attention').length;
   useVisite('logements', VISITES.logements, { pret: !chargement });
   const visibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     return logements.filter((l) => {
       if (filtre === 'occupes' && l.contrat_id === null) return false;
       if (filtre === 'libres' && l.contrat_id !== null) return false;
+      if ((filtre === 'retard' || filtre === 'attention') && niveau(l) !== filtre) return false;
       return !q || l.reference.toLowerCase().includes(q) || (l.locataire_nom ?? '').toLowerCase().includes(q);
     });
-  }, [logements, recherche, filtre]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logements, recherche, filtre, situations]);
 
   const retirer = async (l: LogementAvecOccupant) => {
     const ok = await confirmer(
@@ -94,7 +109,11 @@ export function LogementsScreen() {
       <EnTete
         outils={<OutilsEnTete cible="logements.outils" />}
         titre="Logements"
-        sousTitre={logements.length ? `${logements.length} logement(s) · ${occupes} occupé(s) · ${logements.length - occupes} libre(s)` : undefined}
+        sousTitre={
+          logements.length
+            ? `${logements.length} logement(s) · ${occupes} occupé(s) · ${logements.length - occupes} libre(s)${enRetard ? ` · ${enRetard} en retard` : ''}`
+            : undefined
+        }
       />
       {logements.length > 0 ? (
         <>
@@ -105,6 +124,8 @@ export function LogementsScreen() {
               { valeur: 'tous', libelle: `Tous (${logements.length})` },
               { valeur: 'occupes', libelle: `Occupés (${occupes})` },
               { valeur: 'libres', libelle: `Libres (${logements.length - occupes})` },
+              { valeur: 'retard', libelle: `En retard (${enRetard})` },
+              { valeur: 'attention', libelle: `À surveiller (${aSurveiller})` },
             ]}
             valeur={filtre}
             onChange={setFiltre}
@@ -137,6 +158,7 @@ export function LogementsScreen() {
           renderItem={({ item }) => (
             <CarteLogement
               logement={item}
+              situation={item.contrat_id !== null ? situations.get(item.contrat_id) : undefined}
               premierOccupe={item.locataire_id !== null && visibles.find((l) => l.locataire_id !== null)?.id === item.id}
               onPress={() => setSelection(item)}
               onLocataire={item.locataire_id ? () => setFiche(item.locataire_id) : undefined}
@@ -219,11 +241,13 @@ export function LogementsScreen() {
 /** Carte d'un logement : touche = détail du logement ; bandeau du bas = fiche du locataire (deux zones distinctes). */
 function CarteLogement({
   logement,
+  situation,
   premierOccupe,
   onPress,
   onLocataire,
 }: {
   logement: LogementAvecOccupant;
+  situation?: SituationContrat;
   premierOccupe: boolean;
   onPress: () => void;
   onLocataire?: () => void;
@@ -233,6 +257,7 @@ function CarteLogement({
   return (
     <Cible id={premierOccupe ? 'logements.carte' : `logements.carte.${logement.id}`}>
     <View className="bg-white rounded-2xl border border-border overflow-hidden">
+      <Lisere niveau={situation?.niveau} />
       <Pressable onPress={onPress} accessibilityRole="button" className="p-4 active:bg-background">
         <View className="flex-row items-center">
           <PastilleIcone ton={occupe ? 'vert' : 'jaune'}>
@@ -249,6 +274,7 @@ function CarteLogement({
             <Text className="text-sm font-semibold text-ink mt-1.5">{formatFCFA(loyer)}</Text>
           </View>
         </View>
+        <PastillesSituation situation={situation} />
       </Pressable>
       {occupe && onLocataire ? (
         <Cible id={premierOccupe ? 'logements.fiche' : `logements.fiche.${logement.id}`}>

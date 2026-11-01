@@ -1,10 +1,19 @@
 import { createMigratedDatabase } from '../../db/__tests__/nodeDatabase';
-import { aHeure, alertesEnCours, ecartJours, rappelsSouhaites } from '../../domain/rappels';
+import { aHeure, alertesEnCours, ecartJours, rappelsSouhaites, situationsDesContrats } from '../../domain/rappels';
 import { acheterElectricite, enregistrerReleve } from '../electriciteRepository';
 import { creerLogement } from '../logementRepository';
 import { entrerLocataire } from '../locataireRepository';
 import { enregistrerPaiement } from '../loyerRepository';
-import { definirNotificationsActives, listerAlertes, synchroniserRappels, type Planificateur } from '../rappelsRepository';
+import {
+  definirNotificationsActives,
+  lireNotificationsLues,
+  listerAlertes,
+  listerSituations,
+  marquerNotifications,
+  signatureAlerte,
+  synchroniserRappels,
+  type Planificateur,
+} from '../rappelsRepository';
 
 function fauxPlanificateur() {
   const programmes = new Map<string, string>();
@@ -147,4 +156,57 @@ test('rappels de contrôle du compteur : veille et jour de l’épuisement estim
   expect(r[1].titre).toBe('Awa');
   const alertes = alertesEnCours({ echeancesImpayees: [], contratsAvecFin: [], stocks: [stock], derniereSauvegarde: '2026-10-10' }, '2026-10-14');
   expect(alertes.map((a) => a.titre)).toEqual(['Électricité : épuisement estimé dans 1 jour']);
+});
+
+test('listerAlertes : chaque alerte est expliquée (période, montant, que faire)', async () => {
+  const { db } = await maison();
+  const [loyer] = await listerAlertes(db, '2026-10-08');
+  expect(loyer.description).toContain('Le loyer de');
+  expect(loyer.description).toContain('Il reste');
+  expect(loyer.locataireId).toBeGreaterThan(0);
+  expect(loyer.contratId).toBeGreaterThan(0);
+});
+
+test('notifications lues : marquées, puis non lues à nouveau si l’alerte s’aggrave', async () => {
+  const { db } = await maison();
+  const avant = await listerAlertes(db, '2026-10-03');
+  const loyer = avant.find((a) => a.type === 'loyer')!;
+  expect(loyer.gravite).toBe('attention');
+  await marquerNotifications(db, [signatureAlerte(loyer)], true, avant.map(signatureAlerte));
+  expect((await lireNotificationsLues(db)).has(signatureAlerte(loyer))).toBe(true);
+  const apres = (await listerAlertes(db, '2026-10-08')).find((a) => a.cle === loyer.cle)!;
+  expect(apres.gravite).toBe('urgent');
+  expect((await lireNotificationsLues(db)).has(signatureAlerte(apres))).toBe(false);
+  // Les signatures d'alertes disparues sont oubliées.
+  await marquerNotifications(db, [], true, []);
+  expect((await lireNotificationsLues(db)).size).toBe(0);
+});
+
+test('situations : loyer à jour, échéance proche, retard ; électricité basse ou consommée sans payer', () => {
+  const s = situationsDesContrats(
+    {
+      echeancesImpayees: [
+        { id: 1, contrat_id: 1, date_echeance: '2026-10-05', reste: 26000, locataire_nom: 'A', logement_reference: 'A' },
+        { id: 2, contrat_id: 1, date_echeance: '2026-09-05', reste: 4000, locataire_nom: 'A', logement_reference: 'A' },
+        { id: 3, contrat_id: 2, date_echeance: '2026-10-18', reste: 26000, locataire_nom: 'B', logement_reference: 'B' },
+      ],
+      stocks: [
+        { contrat_id: 2, etat: 'bas', stock: 3, locataire_nom: 'B', achetes: 40, consommes: 37 },
+        { contrat_id: 4, etat: 'deficit', stock: -2, prix_kwh: 250, locataire_nom: 'D', achetes: 10, consommes: 12 },
+      ],
+    },
+    [1, 2, 3],
+    '2026-10-15'
+  );
+  expect(s.get(1)).toMatchObject({ niveau: 'retard', loyer: { niveau: 'retard', enRetard: 30000, joursRetard: 40 } });
+  expect(s.get(2)).toMatchObject({ niveau: 'attention', loyer: { prochain: { montant: 26000, dans: 3 } }, electricite: { niveau: 'attention' } });
+  expect(s.get(3)).toMatchObject({ niveau: 'ok', loyer: { niveau: 'ok' }, electricite: null });
+  expect(s.get(4)).toMatchObject({ niveau: 'retard', loyer: null, electricite: { etat: 'deficit', montantDu: 500 } });
+});
+
+test('listerSituations lit la base : le loyer du mois en retard colore la chambre en rouge', async () => {
+  const { db } = await maison();
+  const situations = [...(await listerSituations(db, '2026-10-08')).values()];
+  expect(situations).toHaveLength(1);
+  expect(situations[0]).toMatchObject({ niveau: 'retard', loyer: { joursRetard: 3 } });
 });

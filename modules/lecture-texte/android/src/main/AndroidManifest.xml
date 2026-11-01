@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Le modèle de lecture (alphabet latin) est téléchargé par Google Play dès l'installation. -->
+    <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="ocr" />
+  </application>
+</manifest>

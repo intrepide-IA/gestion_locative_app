@@ -1,6 +1,6 @@
 {
   "name": "onile",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -43,6 +43,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
     "expo-task-manager": "~57.0.21",
+    "fflate": "^0.8.2",
     "lucide-react-native": "^1.57.0",
     "nativewind": "^4.2.7",
     "react": "19.2.3",

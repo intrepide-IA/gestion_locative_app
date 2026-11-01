@@ -58,3 +58,13 @@ export async function partagerFichierTexte(contenu: string, nomFichier: string, 
   lien.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Aperçu web : téléchargement direct du fichier binaire (classeur Excel…). */
+export async function partagerFichierBinaire(octets: Uint8Array, nomFichier: string, mimeType: string): Promise<void> {
+  const url = URL.createObjectURL(new Blob([octets as BlobPart], { type: mimeType }));
+  const lien = document.createElement('a');
+  lien.href = url;
+  lien.download = nomFichier;
+  lien.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

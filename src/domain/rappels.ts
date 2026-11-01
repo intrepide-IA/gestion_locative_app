@@ -2,7 +2,7 @@
  * Rappels à programmer (cahier des charges, section 13), calculés à partir des données — sans module natif.
  * Chaque rappel a une clé unique : un même événement ne produit jamais deux notifications.
  */
-import { formatFCFA } from './format';
+import { formatDate, formatFCFA, formatMois } from './format';
 import { ajouterJours, LIBELLES_STOCK, type EtatStock } from './electricite';
 
 export interface RappelSouhaite {
@@ -14,10 +14,24 @@ export interface RappelSouhaite {
 }
 
 export interface DonneesRappels {
-  echeancesImpayees: { id: number; date_echeance: string; reste: number; locataire_nom: string; logement_reference: string }[];
-  contratsAvecFin: { id: number; date_fin: string; locataire_nom: string; logement_reference: string }[];
+  echeancesImpayees: {
+    id: number;
+    date_echeance: string;
+    reste: number;
+    locataire_nom: string;
+    logement_reference: string;
+    contrat_id?: number;
+    locataire_id?: number;
+    montant_du?: number;
+    annee?: number;
+    mois?: number;
+  }[];
+  contratsAvecFin: { id: number; date_fin: string; locataire_nom: string; logement_reference: string; locataire_id?: number }[];
   stocks: {
     contrat_id: number;
+    locataire_id?: number;
+    logement_reference?: string;
+    prix_kwh?: number;
     etat: EtatStock;
     stock: number;
     locataire_nom: string;
@@ -128,17 +142,24 @@ export function rappelsSouhaites(d: DonneesRappels, maintenant: Date): RappelSou
 /* ---------- Alertes en cours (page Notifications) ---------- */
 
 export type GraviteAlerte = 'urgent' | 'attention' | 'info';
+export type TypeAlerte = RappelSouhaite['type'] | 'mise_a_jour';
 
 export interface Alerte {
   cle: string;
-  type: RappelSouhaite['type'];
+  type: TypeAlerte;
   gravite: GraviteAlerte;
   /** Locataire concerné (null pour un conseil général). */
   qui: string | null;
   titre: string;
+  /** Résumé court : montant, chambre… */
   detail: string;
+  /** Explication complète : ce qui se passe et ce qu'il faut faire. */
+  description: string;
   /** Jour de référence AAAA-MM-JJ (échéance, fin de contrat…), pour le tri. */
   jour: string;
+  /** Pour ouvrir directement la fiche ou le compteur concernés. */
+  locataireId?: number;
+  contratId?: number;
 }
 
 /** Nombre de jours de `de` à `a` (dates AAAA-MM-JJ). */
@@ -149,6 +170,8 @@ export function ecartJours(de: string, a: string): number {
 
 const ORDRE: Record<GraviteAlerte, number> = { urgent: 0, attention: 1, info: 2 };
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+const kwh = (n: number) => `${String(Math.round(n * 10) / 10).replace('.', ',')} kWh`;
+const prenom = (nom: string) => nom.trim().split(/\s+/)[0];
 
 /**
  * Ce qui demande l'attention du propriétaire aujourd'hui : loyers en retard ou proches, fins de contrat
@@ -160,25 +183,26 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
   for (const e of d.echeancesImpayees) {
     const ecart = ecartJours(jour, e.date_echeance);
     const qui = e.locataire_nom;
+    const leLoyer = e.mois && e.annee ? `Le loyer de ${formatMois(e.mois, e.annee)}` : 'Le loyer';
+    const dejaVerse = e.montant_du && e.montant_du > e.reste ? ` ${formatFCFA(e.montant_du - e.reste)} déjà versés sur ${formatFCFA(e.montant_du)}.` : '';
+    const commun = { qui, locataireId: e.locataire_id, contratId: e.contrat_id, jour: e.date_echeance, detail: `${formatFCFA(e.reste)} · ${e.logement_reference}` };
     if (ecart < 0) {
       alertes.push({
+        ...commun,
         cle: `loyer-${e.id}`,
         type: 'loyer',
         gravite: 'urgent',
         titre: `Loyer en retard de ${pluriel(-ecart, 'jour')}`,
-        qui,
-        detail: `${formatFCFA(e.reste)} · ${e.logement_reference}`,
-        jour: e.date_echeance,
+        description: `${leLoyer} (${e.logement_reference}) était attendu le ${formatDate(e.date_echeance)}. Il reste ${formatFCFA(e.reste)} à payer.${dejaVerse} Relancez ${prenom(qui)} ou encaissez le paiement depuis sa fiche.`,
       });
     } else if (ecart <= 3) {
       alertes.push({
+        ...commun,
         cle: `loyer-${e.id}`,
         type: 'loyer',
         gravite: 'attention',
         titre: ecart === 0 ? 'Loyer à percevoir aujourd’hui' : `Loyer attendu dans ${pluriel(ecart, 'jour')}`,
-        qui,
-        detail: `${formatFCFA(e.reste)} · ${e.logement_reference}`,
-        jour: e.date_echeance,
+        description: `${leLoyer} (${e.logement_reference}) est attendu le ${formatDate(e.date_echeance)} : ${formatFCFA(e.reste)}.${dejaVerse} Vous pouvez envoyer un petit rappel à ${prenom(qui)} sur WhatsApp.`,
       });
     }
   }
@@ -193,36 +217,53 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
       titre: ecart < 0 ? 'Contrat arrivé à échéance' : ecart === 0 ? 'Le contrat se termine aujourd’hui' : `Fin de contrat dans ${pluriel(ecart, 'jour')}`,
       qui: c.locataire_nom,
       detail: c.logement_reference,
+      description:
+        ecart < 0
+          ? `Le contrat de ${c.locataire_nom} pour ${c.logement_reference} a pris fin le ${formatDate(c.date_fin)}. Prolongez-le, ou enregistrez la sortie avec l’état des lieux.`
+          : `Le contrat de ${c.locataire_nom} pour ${c.logement_reference} se termine le ${formatDate(c.date_fin)}. Voyez avec ${prenom(c.locataire_nom)} s’il renouvelle, sinon préparez l’état des lieux de sortie.`,
       jour: c.date_fin,
+      locataireId: c.locataire_id,
+      contratId: c.id,
     });
   }
 
   for (const s of d.stocks) {
+    const ou = s.logement_reference ? ` (${s.logement_reference})` : '';
+    const coupure = s.index_coupure !== undefined ? ` Coupure à l’index ${String(s.index_coupure).replace('.', ',')}.` : '';
+    const commun = { qui: s.locataire_nom, locataireId: s.locataire_id, contratId: s.contrat_id };
     if (s.etat === 'ok' && s.achetes > 0 && s.epuisement_estime) {
       const reste = ecartJours(jour, s.epuisement_estime);
       if (reste <= 2) {
         alertes.push({
+          ...commun,
           cle: `kwh-${s.contrat_id}`,
           type: 'electricite',
           gravite: 'attention',
           titre: reste <= 0 ? 'Électricité : crédit estimé épuisé' : `Électricité : épuisement estimé dans ${pluriel(reste, 'jour')}`,
-          qui: s.locataire_nom,
           detail: s.index_coupure !== undefined ? `Coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : '',
+          description: `D’après sa consommation, le crédit de ${s.locataire_nom}${ou} devrait finir ${
+            reste <= 0 ? 'aujourd’hui' : `le ${formatDate(s.epuisement_estime)}`
+          } (${kwh(s.stock)} restants au dernier relevé).${coupure} Passez relever le compteur ou prévenez votre locataire.`,
           jour: s.epuisement_estime,
         });
       }
       continue;
     }
     if (s.etat === 'ok' || s.achetes === 0) continue;
+    const du = s.etat === 'deficit' && s.prix_kwh ? Math.ceil(-s.stock * s.prix_kwh) : 0;
     alertes.push({
+      ...commun,
       cle: `kwh-${s.contrat_id}`,
       type: 'electricite',
       gravite: s.etat === 'bas' ? 'attention' : 'urgent',
       titre: `Électricité : ${LIBELLES_STOCK[s.etat].toLowerCase()}`,
-      qui: s.locataire_nom,
-      detail: `${String(s.stock).replace('.', ',')} kWh restants${
-        s.index_coupure !== undefined ? ` · coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : ''
-      }`,
+      detail: `${kwh(s.stock)} restants${s.index_coupure !== undefined ? ` · coupure à l’index ${String(s.index_coupure).replace('.', ',')}` : ''}`,
+      description:
+        s.etat === 'bas'
+          ? `Il ne reste que ${kwh(s.stock)} à ${s.locataire_nom}${ou} sur ${kwh(s.achetes)} achetés.${coupure} Prévenez votre locataire pour qu’une recharge soit faite à temps.`
+          : s.etat === 'epuise'
+            ? `Le crédit d’électricité de ${s.locataire_nom}${ou} est épuisé.${coupure} Une recharge est nécessaire avant de continuer à consommer.`
+            : `${s.locataire_nom}${ou} a consommé ${kwh(-s.stock)} de plus que ce qui a été payé${du ? `, soit ${formatFCFA(du)} à régler` : ''}.${coupure} Envoyez-lui l’avis d’électricité depuis le compteur.`,
       jour,
     });
   }
@@ -236,9 +277,70 @@ export function alertesEnCours(d: DonneesRappels & { derniereSauvegarde: string 
       titre: ancienne === null ? 'Aucune sauvegarde de vos données' : `Dernière sauvegarde il y a ${ancienne} jours`,
       qui: null,
       detail: 'Exportez une copie et gardez-la hors du téléphone.',
+      description: `${
+        ancienne === null ? 'Vous n’avez encore jamais sauvegardé vos données.' : `Votre dernière sauvegarde date du ${formatDate(d.derniereSauvegarde!.slice(0, 10))}.`
+      } Si le téléphone est perdu, volé ou en panne, la sauvegarde est le seul moyen de tout récupérer. Envoyez-la sur WhatsApp à vous-même ou sur Google Drive.`,
       jour,
     });
   }
 
   return alertes.sort((a, b) => ORDRE[a.gravite] - ORDRE[b.gravite] || a.jour.localeCompare(b.jour));
+}
+
+/* ---------- Situation de chaque contrat (indicateurs des logements et locataires) ---------- */
+
+export type NiveauSituation = 'ok' | 'attention' | 'retard';
+
+export interface SituationContrat {
+  niveau: NiveauSituation;
+  loyer: { niveau: NiveauSituation; enRetard: number; joursRetard: number; prochain: { montant: number; dans: number } | null } | null;
+  electricite: { niveau: NiveauSituation; etat: EtatStock; stock: number; montantDu: number } | null;
+}
+
+const PIRE: Record<NiveauSituation, number> = { ok: 0, attention: 1, retard: 2 };
+const pire = (...n: (NiveauSituation | undefined)[]): NiveauSituation =>
+  n.reduce<NiveauSituation>((a, b) => (b && PIRE[b] > PIRE[a] ? b : a), 'ok');
+
+/**
+ * Pour chaque contrat actif : loyer (à jour, échéance dans 5 jours, en retard) et électricité
+ * (suffisante, bientôt épuisée, épuisée ou consommée sans payer). Sert aux pastilles de couleur.
+ */
+export function situationsDesContrats(
+  d: Pick<DonneesRappels, 'echeancesImpayees' | 'stocks'>,
+  contratsLoyer: number[],
+  jour: string
+): Map<number, SituationContrat> {
+  const resultat = new Map<number, SituationContrat>();
+  const obtenir = (id: number) => {
+    let s = resultat.get(id);
+    if (!s) resultat.set(id, (s = { niveau: 'ok', loyer: null, electricite: null }));
+    return s;
+  };
+  for (const id of contratsLoyer) obtenir(id).loyer = { niveau: 'ok', enRetard: 0, joursRetard: 0, prochain: null };
+  for (const e of d.echeancesImpayees) {
+    if (e.contrat_id === undefined) continue;
+    const s = obtenir(e.contrat_id);
+    const l = (s.loyer ??= { niveau: 'ok', enRetard: 0, joursRetard: 0, prochain: null });
+    const ecart = ecartJours(jour, e.date_echeance);
+    if (ecart < 0) {
+      l.enRetard += e.reste;
+      l.joursRetard = Math.max(l.joursRetard, -ecart);
+      l.niveau = 'retard';
+    } else if (ecart <= 5 && (!l.prochain || ecart < l.prochain.dans)) {
+      l.prochain = { montant: e.reste, dans: ecart };
+      if (l.niveau === 'ok') l.niveau = 'attention';
+    }
+  }
+  for (const st of d.stocks) {
+    if (st.achetes === 0) continue;
+    const bientot = st.etat === 'ok' && st.epuisement_estime ? ecartJours(jour, st.epuisement_estime) <= 2 : false;
+    obtenir(st.contrat_id).electricite = {
+      niveau: st.etat === 'epuise' || st.etat === 'deficit' ? 'retard' : st.etat === 'bas' || bientot ? 'attention' : 'ok',
+      etat: st.etat,
+      stock: st.stock,
+      montantDu: st.etat === 'deficit' && st.prix_kwh ? Math.ceil(-st.stock * st.prix_kwh) : 0,
+    };
+  }
+  for (const s of resultat.values()) s.niveau = pire(s.loyer?.niveau, s.electricite?.niveau);
+  return resultat;
 }

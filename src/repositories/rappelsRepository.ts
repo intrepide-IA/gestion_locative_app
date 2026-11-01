@@ -4,7 +4,15 @@
  * un rappel déjà programmé ou déjà affiché (table notifications_programmees).
  */
 import type { SqlDatabase } from '../db/types';
-import { alertesEnCours, rappelsSouhaites, type Alerte, type DonneesRappels, type RappelSouhaite } from '../domain/rappels';
+import {
+  alertesEnCours,
+  rappelsSouhaites,
+  situationsDesContrats,
+  type Alerte,
+  type DonneesRappels,
+  type RappelSouhaite,
+  type SituationContrat,
+} from '../domain/rappels';
 import { listerSituationsElectricite } from './electriciteRepository';
 import { genererEcheances } from './loyerRepository';
 
@@ -30,14 +38,15 @@ export async function definirNotificationsActives(db: SqlDatabase, actives: bool
 async function lireDonnees(db: SqlDatabase, aujourdhui: string): Promise<DonneesRappels> {
   await genererEcheances(db, aujourdhui);
   const echeancesImpayees = await db.all<DonneesRappels['echeancesImpayees'][number]>(
-    `SELECT e.id, e.date_echeance, e.montant_du - COALESCE(pe.paye, 0) AS reste, t.nom_complet AS locataire_nom, l.reference AS logement_reference
+    `SELECT e.id, e.date_echeance, e.montant_du - COALESCE(pe.paye, 0) AS reste, t.nom_complet AS locataire_nom, l.reference AS logement_reference,
+            e.contrat_id, c.locataire_id, e.montant_du, e.annee, e.mois
      FROM echeances e JOIN contrats c ON c.id = e.contrat_id JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
      LEFT JOIN (SELECT a.echeance_id, SUM(a.montant) AS paye FROM affectations a JOIN paiements p ON p.id = a.paiement_id
                 WHERE p.annule_le IS NULL GROUP BY a.echeance_id) pe ON pe.echeance_id = e.id
      WHERE c.statut = 'actif' AND e.montant_du - COALESCE(pe.paye, 0) > 0`
   );
   const contratsAvecFin = await db.all<DonneesRappels['contratsAvecFin'][number]>(
-    `SELECT c.id, c.date_fin, t.nom_complet AS locataire_nom, l.reference AS logement_reference
+    `SELECT c.id, c.date_fin, t.nom_complet AS locataire_nom, l.reference AS logement_reference, c.locataire_id
      FROM contrats c JOIN locataires t ON t.id = c.locataire_id JOIN logements l ON l.id = c.logement_id
      WHERE c.statut = 'actif' AND c.type = 'bail' AND c.date_fin IS NOT NULL`
   );
@@ -50,6 +59,45 @@ export async function listerAlertes(db: SqlDatabase, aujourdhui: string): Promis
   const donnees = await lireDonnees(db, aujourdhui);
   const sauvegarde = await db.get<{ valeur: string }>("SELECT valeur FROM parametres WHERE cle = 'derniere_sauvegarde'");
   return alertesEnCours({ ...donnees, derniereSauvegarde: sauvegarde?.valeur ?? null }, aujourdhui);
+}
+
+/** Situation de chaque contrat actif (loyer, électricité) : pastilles des logements et des locataires. */
+export async function listerSituations(db: SqlDatabase, aujourdhui: string): Promise<Map<number, SituationContrat>> {
+  const donnees = await lireDonnees(db, aujourdhui);
+  const baux = await db.all<{ id: number }>("SELECT id FROM contrats WHERE statut = 'actif' AND type = 'bail'");
+  return situationsDesContrats(donnees, baux.map((b) => b.id), aujourdhui);
+}
+
+/* ---------- Notifications lues ---------- */
+
+const CLE_LUES = 'notifications_lues';
+
+/** Une alerte redevient « non lue » si elle s'aggrave (ex. loyer attendu → loyer en retard). */
+export const signatureAlerte = (a: Pick<Alerte, 'cle' | 'gravite'>) => `${a.cle}|${a.gravite}`;
+
+export async function lireNotificationsLues(db: SqlDatabase): Promise<Set<string>> {
+  const row = await db.get<{ valeur: string }>('SELECT valeur FROM parametres WHERE cle = ?', [CLE_LUES]);
+  try {
+    const liste = row ? (JSON.parse(row.valeur) as unknown) : [];
+    return new Set(Array.isArray(liste) ? liste.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Marque des alertes comme lues (ou non lues). Les signatures d'alertes disparues sont oubliées,
+ * pour que la liste reste courte.
+ */
+export async function marquerNotifications(db: SqlDatabase, signatures: string[], lues: boolean, actuelles: string[]): Promise<void> {
+  const ensemble = await lireNotificationsLues(db);
+  for (const s of signatures) {
+    if (lues) ensemble.add(s);
+    else ensemble.delete(s);
+  }
+  const garder = new Set(actuelles);
+  const valeur = JSON.stringify([...ensemble].filter((s) => garder.has(s)));
+  await db.run('INSERT INTO parametres (cle, valeur) VALUES (?, ?) ON CONFLICT (cle) DO UPDATE SET valeur = excluded.valeur', [CLE_LUES, valeur]);
 }
 
 export interface BilanSynchronisation {

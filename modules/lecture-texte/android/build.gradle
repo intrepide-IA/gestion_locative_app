@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.onile'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.lecturetexte"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // Reconnaissance de texte fournie par les services Google Play : n'alourdit pas l'application.
+  implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+}

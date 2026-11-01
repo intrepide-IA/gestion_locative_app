@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { Linking } from 'react-native';
 
 import { PartageWhatsApp } from '../../modules/partage-whatsapp';
+import { versBase64 } from '../domain/chiffrementSauvegarde';
 
 /** Génère le PDF dans un dossier neuf (l'application qui reçoit ne peut pas resservir un ancien fichier). */
 async function genererPdf(html: string, nomFichier: string): Promise<string> {
@@ -53,6 +54,16 @@ export async function partagerPdf(html: string, nomFichier: string, titre: strin
   const destination = await genererPdf(html, nomFichier);
   if (!(await Sharing.isAvailableAsync())) throw new Error('Le partage n’est pas disponible sur cet appareil.');
   await Sharing.shareAsync(destination, { mimeType: 'application/pdf', dialogTitle: titre, UTI: 'com.adobe.pdf' });
+}
+
+/** Partage un fichier binaire (classeur Excel…) via la feuille Android. */
+export async function partagerFichierBinaire(octets: Uint8Array, nomFichier: string, mimeType: string, titre: string): Promise<void> {
+  const dossier = `${FileSystem.cacheDirectory}partage-${Date.now()}/`;
+  await FileSystem.makeDirectoryAsync(dossier, { intermediates: true });
+  const destination = `${dossier}${nomFichier.normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\w.-]+/g, '-')}`;
+  await FileSystem.writeAsStringAsync(destination, versBase64(octets), { encoding: FileSystem.EncodingType.Base64 });
+  if (!(await Sharing.isAvailableAsync())) throw new Error('Le partage n’est pas disponible sur cet appareil.');
+  await Sharing.shareAsync(destination, { mimeType, dialogTitle: titre });
 }
 
 /** Partage un fichier texte (CSV…) via la feuille Android. */

@@ -8,10 +8,14 @@ import { Cible } from '../visite/Visite';
 import type { SqlDatabase } from '../../db/types';
 import { aujourdhui } from '../../domain/format';
 import { useRessource } from '../../hooks/useRessource';
-import { listerAlertes } from '../../repositories/rappelsRepository';
+import { lireNotificationsLues, listerAlertes, signatureAlerte } from '../../repositories/rappelsRepository';
 import { colors } from '../../theme/colors';
 
-const lireATraiter = async (db: SqlDatabase) => (await listerAlertes(db, aujourdhui())).filter((a) => a.gravite !== 'info').length;
+/** Pastille de la cloche : alertes à traiter pas encore lues. */
+const lireATraiter = async (db: SqlDatabase) => {
+  const [alertes, lues] = await Promise.all([listerAlertes(db, aujourdhui()), lireNotificationsLues(db)]);
+  return alertes.filter((a) => a.gravite !== 'info' && !lues.has(signatureAlerte(a))).length;
+};
 
 /**
  * Notifications (avec le nombre de choses à traiter) et Paramètres, en haut de chaque onglet :

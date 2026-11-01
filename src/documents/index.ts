@@ -2,7 +2,7 @@
  * Documents PDF : chaque document est d'abord préparé (HTML), affiché dans l'aperçu de l'application,
  * puis partagé en PDF depuis cet aperçu.
  */
-import { getDatabase } from '../db/client';
+import { getDatabase, maisons } from '../db/client';
 import { aujourdhui } from '../domain/format';
 import { emettreFactureLoyer } from '../repositories/loyerRepository';
 import { donneesAvisElectricite, donneesFacture, donneesFactureElectricite, donneesRecu } from './donnees';
@@ -10,7 +10,9 @@ import { messageAvisElectricite, messageContrat, messageEtatDesLieux, messageFac
 import { donneesContrat, htmlContrat } from './contrat';
 import { donneesEtatDesLieux, htmlEtatDesLieux, sectionEtatDesLieux } from './etatDesLieux';
 import { htmlAvisElectricite, htmlFacture, htmlFactureElectricite, htmlRecu } from './gabarits';
-import { applicationsWhatsApp, envoyerPdfWhatsApp, partagerPdf } from './partage';
+import { applicationsWhatsApp, envoyerPdfWhatsApp, partagerFichierBinaire, partagerPdf } from './partage';
+import { htmlLivre, xlsxLivre } from './livre';
+import { donneesLivre, type PeriodeLivre } from '../repositories/livreRepository';
 
 import { numeroWhatsApp } from '../domain/whatsapp';
 
@@ -157,3 +159,18 @@ export function envoyerDocumentWhatsApp(
   return envoyerPdfWhatsApp(doc.html, doc.nomFichier, numero, message, application);
 }
 export { applicationsWhatsApp };
+
+/** Livre de tenue de la maison active : PDF (document relié) ou classeur Excel, puis feuille de partage. */
+export async function exporterLivre(periode: PeriodeLivre, format: 'pdf' | 'excel'): Promise<void> {
+  const maison = await maisons.active();
+  const livre = await donneesLivre(await getDatabase(), maison.nom, periode, aujourdhui());
+  const nom = `Livre-de-tenue-${maison.nom}-${periode.libelle}`;
+  if (format === 'pdf') await partagerPdf(htmlLivre(livre), nom, 'Livre de tenue');
+  else
+    await partagerFichierBinaire(
+      xlsxLivre(livre),
+      `${nom}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Livre de tenue (Excel)'
+    );
+}

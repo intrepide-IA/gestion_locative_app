@@ -33,7 +33,7 @@ import { listerLogements } from '../../repositories/logementRepository';
 import { listerLocataires } from '../../repositories/locataireRepository';
 import { genererEcheances, syntheseDuMois, type SyntheseMois } from '../../repositories/loyerRepository';
 import { getProprietaire } from '../../repositories/proprietaireRepository';
-import { listerAlertes } from '../../repositories/rappelsRepository';
+import { lireNotificationsLues, listerAlertes, signatureAlerte } from '../../repositories/rappelsRepository';
 import { synchroniserNotifications } from '../../services/notifications';
 import { colors } from '../../theme/colors';
 import { EntreeLocataireForm } from '../locataires/EntreeLocataireForm';
@@ -47,6 +47,8 @@ interface Synthese {
   loyers: SyntheseMois;
   periode: { annee: number; mois: number };
   alertes: Alerte[];
+  /** Alertes à traiter pas encore lues (pastille de la cloche). */
+  aTraiter: number;
 }
 
 const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
@@ -54,12 +56,13 @@ const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
   await genererEcheances(db, jour);
   void synchroniserNotifications();
   const periode = { annee: Number(jour.slice(0, 4)), mois: Number(jour.slice(5, 7)) };
-  const [proprietaire, logements, locataires, loyers, alertes] = await Promise.all([
+  const [proprietaire, logements, locataires, loyers, alertes, lues] = await Promise.all([
     getProprietaire(db),
     listerLogements(db),
     listerLocataires(db),
     syntheseDuMois(db, periode.annee, periode.mois, jour),
     listerAlertes(db, jour),
+    lireNotificationsLues(db),
   ]);
   return {
     prenom: proprietaire?.nom.split(/\s+/)[0] ?? '',
@@ -69,6 +72,7 @@ const lireSynthese = async (db: SqlDatabase): Promise<Synthese> => {
     loyers,
     periode,
     alertes,
+    aTraiter: alertes.filter((a) => a.gravite !== 'info' && !lues.has(signatureAlerte(a))).length,
   };
 };
 
@@ -80,6 +84,7 @@ const VIDE: Synthese = {
   loyers: { attendu: 0, regle: 0, reste: 0, encaisse: 0, enRetard: 0 },
   periode: { annee: 2026, mois: 1 },
   alertes: [],
+  aTraiter: 0,
 };
 
 type Nav = { navigate: (ecran: string, params?: object) => void };
@@ -99,7 +104,7 @@ export function AccueilScreen() {
 
   const taux = s.logements ? Math.round((s.occupes / s.logements) * 100) : 0;
   const part = s.loyers.attendu ? Math.min(1, s.loyers.regle / s.loyers.attendu) : 0;
-  const aTraiter = s.alertes.filter((a) => a.gravite !== 'info').length;
+  const aTraiter = s.aTraiter;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
