@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Nouveau mot de passe — Onílé</title>
+  <meta name="theme-color" content="#0F6B4F">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary: #0F6B4F; --accent: #F5B301; --cream: #FBF6EF; --ink: #14211C; --muted: #5B6B64; --line: #E6E2DA; --white: #fff; --danger: #C0392B; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; color: var(--ink); background: var(--cream); -webkit-font-smoothing: antialiased; }
+    h1 { font-family: 'Bricolage Grotesque', 'Inter', sans-serif; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 26px; }
+    .container { width: min(440px, 100% - 32px); margin: 0 auto; padding: 28px 0 60px; }
+    .brand { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px; color: var(--primary); text-decoration: none; display: inline-block; margin-bottom: 28px; }
+    .carte { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
+    p { color: var(--muted); line-height: 1.55; margin: 0 0 6px; }
+    label { display: block; font-size: 14px; font-weight: 500; margin: 16px 0 6px; }
+    input { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font: 15px 'Inter', sans-serif; background: var(--white); color: var(--ink); }
+    input:focus { outline: 2px solid var(--primary); border-color: var(--primary); }
+    .btn { width: 100%; margin-top: 18px; padding: 13px 18px; border-radius: 12px; border: 0; font: 600 15px 'Inter', sans-serif; cursor: pointer; background: var(--primary); color: var(--white); }
+    .btn[disabled] { opacity: .5; cursor: default; }
+    .erreur { color: var(--danger); font-size: 14px; margin-top: 12px; min-height: 1em; }
+    .ok { background: #DDF1E8; color: var(--primary); border-radius: 12px; padding: 14px 16px; font-weight: 500; line-height: 1.5; }
+    .aide { font-size: 13px; margin-top: 16px; }
+    a { color: var(--primary); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <a class="brand" href="/">Onílé</a>
+
+    <section class="carte" id="chargement"><p>Vérification du lien…</p></section>
+
+    <!-- Lien de récupération valide : choix du nouveau mot de passe. -->
+    <section class="carte" id="formulaire" hidden>
+      <h1>Nouveau mot de passe</h1>
+      <p>Compte : <b id="email"></b></p>
+      <form id="form-mdp">
+        <label for="mdp">Nouveau mot de passe</label>
+        <input id="mdp" type="password" autocomplete="new-password" minlength="8" required>
+        <label for="mdp2">Confirmer le mot de passe</label>
+        <input id="mdp2" type="password" autocomplete="new-password" minlength="8" required>
+        <p class="aide">8 caractères au moins. Il sert dans l’application (Synchronisation) et dans l’espace d’administration.</p>
+        <button class="btn" type="submit" id="valider">Enregistrer le mot de passe</button>
+        <div class="erreur" id="erreur-mdp" role="alert"></div>
+      </form>
+    </section>
+
+    <section class="carte" id="termine" hidden>
+      <h1>Mot de passe modifié</h1>
+      <div class="ok">Votre nouveau mot de passe est enregistré. Utilisez-le pour vous connecter dans l’application (Paramètres → Synchronisation) ou dans l’espace d’administration.</div>
+      <p class="aide"><a href="/admin">Ouvrir l’espace d’administration</a></p>
+    </section>
+
+    <!-- Lien expiré ou déjà utilisé, ou page ouverte directement : demander un nouveau lien. -->
+    <section class="carte" id="demande" hidden>
+      <h1>Mot de passe oublié</h1>
+      <p id="raison">Indiquez l’e-mail de votre compte : vous recevrez un lien pour choisir un nouveau mot de passe.</p>
+      <form id="form-demande">
+        <label for="email-demande">E-mail du compte</label>
+        <input id="email-demande" type="email" autocomplete="email" required>
+        <button class="btn" type="submit" id="envoyer">Recevoir le lien</button>
+        <div class="erreur" id="erreur-demande" role="alert"></div>
+      </form>
+      <div class="ok" id="envoye" hidden>Si un compte existe pour cet e-mail, un lien vient d’y être envoyé. Ouvrez-le depuis ce téléphone ou cet ordinateur ; il est valable une heure.</div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script>
+    // Clé « anon » : publique par nature (déjà intégrée à l'application).
+    const supa = window.supabase.createClient('https://qkitblhirhmjoqxjexxa.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFraXRibGhpcmhtam9xeGpleHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTQ5NzIsImV4cCI6MjEwNzYzMDk3Mn0.68TBpYIDhgTRtpg9l5CbPeQlfCOo_rmkzi5nhwjZGts');
+    const $ = (id) => document.getElementById(id);
+    const montrer = (id) => ['chargement', 'formulaire', 'termine', 'demande'].forEach((s) => ($(s).hidden = s !== id));
+
+    // Paramètres du lien (#access_token=…&type=recovery, ou #error=…&error_code=otp_expired).
+    const lien = new URLSearchParams(location.hash.slice(1));
+
+    async function demarrer() {
+      if (lien.get('error')) {
+        $('raison').textContent = lien.get('error_code') === 'otp_expired'
+          ? 'Ce lien a expiré ou a déjà servi. Demandez-en un nouveau ci-dessous.'
+          : 'Ce lien n’est pas valable. Demandez-en un nouveau ci-dessous.';
+        return montrer('demande');
+      }
+      // Le client lit lui-même le jeton du lien et ouvre une session de récupération.
+      const { data } = await supa.auth.getSession();
+      // Le jeton ne doit pas rester visible dans la barre d'adresse.
+      if (location.hash) history.replaceState(null, '', location.pathname);
+      if (data.session && lien.get('type') === 'recovery') {
+        $('email').textContent = data.session.user.email ?? '';
+        montrer('formulaire');
+        $('mdp').focus();
+      } else {
+        montrer('demande');
+      }
+    }
+
+    $('form-mdp').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('erreur-mdp').textContent = '';
+      if ($('mdp').value.length < 8) return ($('erreur-mdp').textContent = '8 caractères au moins.');
+      if ($('mdp').value !== $('mdp2').value) return ($('erreur-mdp').textContent = 'Les deux mots de passe sont différents.');
+      $('valider').disabled = true;
+      const { error } = await supa.auth.updateUser({ password: $('mdp').value });
+      $('valider').disabled = false;
+      if (error) {
+        $('erreur-mdp').textContent = /different from the old/i.test(error.message)
+          ? 'Choisissez un mot de passe différent de l’ancien.'
+          : /weak|short/i.test(error.message) ? 'Mot de passe trop simple : allongez-le.' : `Échec : ${error.message}`;
+        return;
+      }
+      await supa.auth.signOut();
+      montrer('termine');
+    });
+
+    $('form-demande').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('erreur-demande').textContent = '';
+      $('envoyer').disabled = true;
+      const { error } = await supa.auth.resetPasswordForEmail($('email-demande').value.trim(), {
+        redirectTo: `${location.origin}/mot-de-passe`,
+      });
+      $('envoyer').disabled = false;
+      if (error && !/rate limit/i.test(error.message)) return ($('erreur-demande').textContent = `Échec : ${error.message}`);
+      if (error) return ($('erreur-demande').textContent = 'Trop de demandes : réessayez dans quelques minutes.');
+      $('form-demande').hidden = true;
+      $('envoye').hidden = false;
+    });
+
+    demarrer();
+  </script>
+</body>
+</html>

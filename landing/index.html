@@ -1,6 +1,10 @@
 <!doctype html>
 <html lang="fr">
 <head>
+  <script>
+    // Lien « mot de passe oublié » reçu par e-mail : il arrive ici ; on l'envoie vers la page qui le traite.
+    if (/type=recovery|error_code=/.test(location.hash)) location.replace('/mot-de-passe' + location.hash);
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Onílé — Gestion locative simple, sur votre téléphone</title>
