@@ -28,6 +28,7 @@
     },
     "plugins": [
       "expo-status-bar",
+      "./plugins/mlkit-dependances.js",
       [
         "expo-sqlite",
         {
